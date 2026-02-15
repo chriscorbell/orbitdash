@@ -44,6 +44,7 @@
 ```bash
 docker run -d \
   --name orbitdash \
+  --restart unless-stopped \
   -p 7770:3000 \
   -v orbitdash-data:/data \
   -e ORBITDASH_DATA_DIR=/data \
@@ -57,6 +58,7 @@ services:
   orbitdash:
     container_name: orbitdash
     image: ghcr.io/chriscorbell/orbitdash:latest
+    restart: unless-stopped
     ports:
       - "7770:3000" # Change 7770 to whatever port you want to map to
     environment:
