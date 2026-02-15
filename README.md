@@ -39,6 +39,11 @@
 - UI-native service management (no config file needed)
 - Toggle between 3-column and 4-column grid for service links
 
+## Platform Support
+
+- x86_64 (AMD64)
+- arm64 (including Apple Silicon via Docker Desktop)
+
 ## Quick Install (Docker Run)
 
 ```bash
