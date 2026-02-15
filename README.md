@@ -55,6 +55,7 @@ docker run -d \
 ```yaml
 services:
   orbitdash:
+    container_name: orbitdash
     image: ghcr.io/chriscorbell/orbitdash:latest
     ports:
       - "3000:3000"
