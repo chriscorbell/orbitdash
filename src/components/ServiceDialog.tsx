@@ -191,7 +191,7 @@ export function ServiceDialog({
 
                     <div className="space-y-2">
                         <Label className="font-semibold">Icon (PNG/SVG)</Label>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             {iconPreview && (
                                 <div className="relative h-10 w-10 rounded-md border border-border bg-muted">
                                     <img
@@ -225,18 +225,18 @@ export function ServiceDialog({
                                 onChange={handleIconChange}
                                 className="hidden"
                             />
+                            <Input
+                                type="url"
+                                value={iconUrl}
+                                onChange={(e) => handleIconUrlChange(e.target.value)}
+                                placeholder="https://dashboardicons.com/..."
+                                className="font-normal flex-1 min-w-[12rem]"
+                            />
                         </div>
-                        <Input
-                            type="url"
-                            value={iconUrl}
-                            onChange={(e) => handleIconUrlChange(e.target.value)}
-                            placeholder="https://dashboardicons.com/..."
-                            className="font-normal"
-                        />
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="svc-newtab" className="font-semibold">
+                    <div className="flex items-center justify-end gap-3">
+                        <Label htmlFor="svc-newtab" className="font-semibold text-right">
                             Open in new tab
                         </Label>
                         <Switch
