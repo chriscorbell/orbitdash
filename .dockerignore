@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-server
+data
+.git
+*.md
+.vscode
+.github
