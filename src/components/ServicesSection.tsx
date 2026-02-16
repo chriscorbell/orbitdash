@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ServiceCard } from "@/components/ServiceCard";
@@ -30,6 +30,26 @@ export function ServicesSection({
     const [search, setSearch] = useState("");
     const [isFourColumn, setIsFourColumn] = useState(false);
     const editCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const gridStorageKey = "orbitdash.servicesGrid";
+
+    useEffect(() => {
+        try {
+            const saved = window.localStorage.getItem(gridStorageKey);
+            if (saved === "4") {
+                setIsFourColumn(true);
+            }
+        } catch {
+            // Ignore storage access issues.
+        }
+    }, []);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(gridStorageKey, isFourColumn ? "4" : "3");
+        } catch {
+            // Ignore storage access issues.
+        }
+    }, [isFourColumn]);
 
     const filtered = useMemo(() => {
         if (!search.trim()) return services;
