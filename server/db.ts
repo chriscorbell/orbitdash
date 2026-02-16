@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import path from "path";
 import fs from "fs";
 
-const DATA_DIR = process.env.ORBITDASH_DATA_DIR || "./data";
+const DATA_DIR = "/data";
 const DB_PATH = path.join(DATA_DIR, "orbitdash.db");
 
 let db: Database;

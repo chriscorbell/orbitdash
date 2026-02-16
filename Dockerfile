@@ -37,7 +37,6 @@ RUN mkdir -p /data
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV ORBITDASH_DATA_DIR=/data
 
 EXPOSE 3000
 

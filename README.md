@@ -44,19 +44,20 @@
 - x86_64 (AMD64)
 - arm64 (including Apple Silicon via Docker Desktop)
 
-## Quick Install (Docker Run)
+## Installation Options
+
+#### Docker Run
 
 ```bash
 docker run -d \
   --name orbitdash \
   --restart unless-stopped \
   -p 7770:3000 \
-  -v orbitdash-data:/data \
-  -e ORBITDASH_DATA_DIR=/data \
+  -v ./orbitdash-data:/data \
   ghcr.io/chriscorbell/orbitdash:latest
 ```
 
-## Quick Install (Docker Compose)
+#### Docker Compose
 
 ```yaml
 services:
@@ -65,29 +66,23 @@ services:
     image: ghcr.io/chriscorbell/orbitdash:latest
     restart: unless-stopped
     ports:
-      - "7770:3000" # Change 7770 to whatever port you want to map to
-    environment:
-      - ORBITDASH_DATA_DIR=/data
+      - "7770:3000"
     volumes:
-      - orbitdash-data:/data
-
-volumes:
-  orbitdash-data:
+      - ./orbitdash-data:/data
 ```
 
-## Configuration
+After deployment, the dashboard is accessible at `http://<IP-ADDRESS>:7770`.
 
-Environment variables:
-
-- `PORT` (default: `3000`)
-- `ORBITDASH_DATA_DIR` (default: `./data`)
+Change `7770` in the docker run/compose examples above if you want to serve the dashboard on a different port.
 
 ## Data Persistence
 
-All data is stored under `ORBITDASH_DATA_DIR`:
+All data is stored under `/data` inside the container:
 
 - `orbitdash.db` (SQLite database)
 - `icons/` (uploaded/downloaded service icons)
+
+The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.
 
 ## Contributing
 
