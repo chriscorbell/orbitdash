@@ -41,8 +41,8 @@
 
 ## Platform Support
 
-- x86_64 (AMD64)
-- arm64 (including Apple Silicon via Docker Desktop)
+- x86_64
+- aarch64
 
 ## Installation Options
 
