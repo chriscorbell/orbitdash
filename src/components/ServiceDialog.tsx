@@ -97,7 +97,7 @@ export function ServiceDialog({
         setIconPreview(service?.icon ? getIconUrl(service.icon, service.updated_at) : null);
 
         if (fileInputRef.current) fileInputRef.current.value = "";
-    }, [open, service?.id, service?.updated_at]);
+    }, [open, service]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

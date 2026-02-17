@@ -1,5 +1,6 @@
 import os from "os";
 import fs from "fs";
+import { execFileSync } from "child_process";
 import { getDb } from "./db";
 import type { MetricSample } from "../src/shared/types";
 
@@ -81,12 +82,11 @@ function getRamUsage(): number {
 function getDiskUsage(): number {
   const mountPath = process.env.ORBITDASH_DISK_PATH || "/";
   try {
-    // Use df command output parsed from /proc on Linux
-    const result = require("child_process").execSync(
-      `df -B1 "${mountPath}" | tail -1`,
-      { encoding: "utf-8" }
-    );
-    const parts = result.trim().split(/\s+/);
+    // Use df output; last line is the selected mount.
+    const result = execFileSync("df", ["-B1", mountPath], { encoding: "utf-8" });
+    const lines = result.trim().split("\n");
+    const dataLine = lines[lines.length - 1] || "";
+    const parts = dataLine.trim().split(/\s+/);
     // parts: [filesystem, 1K-blocks, used, available, use%, mountpoint]
     const used = parseInt(parts[2], 10);
     const available = parseInt(parts[3], 10);

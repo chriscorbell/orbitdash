@@ -53,7 +53,7 @@ export function ServiceCard({ service, onEdit }: ServiceCardProps) {
             <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-1.5 top-1.5 h-6 w-6 opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:-translate-y-0.5"
+                className="absolute right-1.5 top-1.5 h-6 w-6 rounded-lg opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:-translate-y-0.5 hover:!bg-foreground/15 hover:text-foreground"
                 onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

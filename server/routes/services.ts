@@ -117,7 +117,7 @@ servicesRouter.post("/", async (c) => {
             const { buffer, ext } = await downloadIcon(iconUrl);
             iconFilename = `${id}${ext}`;
             fs.writeFileSync(path.join(getIconsDir(), iconFilename), buffer);
-        } catch (err) {
+        } catch {
             return c.json({ error: "failed to download icon" }, 400);
         }
     }
@@ -223,7 +223,7 @@ servicesRouter.put("/:id", async (c) => {
             const { buffer, ext } = await downloadIcon(iconUrl);
             iconFilename = `${id}${ext}`;
             fs.writeFileSync(path.join(getIconsDir(), iconFilename), buffer);
-        } catch (err) {
+        } catch {
             return c.json({ error: "failed to download icon" }, 400);
         }
     }

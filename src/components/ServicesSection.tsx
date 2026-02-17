@@ -28,20 +28,15 @@ export function ServicesSection({
     const [editService, setEditService] = useState<Service | null>(null);
     const [editOpen, setEditOpen] = useState(false);
     const [search, setSearch] = useState("");
-    const [isFourColumn, setIsFourColumn] = useState(false);
+    const [isFourColumn, setIsFourColumn] = useState(() => {
+        try {
+            return window.localStorage.getItem("orbitdash.servicesGrid") === "4";
+        } catch {
+            return false;
+        }
+    });
     const editCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const gridStorageKey = "orbitdash.servicesGrid";
-
-    useEffect(() => {
-        try {
-            const saved = window.localStorage.getItem(gridStorageKey);
-            if (saved === "4") {
-                setIsFourColumn(true);
-            }
-        } catch {
-            // Ignore storage access issues.
-        }
-    }, []);
 
     useEffect(() => {
         try {

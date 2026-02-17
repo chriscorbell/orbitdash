@@ -7,7 +7,6 @@ import {
     CartesianGrid,
     ResponsiveContainer,
     Tooltip,
-    ReferenceLine,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -51,11 +50,11 @@ function MetricLineChart({
                     stroke="var(--border)"
                     vertical={false}
                 />
-                <ReferenceLine y={75} stroke="var(--border)" strokeDasharray="3 3" />
                 <XAxis
                     dataKey="ts"
                     type="number"
                     domain={domain}
+                    allowDataOverflow={true}
                     tickFormatter={(ts: number) => {
                         const ago = Math.round((nowTs - ts) / 1000);
                         return `${ago}s`;
@@ -71,7 +70,7 @@ function MetricLineChart({
                     tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                     tickLine={false}
                     axisLine={false}
-                    width={35}
+                    width={40}
                     tickFormatter={(v: number) => `${v}%`}
                 />
                 <Tooltip
@@ -105,7 +104,7 @@ function MetricLineChart({
 }
 
 export function MetricCharts({ samples }: MetricChartsProps) {
-    const nowTs = samples.length > 0 ? samples[samples.length - 1].ts : Date.now();
+    const nowTs = samples.length > 0 ? samples[samples.length - 1].ts : 30_000;
 
     const cpuData = useMemo(
         () => samples.map((s) => ({ ts: s.ts, value: s.cpu })),
