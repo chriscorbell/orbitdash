@@ -5,51 +5,61 @@ import { ServicesSection } from "@/components/ServicesSection";
 import { Separator } from "@/components/ui/separator";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useServices } from "@/hooks/useServices";
+import { useEffect, useState } from "react";
 
 function App() {
-  const { samples, latest, status } = useMetrics();
+  const { samples, latest } = useMetrics();
   const { services, create, update, remove } = useServices();
+  const sectionOrderStorageKey = "orbitdash.sectionOrder";
+  const [showStatsFirst, setShowStatsFirst] = useState(() => {
+    try {
+      return window.localStorage.getItem(sectionOrderStorageKey) !== "services-first";
+    } catch {
+      return true;
+    }
+  });
 
-  const statusConfig = {
-    connected: { label: "Connected", color: "#73daca" },
-    connecting: { label: "Connecting...", color: "#e0af68" },
-    offline: { label: "Offline", color: "#f7768e" },
-  } as const;
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        sectionOrderStorageKey,
+        showStatsFirst ? "stats-first" : "services-first"
+      );
+    } catch {
+      // Ignore storage access issues.
+    }
+  }, [showStatsFirst]);
+
+  const statsSection = (
+    <>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard title="CPU" value={latest?.cpu ?? null} icon="cpu" />
+        <MetricCard title="RAM" value={latest?.ram ?? null} icon="ram" />
+        <MetricCard title="Disk" value={latest?.disk ?? null} icon="disk" />
+      </div>
+      <MetricCharts samples={samples} />
+    </>
+  );
+
+  const servicesSection = (
+    <ServicesSection
+      services={services}
+      onCreate={create}
+      onUpdate={update}
+      onDelete={remove}
+    />
+  );
 
   return (
     <div className="min-h-svh bg-background">
-      <Header />
+      <Header
+        showStatsFirst={showStatsFirst}
+        onToggleSectionOrder={() => setShowStatsFirst((prev) => !prev)}
+      />
       <main className="page-load mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
-        {/* Connection status */}
-        <div className="flex items-center gap-2">
-          <div
-            className="h-2 w-2 rounded-full"
-            style={{ backgroundColor: statusConfig[status].color }}
-          />
-          <span className="text-xs text-muted-foreground">
-            {statusConfig[status].label}
-          </span>
-        </div>
-
-        {/* Metric stat cards */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MetricCard title="CPU" value={latest?.cpu ?? null} icon="cpu" />
-          <MetricCard title="RAM" value={latest?.ram ?? null} icon="ram" />
-          <MetricCard title="Disk" value={latest?.disk ?? null} icon="disk" />
-        </div>
-
-        {/* Charts */}
-        <MetricCharts samples={samples} />
-
+        {showStatsFirst ? statsSection : servicesSection}
         <Separator />
-
-        {/* Services */}
-        <ServicesSection
-          services={services}
-          onCreate={create}
-          onUpdate={update}
-          onDelete={remove}
-        />
+        {showStatsFirst ? servicesSection : statsSection}
       </main>
     </div>
   );

@@ -3,7 +3,7 @@ services:
     container_name: orbitdash
     build: .
     ports:
-      - "3000:3000"
+      - "7770:3000"
     volumes:
       - orbitdash-data:/data
     environment:

@@ -11,14 +11,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@/shared/types";
 import { getIconUrl } from "@/lib/api";
 import { Upload, X } from "lucide-react";
+
+const NEW_CATEGORY_VALUE = "__new__";
+const NONE_CATEGORY_VALUE = "__none__";
 
 interface ServiceDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     service?: Service | null;
+    categoryOptions: string[];
     onSubmit: (
         payload: CreateServicePayload | UpdateServicePayload,
         iconFile?: File,
@@ -31,6 +42,7 @@ export function ServiceDialog({
     open,
     onOpenChange,
     service,
+    categoryOptions,
     onSubmit,
     onDelete,
 }: ServiceDialogProps) {
@@ -38,7 +50,8 @@ export function ServiceDialog({
     const [name, setName] = useState(service?.name ?? "");
     const [url, setUrl] = useState(service?.url ?? "");
     const [description, setDescription] = useState(service?.description ?? "");
-    const [category, setCategory] = useState(service?.category ?? "");
+    const [selectedCategory, setSelectedCategory] = useState(NONE_CATEGORY_VALUE);
+    const [newCategory, setNewCategory] = useState("");
     const [openInNewTab, setOpenInNewTab] = useState(service?.open_in_new_tab ?? true);
     const [iconFile, setIconFile] = useState<File | null>(null);
     const [removeIcon, setRemoveIcon] = useState(false);
@@ -89,7 +102,17 @@ export function ServiceDialog({
         setName(service?.name ?? "");
         setUrl(service?.url ?? "");
         setDescription(service?.description ?? "");
-        setCategory(service?.category ?? "");
+        const initialCategory = service?.category?.trim() ?? "";
+        if (!initialCategory) {
+            setSelectedCategory(NONE_CATEGORY_VALUE);
+            setNewCategory("");
+        } else if (categoryOptions.includes(initialCategory)) {
+            setSelectedCategory(initialCategory);
+            setNewCategory("");
+        } else {
+            setSelectedCategory(NEW_CATEGORY_VALUE);
+            setNewCategory(initialCategory);
+        }
         setOpenInNewTab(service?.open_in_new_tab ?? true);
         setIconFile(null);
         setIconUrl("");
@@ -97,11 +120,20 @@ export function ServiceDialog({
         setIconPreview(service?.icon ? getIconUrl(service.icon, service.updated_at) : null);
 
         if (fileInputRef.current) fileInputRef.current.value = "";
-    }, [open, service]);
+    }, [open, service, categoryOptions]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim() || !url.trim()) return;
+
+        const resolvedCategory =
+            selectedCategory === NEW_CATEGORY_VALUE
+                ? newCategory.trim()
+                : selectedCategory === NONE_CATEGORY_VALUE
+                    ? ""
+                    : selectedCategory.trim();
+
+        if (selectedCategory === NEW_CATEGORY_VALUE && !resolvedCategory) return;
 
         setSubmitting(true);
         try {
@@ -110,7 +142,7 @@ export function ServiceDialog({
                 url: url.trim(),
                 description: description.trim() || null,
                 icon_url: iconUrl.trim() || null,
-                category: category.trim() || null,
+                category: resolvedCategory || null,
                 open_in_new_tab: openInNewTab,
             };
             await onSubmit(payload, iconFile || undefined, removeIcon);
@@ -180,13 +212,29 @@ export function ServiceDialog({
 
                     <div className="space-y-2">
                         <Label htmlFor="svc-category" className="font-semibold">Category</Label>
-                        <Input
-                            id="svc-category"
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                            placeholder="e.g. Infrastructure, Media"
-                            className="font-normal"
-                        />
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                            <SelectTrigger id="svc-category" className="w-full font-normal">
+                                <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE_CATEGORY_VALUE}>Uncategorized</SelectItem>
+                                {categoryOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                        {option}
+                                    </SelectItem>
+                                ))}
+                                <SelectItem value={NEW_CATEGORY_VALUE}>New category…</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {selectedCategory === NEW_CATEGORY_VALUE && (
+                            <Input
+                                value={newCategory}
+                                onChange={(e) => setNewCategory(e.target.value)}
+                                placeholder="e.g. Infrastructure, Media"
+                                className="font-normal"
+                                required
+                            />
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -269,7 +317,12 @@ export function ServiceDialog({
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={submitting || !name.trim() || !url.trim()}
+                                disabled={
+                                    submitting ||
+                                    !name.trim() ||
+                                    !url.trim() ||
+                                    (selectedCategory === NEW_CATEGORY_VALUE && !newCategory.trim())
+                                }
                                 className="font-semibold"
                             >
                                 {submitting ? "Saving…" : isEdit ? "Save changes" : "Add service"}

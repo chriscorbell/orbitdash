@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ServiceCard } from "@/components/ServiceCard";
 import { ServiceDialog } from "@/components/ServiceDialog";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@/shared/types";
-import { LayoutGrid, LayoutPanelTop, Plus, Search } from "lucide-react";
+import { Columns3, Columns4, Plus, Search } from "lucide-react";
 
 interface ServicesSectionProps {
     services: Service[];
@@ -81,6 +81,20 @@ export function ServicesSection({
         [services]
     );
 
+    const categoryOptions = useMemo(() => {
+        const seen = new Set<string>();
+        const options: string[] = [];
+
+        for (const service of services) {
+            const category = service.category?.trim();
+            if (!category || seen.has(category)) continue;
+            seen.add(category);
+            options.push(category);
+        }
+
+        return options.sort((a, b) => a.localeCompare(b));
+    }, [services]);
+
     const handleEditOpenChange = (open: boolean) => {
         setEditOpen(open);
         if (!open) {
@@ -121,9 +135,9 @@ export function ServicesSection({
                         aria-label={isFourColumn ? "Switch to 3-column grid" : "Switch to 4-column grid"}
                     >
                         {isFourColumn ? (
-                            <LayoutPanelTop className="h-4 w-4" />
+                            <Columns4 className="h-4 w-4" />
                         ) : (
-                            <LayoutGrid className="h-4 w-4" />
+                            <Columns3 className="h-4 w-4" />
                         )}
                     </Button>
                     <Button
@@ -201,6 +215,7 @@ export function ServicesSection({
             <ServiceDialog
                 open={addOpen}
                 onOpenChange={setAddOpen}
+                categoryOptions={categoryOptions}
                 onSubmit={async (payload, iconFile) => {
                     await onCreate(payload as CreateServicePayload, iconFile);
                 }}
@@ -212,6 +227,7 @@ export function ServicesSection({
                     open={editOpen}
                     onOpenChange={handleEditOpenChange}
                     service={editService}
+                    categoryOptions={categoryOptions}
                     onSubmit={async (payload, iconFile, removeIcon) => {
                         await onUpdate(
                             editService.id,
