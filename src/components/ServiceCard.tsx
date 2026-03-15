@@ -1,7 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { Service } from "@/shared/types";
-import { getIconUrl } from "@/lib/api";
+import { getIconUrl } from "@/lib/api/services";
+import type { Service } from "@shared/types";
+import { normalizeServiceUrl } from "@shared/urls";
 import { Pencil, Globe } from "lucide-react";
 
 interface ServiceCardProps {
@@ -11,14 +12,21 @@ interface ServiceCardProps {
 
 export function ServiceCard({ service, onEdit }: ServiceCardProps) {
     const hasDescription = Boolean(service.description?.trim());
+    const safeUrl = normalizeServiceUrl(service.url);
 
     return (
         <div className="group relative">
             <a
-                href={service.url}
+                href={safeUrl || "#"}
                 target={service.open_in_new_tab ? "_blank" : "_self"}
                 rel={service.open_in_new_tab ? "noopener noreferrer" : undefined}
                 className="block"
+                aria-disabled={!safeUrl}
+                onClick={(e) => {
+                    if (!safeUrl) {
+                        e.preventDefault();
+                    }
+                }}
             >
                 <Card className="h-full cursor-pointer gap-0 py-0 transition-all duration-200 ease-out group-hover:-translate-y-0.5 group-hover:bg-accent/50 group-hover:shadow-md">
                     <CardContent className="flex items-center gap-2.5 px-4 py-2">

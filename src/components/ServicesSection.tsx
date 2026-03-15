@@ -1,10 +1,12 @@
-import { useState, useMemo, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ServiceCard } from "@/components/ServiceCard";
+import { useMemo, useRef, useState } from "react";
 import { ServiceDialog } from "@/components/ServiceDialog";
-import type { Service, CreateServicePayload, UpdateServicePayload } from "@/shared/types";
-import { Columns3, Columns4, Plus, Search } from "lucide-react";
+import { CategoryReorderDialog } from "@/components/services/CategoryReorderDialog";
+import { CategorySectionList } from "@/components/services/CategorySectionList";
+import { ServicesToolbar } from "@/components/services/ServicesToolbar";
+import { useCategoryOrder } from "@/hooks/useCategoryOrder";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
+import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 
 interface ServicesSectionProps {
     services: Service[];
@@ -28,23 +30,25 @@ export function ServicesSection({
     const [editService, setEditService] = useState<Service | null>(null);
     const [editOpen, setEditOpen] = useState(false);
     const [search, setSearch] = useState("");
-    const [isFourColumn, setIsFourColumn] = useState(() => {
-        try {
-            return window.localStorage.getItem("orbitdash.servicesGrid") === "4";
-        } catch {
-            return false;
-        }
-    });
+    const [gridColumns, setGridColumns] = useLocalStorageState("orbitdash.servicesGrid", "4");
     const editCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const gridStorageKey = "orbitdash.servicesGrid";
-
-    useEffect(() => {
-        try {
-            window.localStorage.setItem(gridStorageKey, isFourColumn ? "4" : "3");
-        } catch {
-            // Ignore storage access issues.
-        }
-    }, [isFourColumn]);
+    const {
+        draftOrder,
+        error: categoryOrderError,
+        hasNamedCategories,
+        isReorderMode,
+        loading: isCategoryOrderLoading,
+        namedCategories,
+        saving: isCategoryOrderSaving,
+        visibleCategoryOrder,
+        beginReorder,
+        cancelReorder,
+        moveCategory,
+        reorderCategories,
+        saveOrder,
+    } = useCategoryOrder(services);
+    const normalizedGridColumns = gridColumns === "5" ? "5" : "4";
+    const isFiveColumn = normalizedGridColumns === "5";
 
     const filtered = useMemo(() => {
         if (!search.trim()) return services;
@@ -58,28 +62,18 @@ export function ServicesSection({
         );
     }, [services, search]);
 
-    // Group by category
     const grouped = useMemo(() => {
         const groups = new Map<string, Service[]>();
         for (const s of filtered) {
-            const cat = s.category || "Uncategorized";
+            const cat = s.category?.trim() || UNCATEGORIZED_CATEGORY;
             const list = groups.get(cat) || [];
             list.push(s);
             groups.set(cat, list);
         }
-        // Sort: named categories first, Uncategorized last
-        const entries = [...groups.entries()].sort((a, b) => {
-            if (a[0] === "Uncategorized") return 1;
-            if (b[0] === "Uncategorized") return -1;
-            return a[0].localeCompare(b[0]);
-        });
-        return entries;
-    }, [filtered]);
-
-    const hasCategories = useMemo(
-        () => services.some((s) => s.category),
-        [services]
-    );
+        return visibleCategoryOrder
+            .filter((category) => groups.has(category))
+            .map((category) => [category, groups.get(category) ?? []] as const);
+    }, [filtered, visibleCategoryOrder]);
 
     const categoryOptions = useMemo(() => {
         const seen = new Set<string>();
@@ -95,6 +89,14 @@ export function ServicesSection({
         return options.sort((a, b) => a.localeCompare(b));
     }, [services]);
 
+    const canReorderCategories = namedCategories.length >= 2;
+    const handleEdit = (service: Service) => {
+        if (editCloseTimerRef.current) {
+            clearTimeout(editCloseTimerRef.current);
+        }
+        setEditService(service);
+        setEditOpen(true);
+    };
     const handleEditOpenChange = (open: boolean) => {
         setEditOpen(open);
         if (!open) {
@@ -107,49 +109,40 @@ export function ServicesSection({
         }
     };
 
-    const gridClassName = isFourColumn
-        ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-        : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3";
+    const gridClassName = isFiveColumn
+        ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+        : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4";
+    const handleReorderOpenChange = (open: boolean) => {
+        if (!open) {
+            cancelReorder();
+        }
+    };
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-                <h2 className="text-lg font-semibold">Services</h2>
-                <div className="flex items-center gap-2">
-                    {services.length > 0 && (
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                placeholder="Search services…"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="h-8 w-48 pl-8 text-sm"
-                            />
-                        </div>
-                    )}
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="px-2"
-                        onClick={() => setIsFourColumn((prev) => !prev)}
-                        aria-label={isFourColumn ? "Switch to 3-column grid" : "Switch to 4-column grid"}
-                    >
-                        {isFourColumn ? (
-                            <Columns4 className="h-4 w-4" />
-                        ) : (
-                            <Columns3 className="h-4 w-4" />
-                        )}
-                    </Button>
-                    <Button
-                        size="sm"
-                        className="px-2"
-                        onClick={() => setAddOpen(true)}
-                        aria-label="Add service"
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+            <ServicesToolbar
+                canReorderCategories={canReorderCategories}
+                isCategoryOrderBusy={isCategoryOrderLoading || isCategoryOrderSaving}
+                columnCount={isFiveColumn ? 5 : 4}
+                isReorderMode={isReorderMode}
+                search={search}
+                servicesCount={services.length}
+                onAddService={() => setAddOpen(true)}
+                onSearchChange={setSearch}
+                onToggleGrid={() => setGridColumns((prev) => (prev === "5" ? "4" : "5"))}
+                onToggleReorder={isReorderMode ? cancelReorder : beginReorder}
+            />
+
+            <CategoryReorderDialog
+                draftOrder={draftOrder}
+                error={categoryOrderError}
+                open={isReorderMode}
+                saving={isCategoryOrderSaving}
+                onMoveCategory={moveCategory}
+                onOpenChange={handleReorderOpenChange}
+                onReorder={reorderCategories}
+                onSave={() => void saveOrder()}
+            />
 
             {filtered.length === 0 && services.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
@@ -170,46 +163,15 @@ export function ServicesSection({
                 </div>
             )}
 
-            {hasCategories
-                ? grouped.map(([category, categoryServices]) => (
-                    <div key={category} className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground">
-                            {category}
-                        </h3>
-                        <div className={gridClassName}>
-                            {categoryServices.map((s) => (
-                                <ServiceCard
-                                    key={s.id}
-                                    service={s}
-                                    onEdit={() => {
-                                        if (editCloseTimerRef.current) {
-                                            clearTimeout(editCloseTimerRef.current);
-                                        }
-                                        setEditService(s);
-                                        setEditOpen(true);
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ))
-                : filtered.length > 0 && (
-                    <div className={gridClassName}>
-                        {filtered.map((s) => (
-                            <ServiceCard
-                                key={s.id}
-                                service={s}
-                                onEdit={() => {
-                                    if (editCloseTimerRef.current) {
-                                        clearTimeout(editCloseTimerRef.current);
-                                    }
-                                    setEditService(s);
-                                    setEditOpen(true);
-                                }}
-                            />
-                        ))}
-                    </div>
-                )}
+            {filtered.length > 0 && (
+                <CategorySectionList
+                    grouped={grouped}
+                    gridClassName={gridClassName}
+                    hasNamedCategories={hasNamedCategories}
+                    services={filtered}
+                    onEdit={handleEdit}
+                />
+            )}
 
             {/* Add dialog */}
             <ServiceDialog

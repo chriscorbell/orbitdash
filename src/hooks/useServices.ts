@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Service, CreateServicePayload, UpdateServicePayload } from "@/shared/types";
-import * as api from "@/lib/api";
+import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import * as api from "@/lib/api/services";
 
 export function useServices() {
   const [services, setServices] = useState<Service[]>([]);

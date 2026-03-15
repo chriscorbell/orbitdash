@@ -120,6 +120,12 @@
   * {
     @apply border-border outline-ring/50;
     }
+  button:not(:disabled) {
+    cursor: pointer;
+    }
+  button:disabled {
+    cursor: not-allowed;
+    }
   body {
     @apply font-sans bg-background text-foreground;
     }

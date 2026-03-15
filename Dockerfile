@@ -22,9 +22,10 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile --production
 
-# Copy server source and shared types
+# Copy server source, shared modules, and TS config for Bun path aliases
 COPY server/ ./server/
-COPY src/shared/ ./src/shared/
+COPY shared/ ./shared/
+COPY tsconfig.json ./tsconfig.json
 
 # Copy built frontend assets
 COPY --from=builder /app/dist ./dist

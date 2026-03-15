@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { MetricSample } from "@/shared/types";
-import { fetchMetrics, subscribeMetrics } from "@/lib/api";
+import type { MetricSample } from "@shared/types";
+import { fetchMetrics, subscribeMetrics } from "@/lib/api/metrics";
 
 const MAX_POINTS = 31;
 const OFFLINE_TIMEOUT_MS = 15_000;

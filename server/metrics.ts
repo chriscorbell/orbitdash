@@ -2,7 +2,7 @@ import os from "os";
 import fs from "fs";
 import { execFileSync } from "child_process";
 import { getDb } from "./db";
-import type { MetricSample } from "../src/shared/types";
+import type { MetricSample } from "@shared/types";
 
 /** Collect current system metrics */
 export function collectMetrics(): MetricSample {

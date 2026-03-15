@@ -5,10 +5,5 @@ services:
     ports:
       - "7770:3000"
     volumes:
-      - orbitdash-data:/data
-    environment:
-      - PORT=3000
+      - ./data:/data
     restart: unless-stopped
-
-volumes:
-  orbitdash-data:

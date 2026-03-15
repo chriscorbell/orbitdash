@@ -38,6 +38,7 @@
 - Inline search and filtering
 - UI-native service management (no config file needed)
 - Toggle between 3-column and 4-column grid for service links
+- Reorder category sections with a shared saved layout
 
 ## Platform Support
 
@@ -83,6 +84,8 @@ All data is stored under `/data` inside the container:
 - `icons/` (uploaded/downloaded service icons)
 
 The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.
+
+Outside Docker, orbitdash stores data in `./data` by default. You can override the storage path in any environment with `ORBITDASH_DATA_DIR=/path/to/data`.
 
 ## Contributing
 

@@ -7,13 +7,16 @@
     "dev": "vite",
     "dev:server": "bun --watch server/index.ts",
     "dev:all": "bun run dev & bun run dev:server",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
     "start": "NODE_ENV=production bun server/index.ts",
     "preview": "vite preview",
     "lint": "eslint ."
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/inter": "^5.2.8",
     "@tailwindcss/vite": "^4.1.18",
     "class-variance-authority": "^0.7.1",
@@ -30,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/bun": "^1.3.10",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

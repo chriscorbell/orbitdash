@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { v4 as uuidv4 } from "uuid";
 import { getDb, getDataDir } from "../db";
-import type { Service, CreateServicePayload, UpdateServicePayload } from "../../src/shared/types";
+import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import { normalizeIconUrl, normalizeServiceUrl } from "@shared/urls";
 import fs from "fs";
 import path from "path";
 
@@ -9,6 +10,7 @@ const servicesRouter = new Hono();
 
 const ICONS_DIR_NAME = "icons";
 const ALLOWED_ICON_EXTS = new Set([".png", ".svg", ".jpg", ".jpeg", ".gif", ".webp", ".ico"]);
+const MAX_ICON_BYTES = 2 * 1024 * 1024;
 const CONTENT_TYPE_TO_EXT: Record<string, string> = {
     "image/png": ".png",
     "image/svg+xml": ".svg",
@@ -40,19 +42,53 @@ function resolveIconExt(iconUrl: string, contentType?: string | null): string | 
 }
 
 async function downloadIcon(iconUrl: string): Promise<{ buffer: Buffer; ext: string }> {
-    const res = await fetch(iconUrl, { redirect: "follow" });
-    if (!res.ok) {
-        throw new Error("Failed to download icon");
+    const normalizedIconUrl = normalizeIconUrl(iconUrl);
+    if (!normalizedIconUrl) {
+        throw new Error("Icon URLs must use https://dashboardicons.com");
     }
 
-    const contentType = res.headers.get("content-type");
-    const ext = resolveIconExt(iconUrl, contentType);
-    if (!ext) {
-        throw new Error("Unsupported icon type");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    try {
+        const res = await fetch(normalizedIconUrl, {
+            redirect: "follow",
+            signal: controller.signal,
+        });
+        if (!res.ok) {
+            throw new Error("Failed to download icon");
+        }
+
+        const contentLength = Number(res.headers.get("content-length") || "0");
+        if (contentLength > MAX_ICON_BYTES) {
+            throw new Error("Icon file is too large");
+        }
+
+        const contentType = res.headers.get("content-type");
+        const ext = resolveIconExt(normalizedIconUrl, contentType);
+        if (!ext) {
+            throw new Error("Unsupported icon type");
+        }
+
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.byteLength > MAX_ICON_BYTES) {
+            throw new Error("Icon file is too large");
+        }
+
+        return { buffer: buf, ext };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+function getUploadedIconExt(file: File): string | null {
+    const ext = path.extname(file.name).toLowerCase();
+    if (ALLOWED_ICON_EXTS.has(ext)) {
+        return ext;
     }
 
-    const buf = Buffer.from(await res.arrayBuffer());
-    return { buffer: buf, ext };
+    const normalizedType = file.type.split(";")[0].trim().toLowerCase();
+    return CONTENT_TYPE_TO_EXT[normalizedType] || null;
 }
 
 /** GET /api/services */
@@ -99,8 +135,13 @@ servicesRouter.post("/", async (c) => {
         iconUrl = payload.icon_url ? payload.icon_url.trim() : null;
     }
 
-    if (!payload.name || !payload.url) {
-        return c.json({ error: "name and url are required" }, 400);
+    const normalizedName = payload.name?.trim();
+    const normalizedUrl = normalizeServiceUrl(payload.url ?? "");
+    if (!normalizedName) {
+        return c.json({ error: "name is required" }, 400);
+    }
+    if (!normalizedUrl) {
+        return c.json({ error: "service url must be a valid http(s) URL" }, 400);
     }
 
     const id = uuidv4();
@@ -108,7 +149,13 @@ servicesRouter.post("/", async (c) => {
 
     let iconFilename: string | null = null;
     if (iconFile) {
-        const ext = path.extname(iconFile.name) || ".png";
+        if (iconFile.size > MAX_ICON_BYTES) {
+            return c.json({ error: "icon file is too large" }, 400);
+        }
+        const ext = getUploadedIconExt(iconFile);
+        if (!ext) {
+            return c.json({ error: "unsupported icon type" }, 400);
+        }
         iconFilename = `${id}${ext}`;
         const buf = Buffer.from(await iconFile.arrayBuffer());
         fs.writeFileSync(path.join(getIconsDir(), iconFilename), buf);
@@ -117,8 +164,10 @@ servicesRouter.post("/", async (c) => {
             const { buffer, ext } = await downloadIcon(iconUrl);
             iconFilename = `${id}${ext}`;
             fs.writeFileSync(path.join(getIconsDir(), iconFilename), buffer);
-        } catch {
-            return c.json({ error: "failed to download icon" }, 400);
+        } catch (error) {
+            return c.json({
+                error: error instanceof Error ? error.message : "failed to download icon",
+            }, 400);
         }
     }
 
@@ -128,11 +177,11 @@ servicesRouter.post("/", async (c) => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
         id,
-        payload.name,
-        payload.url,
-        payload.description || null,
+        normalizedName,
+        normalizedUrl,
+        payload.description?.trim() || null,
         iconFilename,
-        payload.category || null,
+        payload.category?.trim() || null,
         payload.open_in_new_tab !== false ? 1 : 0,
         now,
         now
@@ -190,6 +239,14 @@ servicesRouter.put("/:id", async (c) => {
     }
 
     const now = Date.now();
+    const nextName = payload.name !== undefined ? payload.name.trim() : existing.name;
+    const nextUrl = payload.url !== undefined ? normalizeServiceUrl(payload.url) : existing.url;
+    if (!nextName) {
+        return c.json({ error: "name is required" }, 400);
+    }
+    if (!nextUrl) {
+        return c.json({ error: "service url must be a valid http(s) URL" }, 400);
+    }
     let iconFilename = existing.icon;
 
     const replacingIcon = Boolean(iconFile || iconUrl);
@@ -203,11 +260,17 @@ servicesRouter.put("/:id", async (c) => {
 
     // Replace icon via file upload
     if (iconFile) {
+        if (iconFile.size > MAX_ICON_BYTES) {
+            return c.json({ error: "icon file is too large" }, 400);
+        }
+        const ext = getUploadedIconExt(iconFile);
+        if (!ext) {
+            return c.json({ error: "unsupported icon type" }, 400);
+        }
         if (existing.icon) {
             const oldPath = path.join(getIconsDir(), existing.icon);
             if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
         }
-        const ext = path.extname(iconFile.name) || ".png";
         iconFilename = `${id}${ext}`;
         const buf = Buffer.from(await iconFile.arrayBuffer());
         fs.writeFileSync(path.join(getIconsDir(), iconFilename), buf);
@@ -223,8 +286,10 @@ servicesRouter.put("/:id", async (c) => {
             const { buffer, ext } = await downloadIcon(iconUrl);
             iconFilename = `${id}${ext}`;
             fs.writeFileSync(path.join(getIconsDir(), iconFilename), buffer);
-        } catch {
-            return c.json({ error: "failed to download icon" }, 400);
+        } catch (error) {
+            return c.json({
+                error: error instanceof Error ? error.message : "failed to download icon",
+            }, 400);
         }
     }
 
@@ -234,11 +299,11 @@ servicesRouter.put("/:id", async (c) => {
        open_in_new_tab = ?, updated_at = ?
      WHERE id = ?`
     ).run(
-        payload.name ?? existing.name,
-        payload.url ?? existing.url,
-        payload.description !== undefined ? payload.description : existing.description,
+        nextName,
+        nextUrl,
+        payload.description !== undefined ? payload.description?.trim() || null : existing.description,
         iconFilename,
-        payload.category !== undefined ? payload.category : existing.category,
+        payload.category !== undefined ? payload.category?.trim() || null : existing.category,
         payload.open_in_new_tab !== undefined ? (payload.open_in_new_tab ? 1 : 0) : (existing.open_in_new_tab ? 1 : 0),
         now,
         id

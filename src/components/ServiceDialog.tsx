@@ -18,8 +18,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import type { Service, CreateServicePayload, UpdateServicePayload } from "@/shared/types";
-import { getIconUrl } from "@/lib/api";
+import { getIconUrl } from "@/lib/api/services";
+import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 import { Upload, X } from "lucide-react";
 
 const NEW_CATEGORY_VALUE = "__new__";
@@ -61,6 +61,7 @@ export function ServiceDialog({
     );
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,6 +118,7 @@ export function ServiceDialog({
         setIconFile(null);
         setIconUrl("");
         setRemoveIcon(false);
+        setErrorMessage(null);
         setIconPreview(service?.icon ? getIconUrl(service.icon, service.updated_at) : null);
 
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -136,6 +138,7 @@ export function ServiceDialog({
         if (selectedCategory === NEW_CATEGORY_VALUE && !resolvedCategory) return;
 
         setSubmitting(true);
+        setErrorMessage(null);
         try {
             const payload: CreateServicePayload | UpdateServicePayload = {
                 name: name.trim(),
@@ -148,7 +151,7 @@ export function ServiceDialog({
             await onSubmit(payload, iconFile || undefined, removeIcon);
             onOpenChange(false);
         } catch (err) {
-            console.error("Failed to save service:", err);
+            setErrorMessage(err instanceof Error ? err.message : "Failed to save service");
         } finally {
             setSubmitting(false);
         }
@@ -157,11 +160,12 @@ export function ServiceDialog({
     const handleDelete = async () => {
         if (!onDelete) return;
         setDeleting(true);
+        setErrorMessage(null);
         try {
             await onDelete();
             onOpenChange(false);
         } catch (err) {
-            console.error("Failed to delete service:", err);
+            setErrorMessage(err instanceof Error ? err.message : "Failed to delete service");
         } finally {
             setDeleting(false);
         }
@@ -196,6 +200,9 @@ export function ServiceDialog({
                             className="font-normal"
                             required
                         />
+                        <p className="text-xs text-muted-foreground">
+                            Use a full `http://` or `https://` address.
+                        </p>
                     </div>
 
                     <div className="space-y-2">
@@ -281,7 +288,16 @@ export function ServiceDialog({
                                 className="font-normal flex-1 min-w-[12rem]"
                             />
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                            Remote icons must come from `https://dashboardicons.com`.
+                        </p>
                     </div>
+
+                    {errorMessage && (
+                        <p className="text-sm font-medium text-destructive">
+                            {errorMessage}
+                        </p>
+                    )}
 
                     <div className="flex items-center justify-end gap-3">
                         <Label htmlFor="svc-newtab" className="font-semibold text-right">

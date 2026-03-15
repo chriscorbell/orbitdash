@@ -46,5 +46,15 @@ export interface MetricsResponse {
     samples: MetricSample[];
 }
 
+/** Response shape for category ordering */
+export interface CategoryOrderResponse {
+    order: string[];
+}
+
+/** Payload for updating category order */
+export interface UpdateCategoryOrderPayload {
+    order: string[];
+}
+
 /** Response shape for GET /api/services */
 export type ServicesResponse = Service[];

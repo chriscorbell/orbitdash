@@ -2,7 +2,19 @@ import { Database } from "bun:sqlite";
 import path from "path";
 import fs from "fs";
 
-const DATA_DIR = "/data";
+function resolveDataDir(): string {
+  if (process.env.ORBITDASH_DATA_DIR) {
+    return path.resolve(process.env.ORBITDASH_DATA_DIR);
+  }
+
+  if (fs.existsSync("/.dockerenv")) {
+    return "/data";
+  }
+
+  return path.resolve(process.cwd(), "data");
+}
+
+const DATA_DIR = resolveDataDir();
 const DB_PATH = path.join(DATA_DIR, "orbitdash.db");
 
 let db: Database;
@@ -38,6 +50,11 @@ function initSchema(db: Database): void {
       open_in_new_tab INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     );
   `);
 }

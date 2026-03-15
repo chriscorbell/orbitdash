@@ -4,6 +4,7 @@ import { serveStatic } from "hono/bun";
 import fs from "fs";
 import path from "path";
 import metricsRouter from "./routes/metrics";
+import settingsRouter from "./routes/settings";
 import servicesRouter, { getIconsDir } from "./routes/services";
 import { startCollection } from "./metrics";
 import { getDb, getDataDir } from "./db";
@@ -15,6 +16,7 @@ app.use("/api/*", cors());
 
 // API routes
 app.route("/api/metrics", metricsRouter);
+app.route("/api/settings", settingsRouter);
 app.route("/api/services", servicesRouter);
 
 // Serve uploaded icons
