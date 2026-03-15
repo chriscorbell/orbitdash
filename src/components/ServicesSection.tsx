@@ -1,12 +1,22 @@
-import { useMemo, useRef, useState } from "react";
-import { ServiceDialog } from "@/components/ServiceDialog";
-import { CategoryReorderDialog } from "@/components/services/CategoryReorderDialog";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+
+const ServiceDialog = lazy(() =>
+    import("@/components/ServiceDialog").then((module) => ({
+        default: module.ServiceDialog,
+    }))
+);
+
+const CategoryReorderDialog = lazy(() =>
+    import("@/components/services/CategoryReorderDialog").then((module) => ({
+        default: module.CategoryReorderDialog,
+    }))
+);
 
 interface ServicesSectionProps {
     services: Service[];
@@ -133,16 +143,18 @@ export function ServicesSection({
                 onToggleReorder={isReorderMode ? cancelReorder : beginReorder}
             />
 
-            <CategoryReorderDialog
-                draftOrder={draftOrder}
-                error={categoryOrderError}
-                open={isReorderMode}
-                saving={isCategoryOrderSaving}
-                onMoveCategory={moveCategory}
-                onOpenChange={handleReorderOpenChange}
-                onReorder={reorderCategories}
-                onSave={() => void saveOrder()}
-            />
+            <Suspense fallback={null}>
+                <CategoryReorderDialog
+                    draftOrder={draftOrder}
+                    error={categoryOrderError}
+                    open={isReorderMode}
+                    saving={isCategoryOrderSaving}
+                    onMoveCategory={moveCategory}
+                    onOpenChange={handleReorderOpenChange}
+                    onReorder={reorderCategories}
+                    onSave={() => void saveOrder()}
+                />
+            </Suspense>
 
             {filtered.length === 0 && services.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
@@ -174,36 +186,40 @@ export function ServicesSection({
             )}
 
             {/* Add dialog */}
-            <ServiceDialog
-                open={addOpen}
-                onOpenChange={setAddOpen}
-                categoryOptions={categoryOptions}
-                onSubmit={async (payload, iconFile) => {
-                    await onCreate(payload as CreateServicePayload, iconFile);
-                }}
-            />
+            <Suspense fallback={null}>
+                <ServiceDialog
+                    open={addOpen}
+                    onOpenChange={setAddOpen}
+                    categoryOptions={categoryOptions}
+                    onSubmit={async (payload, iconFile) => {
+                        await onCreate(payload as CreateServicePayload, iconFile);
+                    }}
+                />
+            </Suspense>
 
             {/* Edit dialog */}
             {editService && (
-                <ServiceDialog
-                    open={editOpen}
-                    onOpenChange={handleEditOpenChange}
-                    service={editService}
-                    categoryOptions={categoryOptions}
-                    onSubmit={async (payload, iconFile, removeIcon) => {
-                        await onUpdate(
-                            editService.id,
-                            payload as UpdateServicePayload,
-                            iconFile,
-                            removeIcon
-                        );
-                        handleEditOpenChange(false);
-                    }}
-                    onDelete={async () => {
-                        await onDelete(editService.id);
-                        handleEditOpenChange(false);
-                    }}
-                />
+                <Suspense fallback={null}>
+                    <ServiceDialog
+                        open={editOpen}
+                        onOpenChange={handleEditOpenChange}
+                        service={editService}
+                        categoryOptions={categoryOptions}
+                        onSubmit={async (payload, iconFile, removeIcon) => {
+                            await onUpdate(
+                                editService.id,
+                                payload as UpdateServicePayload,
+                                iconFile,
+                                removeIcon
+                            );
+                            handleEditOpenChange(false);
+                        }}
+                        onDelete={async () => {
+                            await onDelete(editService.id);
+                            handleEditOpenChange(false);
+                        }}
+                    />
+                </Suspense>
             )}
         </div>
     );

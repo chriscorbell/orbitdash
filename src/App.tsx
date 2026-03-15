@@ -1,11 +1,22 @@
+import { lazy, Suspense } from "react";
 import { Header } from "@/components/Header";
 import { MetricCard } from "@/components/MetricCard";
-import { MetricCharts } from "@/components/MetricCharts";
 import { ServicesSection } from "@/components/ServicesSection";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useServices } from "@/hooks/useServices";
+
+const MetricCharts = lazy(() =>
+  import("@/components/MetricCharts").then((module) => ({
+    default: module.MetricCharts,
+  }))
+);
+
+function MetricChartsFallback() {
+  return <Card size="sm" className="h-full min-h-[180px] py-2" />;
+}
 
 function App() {
   const { samples, latest } = useMetrics();
@@ -27,7 +38,9 @@ function App() {
           <MetricCard title="Disk" value={latest?.disk ?? null} icon="disk" />
         </div>
         <div className="min-w-0 md:h-full">
-          <MetricCharts samples={samples} />
+          <Suspense fallback={<MetricChartsFallback />}>
+            <MetricCharts samples={samples} />
+          </Suspense>
         </div>
       </div>
     </div>

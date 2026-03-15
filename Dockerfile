@@ -1,16 +1,34 @@
-# Build stage
-FROM oven/bun:1 AS builder
+# Install all dependencies needed to build the app.
+FROM oven/bun:1 AS deps
 
 WORKDIR /app
 
-# Install dependencies
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
-# Copy source
-COPY . .
+# Install only production dependencies for the runtime image.
+FROM oven/bun:1 AS prod-deps
 
-# Build frontend
+WORKDIR /app
+
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile --production
+
+# Build stage
+FROM deps AS builder
+
+WORKDIR /app
+
+# Copy only the files needed for the production build to keep cache hits stable.
+COPY package.json bun.lock* ./
+COPY index.html ./
+COPY tsconfig.json tsconfig.app.json tsconfig.node.json tsconfig.server.json ./
+COPY vite.config.ts ./
+COPY public/ ./public/
+COPY server/ ./server/
+COPY shared/ ./shared/
+COPY src/ ./src/
+
 RUN bun run build
 
 # Production stage
@@ -18,9 +36,8 @@ FROM oven/bun:1-slim
 
 WORKDIR /app
 
-# Install production dependencies
 COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile --production
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 # Copy server source, shared modules, and TS config for Bun path aliases
 COPY server/ ./server/
