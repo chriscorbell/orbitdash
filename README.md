@@ -34,7 +34,7 @@
 
 - Live CPU/RAM/Disk metrics with charts
 - Simple service links with icons and categories
-- Upload your own PNG/SVG icons, or alternatively enter a URL that points to a PNG/SVG on [dashboardicons.com](https://dashboardicons.com)
+- Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
 - Inline search and filtering
 - UI-native service management (no config file needed)
 - Toggle between 3-column and 4-column grid for service links

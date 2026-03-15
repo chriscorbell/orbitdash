@@ -44,7 +44,7 @@ function resolveIconExt(iconUrl: string, contentType?: string | null): string | 
 async function downloadIcon(iconUrl: string): Promise<{ buffer: Buffer; ext: string }> {
     const normalizedIconUrl = normalizeIconUrl(iconUrl);
     if (!normalizedIconUrl) {
-        throw new Error("Icon URLs must use https://dashboardicons.com");
+        throw new Error("Icon URL must be a valid http(s) URL");
     }
 
     const controller = new AbortController();

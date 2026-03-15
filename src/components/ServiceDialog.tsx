@@ -284,12 +284,12 @@ export function ServiceDialog({
                                 type="url"
                                 value={iconUrl}
                                 onChange={(e) => handleIconUrlChange(e.target.value)}
-                                placeholder="https://dashboardicons.com/..."
+                                placeholder="https://example.com/icon.png"
                                 className="font-normal flex-1 min-w-[12rem]"
                             />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Remote icons must come from `https://dashboardicons.com`.
+                            Enter a direct `http://` or `https://` URL to a PNG or SVG icon.
                         </p>
                     </div>
 
