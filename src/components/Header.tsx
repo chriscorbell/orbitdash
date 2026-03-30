@@ -7,6 +7,9 @@ interface HeaderProps {
 }
 
 export function Header({ showStatsFirst, onToggleSectionOrder }: HeaderProps) {
+  const orderLabel = showStatsFirst ? "Stats first" : "Services first";
+  const toggleLabel = showStatsFirst ? "Switch to services-first" : "Switch to stats-first";
+
   return (
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
@@ -21,11 +24,12 @@ export function Header({ showStatsFirst, onToggleSectionOrder }: HeaderProps) {
             size="sm"
             variant="outline"
             onClick={onToggleSectionOrder}
-            className="h-8 w-8 p-0"
-            aria-label={showStatsFirst ? "Switch to services-first" : "Switch to stats-first"}
-            title={showStatsFirst ? "Stats first" : "Services first"}
+            className="gap-1.5"
+            aria-label={toggleLabel}
+            title={toggleLabel}
           >
             <ArrowUpDown className="h-4 w-4" />
+            <span className="hidden sm:inline">{orderLabel}</span>
           </Button>
           <a
             href="https://github.com/chriscorbell/orbitdash"
@@ -33,6 +37,7 @@ export function Header({ showStatsFirst, onToggleSectionOrder }: HeaderProps) {
             rel="noopener noreferrer"
             className="text-muted-foreground transition-colors hover:text-foreground"
             aria-label="GitHub repository"
+            title="GitHub repository"
           >
             <svg
               viewBox="0 0 24 24"

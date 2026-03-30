@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Columns4, LayoutGrid, Plus, Search, Settings2 } from "lucide-react";
+import { Columns4, LayoutGrid, Plus, Search, SlidersHorizontal } from "lucide-react";
 
 interface ServicesToolbarProps {
     canReorderCategories: boolean;
@@ -28,58 +28,71 @@ export function ServicesToolbar({
     onToggleReorder,
 }: ServicesToolbarProps) {
     const isFiveColumn = columnCount === 5;
+    const layoutLabel = isFiveColumn ? "5-column layout" : "4-column layout";
 
     return (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold">Services</h2>
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+                <h2 className="text-lg font-semibold">Services</h2>
+                <p className="text-sm text-muted-foreground">
+                    Search, organize, and launch the apps you use most.
+                </p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:items-end">
                 {servicesCount > 0 && (
-                    <div className="relative">
+                    <div className="relative w-full sm:w-64">
                         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             placeholder="Search services…"
                             value={search}
                             onChange={(e) => onSearchChange(e.target.value)}
-                            className="h-8 w-48 pl-8 text-sm"
+                            className="h-9 w-full pl-8 text-sm"
+                            aria-label="Search services"
                         />
                     </div>
                 )}
-                {canReorderCategories && (
+
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {canReorderCategories && (
+                        <Button
+                            size="sm"
+                            variant={isReorderMode ? "secondary" : "outline"}
+                            onClick={onToggleReorder}
+                            disabled={isCategoryOrderBusy}
+                            aria-label={isReorderMode ? "Done organizing categories" : "Organize categories"}
+                            title={isReorderMode ? "Done organizing categories" : "Organize categories"}
+                        >
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            <span>{isReorderMode ? "Done" : "Organize"}</span>
+                        </Button>
+                    )}
+
                     <Button
                         size="sm"
-                        variant={isReorderMode ? "secondary" : "outline"}
-                        className="px-2"
-                        onClick={onToggleReorder}
-                        disabled={isCategoryOrderBusy}
-                        aria-label={isReorderMode ? "Cancel category reordering" : "Reorder categories"}
-                        title={isReorderMode ? "Cancel category reordering" : "Reorder categories"}
+                        variant="outline"
+                        onClick={onToggleGrid}
+                        aria-label={`Switch layout, currently ${layoutLabel}`}
+                        title={`Switch layout, currently ${layoutLabel}`}
                     >
-                        <Settings2 className="h-3.5 w-3.5" />
+                        {isFiveColumn ? (
+                            <LayoutGrid className="h-4 w-4" />
+                        ) : (
+                            <Columns4 className="h-4 w-4" />
+                        )}
+                        <span>{layoutLabel}</span>
                     </Button>
-                )}
-                <Button
-                    size="sm"
-                    variant="outline"
-                    className="px-2"
-                    onClick={onToggleGrid}
-                    aria-label={isFiveColumn ? "Switch to 4-column grid" : "Switch to 5-column grid"}
-                    title={isFiveColumn ? "Switch to 4-column grid" : "Switch to 5-column grid"}
-                >
-                    {isFiveColumn ? (
-                        <LayoutGrid className="h-4 w-4" />
-                    ) : (
-                        <Columns4 className="h-4 w-4" />
-                    )}
-                </Button>
-                <Button
-                    size="sm"
-                    className="px-2"
-                    onClick={onAddService}
-                    aria-label="Add service"
-                    title="Add service"
-                >
-                    <Plus className="h-4 w-4" />
-                </Button>
+
+                    <Button
+                        size="sm"
+                        onClick={onAddService}
+                        aria-label="Add service"
+                        title="Add service"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Add service</span>
+                    </Button>
+                </div>
             </div>
         </div>
     );

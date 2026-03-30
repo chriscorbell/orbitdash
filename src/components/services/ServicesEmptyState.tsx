@@ -121,7 +121,7 @@ export function ServicesEmptyState({
             Tip: start with the apps you open most often, then fill in the rest as you go.
           </p>
           <Button variant="ghost" size="sm" onClick={onAddService} className="justify-start sm:justify-center">
-            Open add service dialog
+            Add a service
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
