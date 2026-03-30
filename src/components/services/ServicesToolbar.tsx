@@ -31,68 +31,61 @@ export function ServicesToolbar({
     const layoutLabel = isFiveColumn ? "5-column layout" : "4-column layout";
 
     return (
-        <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card/70 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-                <h2 className="text-lg font-semibold">Services</h2>
-                <p className="text-sm text-muted-foreground">
-                    Search, organize, and launch the apps you use most.
-                </p>
-            </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">Services</h2>
 
-            <div className="flex flex-col gap-2 sm:items-end">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                 {servicesCount > 0 && (
-                    <div className="relative w-full sm:w-64">
+                    <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
                         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             placeholder="Search services…"
                             value={search}
                             onChange={(e) => onSearchChange(e.target.value)}
-                            className="h-9 w-full pl-8 text-sm"
+                            className="h-8 w-full pl-8 text-sm"
                             aria-label="Search services"
                         />
                     </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    {canReorderCategories && (
-                        <Button
-                            size="sm"
-                            variant={isReorderMode ? "secondary" : "outline"}
-                            onClick={onToggleReorder}
-                            disabled={isCategoryOrderBusy}
-                            aria-label={isReorderMode ? "Done organizing categories" : "Organize categories"}
-                            title={isReorderMode ? "Done organizing categories" : "Organize categories"}
-                        >
-                            <SlidersHorizontal className="h-3.5 w-3.5" />
-                            <span>{isReorderMode ? "Done" : "Organize"}</span>
-                        </Button>
+                {canReorderCategories && (
+                    <Button
+                        size="sm"
+                        variant={isReorderMode ? "secondary" : "outline"}
+                        onClick={onToggleReorder}
+                        disabled={isCategoryOrderBusy}
+                        aria-label={isReorderMode ? "Done organizing categories" : "Organize categories"}
+                        title={isReorderMode ? "Done organizing categories" : "Organize categories"}
+                    >
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        <span>{isReorderMode ? "Done" : "Organize"}</span>
+                    </Button>
+                )}
+
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onToggleGrid}
+                    aria-label={`Switch layout, currently ${layoutLabel}`}
+                    title={`Switch layout, currently ${layoutLabel}`}
+                >
+                    {isFiveColumn ? (
+                        <LayoutGrid className="h-4 w-4" />
+                    ) : (
+                        <Columns4 className="h-4 w-4" />
                     )}
+                    <span>{layoutLabel}</span>
+                </Button>
 
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={onToggleGrid}
-                        aria-label={`Switch layout, currently ${layoutLabel}`}
-                        title={`Switch layout, currently ${layoutLabel}`}
-                    >
-                        {isFiveColumn ? (
-                            <LayoutGrid className="h-4 w-4" />
-                        ) : (
-                            <Columns4 className="h-4 w-4" />
-                        )}
-                        <span>{layoutLabel}</span>
-                    </Button>
-
-                    <Button
-                        size="sm"
-                        onClick={onAddService}
-                        aria-label="Add service"
-                        title="Add service"
-                    >
-                        <Plus className="h-4 w-4" />
-                        <span>Add service</span>
-                    </Button>
-                </div>
+                <Button
+                    size="sm"
+                    onClick={onAddService}
+                    aria-label="Add service"
+                    title="Add service"
+                >
+                    <Plus className="h-4 w-4" />
+                    <span>Add service</span>
+                </Button>
             </div>
         </div>
     );
