@@ -35,19 +35,6 @@ export function ServicesToolbar({
             <h2 className="text-lg font-semibold">Services</h2>
 
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                {servicesCount > 0 && (
-                    <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
-                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Search services…"
-                            value={search}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                            className="h-8 w-full pl-8 text-sm"
-                            aria-label="Search services"
-                        />
-                    </div>
-                )}
-
                 {canReorderCategories && (
                     <Button
                         size="sm"
@@ -86,6 +73,19 @@ export function ServicesToolbar({
                     <Plus className="h-4 w-4" />
                     <span>Add service</span>
                 </Button>
+
+                {servicesCount > 0 && (
+                    <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Search services…"
+                            value={search}
+                            onChange={(e) => onSearchChange(e.target.value)}
+                            className="h-8 w-full pl-8 text-sm"
+                            aria-label="Search services"
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
