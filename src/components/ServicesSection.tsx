@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
+import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
@@ -157,22 +158,16 @@ export function ServicesSection({
             </Suspense>
 
             {filtered.length === 0 && services.length === 0 && (
-                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
-                    <p className="text-sm text-muted-foreground">
-                        No services added yet
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Click "Add service" to get started
-                    </p>
-                </div>
+                <ServicesEmptyState mode="empty" onAddService={() => setAddOpen(true)} />
             )}
 
             {filtered.length === 0 && services.length > 0 && (
-                <div className="flex items-center justify-center rounded-lg border border-dashed border-border py-8">
-                    <p className="text-sm text-muted-foreground">
-                        No services match your search
-                    </p>
-                </div>
+                <ServicesEmptyState
+                    mode="search"
+                    search={search}
+                    onAddService={() => setAddOpen(true)}
+                    onClearSearch={() => setSearch("")}
+                />
             )}
 
             {filtered.length > 0 && (
