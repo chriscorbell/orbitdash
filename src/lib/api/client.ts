@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.DEV ? "http://localhost:3001" : "";
+const API_BASE = "";
 
 async function throwIfNotOk(res: Response, fallbackMessage: string): Promise<void> {
     if (res.ok) {
