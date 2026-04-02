@@ -36,7 +36,10 @@ function MetricLineChart({
     nowTs: number;
     gradientId: string;
 }) {
-    const domain = [nowTs - 30_000, nowTs];
+    const domainStart = data.length > 0 ? data[0].ts : nowTs - 30_000;
+    const domain = [domainStart, nowTs];
+    const allTicks = [nowTs - 30000, nowTs - 25000, nowTs - 20000, nowTs - 15000, nowTs - 10000, nowTs - 5000, nowTs];
+    const ticks = allTicks.filter(t => t >= domainStart);
     return (
         <div className="h-full min-h-[180px] md:min-h-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -66,7 +69,7 @@ function MetricLineChart({
                         tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                         tickLine={false}
                         axisLine={false}
-                        ticks={[nowTs - 30000, nowTs - 25000, nowTs - 20000, nowTs - 15000, nowTs - 10000, nowTs - 5000, nowTs]}
+                        ticks={ticks}
                     />
                     <YAxis
                         domain={[0, 100]}
