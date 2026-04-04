@@ -71,7 +71,8 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
                     <Button
                         variant="ghost"
                         size="icon-xs"
-                        className="absolute right-1.5 top-1.5 rounded-lg opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:-translate-y-0.5 hover:!bg-foreground/15 hover:text-foreground max-[hover:none]:opacity-50"
+                        aria-label={`Actions for ${service.name}`}
+                        className="service-card-menu-trigger absolute right-1.5 top-1.5 rounded-lg transition-all duration-200 ease-out hover:!bg-foreground/15 hover:text-foreground"
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();

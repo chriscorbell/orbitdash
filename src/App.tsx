@@ -17,7 +17,7 @@ const MetricCharts = lazy(() =>
 );
 
 function MetricChartsFallback() {
-  return <Card size="sm" className="h-full min-h-[180px] py-2" />;
+  return <Card size="sm" className="h-full min-h-45 py-2" />;
 }
 
 function App() {

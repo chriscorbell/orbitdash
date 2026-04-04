@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
     AreaChart,
     Area,
@@ -17,11 +17,13 @@ interface MetricChartsProps {
     samples: MetricSample[];
 }
 
+type MetricKey = "cpu" | "ram" | "disk";
+
 const chartConfig = {
     cpu: { label: "CPU", color: "#ffffff" },
     ram: { label: "RAM", color: "#ffffff" },
     disk: { label: "Disk", color: "#ffffff" },
-};
+} satisfies Record<MetricKey, { color: string; label: string }>;
 
 function MetricLineChart({
     data,
@@ -39,8 +41,8 @@ function MetricLineChart({
     const domainStart = data.length > 0 ? data[0].ts : nowTs - 30_000;
     const domain = [domainStart, nowTs];
     return (
-        <div className="h-full min-h-[180px] md:min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="min-h-45">
+            <ResponsiveContainer width="100%" height={180} minWidth={0}>
                 <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
                     <defs>
                         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -102,6 +104,7 @@ function MetricLineChart({
 }
 
 export function MetricCharts({ samples }: MetricChartsProps) {
+    const [activeMetric, setActiveMetric] = useState<MetricKey>("cpu");
     const nowTs = samples.length > 0 ? samples[samples.length - 1].ts : 30_000;
 
     const cpuData = useMemo(
@@ -119,9 +122,17 @@ export function MetricCharts({ samples }: MetricChartsProps) {
         [samples]
     );
 
+    const chartData = {
+        cpu: cpuData,
+        ram: ramData,
+        disk: diskData,
+    } satisfies Record<MetricKey, Array<{ ts: number; value: number }>>;
+
+    const activeChart = chartConfig[activeMetric];
+
     return (
         <Card size="sm" className="h-full py-2">
-            <Tabs defaultValue="cpu" className="h-full">
+            <Tabs value={activeMetric} onValueChange={(value) => setActiveMetric(value as MetricKey)} className="h-full">
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <ChartSpline className="h-4 w-4 text-muted-foreground" />
@@ -129,53 +140,35 @@ export function MetricCharts({ samples }: MetricChartsProps) {
                             Metrics
                         </CardTitle>
                     </div>
-                    <TabsList className="!h-5 !min-h-0 rounded-md !p-px">
+                    <TabsList className="h-5! min-h-0! rounded-md p-px!">
                         <TabsTrigger
                             value="cpu"
-                            className="!h-[18px] !min-h-0 rounded-[5px] px-1.5 py-0 text-[10px] leading-none font-semibold"
+                            className="h-4.5! min-h-0! rounded-[5px] px-1.5 py-0 text-[10px] leading-none font-semibold"
                         >
                             CPU
                         </TabsTrigger>
                         <TabsTrigger
                             value="ram"
-                            className="!h-[18px] !min-h-0 rounded-[5px] px-1.5 py-0 text-[10px] leading-none font-semibold"
+                            className="h-4.5! min-h-0! rounded-[5px] px-1.5 py-0 text-[10px] leading-none font-semibold"
                         >
                             RAM
                         </TabsTrigger>
                         <TabsTrigger
                             value="disk"
-                            className="!h-[18px] !min-h-0 rounded-[5px] px-1.5 py-0 text-[10px] leading-none font-semibold"
+                            className="h-4.5! min-h-0! rounded-[5px] px-1.5 py-0 text-[10px] leading-none font-semibold"
                         >
                             Disk
                         </TabsTrigger>
                     </TabsList>
                 </CardHeader>
                 <CardContent className="flex-1 min-h-0 pb-0">
-                    <TabsContent value="cpu" className="mt-0 h-full">
+                    <TabsContent value={activeMetric} className="mt-0 h-full">
                         <MetricLineChart
-                            data={cpuData}
+                            data={chartData[activeMetric]}
                             nowTs={nowTs}
-                            color={chartConfig.cpu.color}
-                            label={chartConfig.cpu.label}
-                            gradientId="gradient-cpu"
-                        />
-                    </TabsContent>
-                    <TabsContent value="ram" className="mt-0 h-full">
-                        <MetricLineChart
-                            data={ramData}
-                            nowTs={nowTs}
-                            color={chartConfig.ram.color}
-                            label={chartConfig.ram.label}
-                            gradientId="gradient-ram"
-                        />
-                    </TabsContent>
-                    <TabsContent value="disk" className="mt-0 h-full">
-                        <MetricLineChart
-                            data={diskData}
-                            nowTs={nowTs}
-                            color={chartConfig.disk.color}
-                            label={chartConfig.disk.label}
-                            gradientId="gradient-disk"
+                            color={activeChart.color}
+                            label={activeChart.label}
+                            gradientId={`gradient-${activeMetric}`}
                         />
                     </TabsContent>
                 </CardContent>

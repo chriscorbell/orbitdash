@@ -7,7 +7,10 @@ const metricsRouter = new Hono();
 /** GET /api/metrics?window=30 */
 metricsRouter.get("/", (c) => {
   const windowParam = c.req.query("window");
-  const windowSec = windowParam ? parseInt(windowParam, 10) : 30;
+  const parsedWindowSec = windowParam ? parseInt(windowParam, 10) : 30;
+  const windowSec = Number.isFinite(parsedWindowSec) && parsedWindowSec > 0
+    ? parsedWindowSec
+    : 30;
   const samples = getRecentSamples(windowSec);
   return c.json({ samples });
 });

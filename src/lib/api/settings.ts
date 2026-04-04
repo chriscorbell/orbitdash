@@ -1,9 +1,9 @@
-import { requestJson } from "@/lib/api/client";
+import { invalidateRequestCache, requestJson, requestJsonCached } from "@/lib/api/client";
 import type { CategoryOrderResponse, UpdateCategoryOrderPayload } from "@shared/types";
 
 /** Fetch the saved category order */
 export async function fetchCategoryOrder(): Promise<CategoryOrderResponse> {
-    return requestJson<CategoryOrderResponse>(
+    return requestJsonCached<CategoryOrderResponse>(
         "/api/settings/category-order",
         {},
         "Failed to fetch category order"
@@ -14,7 +14,7 @@ export async function fetchCategoryOrder(): Promise<CategoryOrderResponse> {
 export async function updateCategoryOrder(
     payload: UpdateCategoryOrderPayload
 ): Promise<CategoryOrderResponse> {
-    return requestJson<CategoryOrderResponse>(
+    const response = await requestJson<CategoryOrderResponse>(
         "/api/settings/category-order",
         {
             method: "PUT",
@@ -25,4 +25,7 @@ export async function updateCategoryOrder(
         },
         "Failed to save category order"
     );
+
+    invalidateRequestCache("/api/settings/category-order");
+    return response;
 }

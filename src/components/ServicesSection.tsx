@@ -1,10 +1,11 @@
-import { lazy, Suspense, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -49,12 +50,10 @@ export function ServicesSection({
     onDelete,
 }: ServicesSectionProps) {
     const [addOpen, setAddOpen] = useState(false);
-    const [editService, setEditService] = useState<Service | null>(null);
-    const [editOpen, setEditOpen] = useState(false);
+    const [editingService, setEditingService] = useState<Service | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [search, setSearch] = useState("");
-    const editCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const {
         draftOrder,
         error: categoryOrderError,
@@ -106,25 +105,6 @@ export function ServicesSection({
 
         return options.sort((a, b) => a.localeCompare(b));
     }, [services]);
-
-    const handleEdit = (service: Service) => {
-        if (editCloseTimerRef.current) {
-            clearTimeout(editCloseTimerRef.current);
-        }
-        setEditService(service);
-        setEditOpen(true);
-    };
-    const handleEditOpenChange = (open: boolean) => {
-        setEditOpen(open);
-        if (!open) {
-            if (editCloseTimerRef.current) {
-                clearTimeout(editCloseTimerRef.current);
-            }
-            editCloseTimerRef.current = setTimeout(() => {
-                setEditService(null);
-            }, 220);
-        }
-    };
 
     const handleDeleteConfirm = async () => {
         if (!deleteTarget) return;
@@ -190,7 +170,7 @@ export function ServicesSection({
                     hasNamedCategories={hasNamedCategories}
                     services={filtered}
                     onDelete={setDeleteTarget}
-                    onEdit={handleEdit}
+                    onEdit={setEditingService}
                 />
             )}
 
@@ -207,29 +187,37 @@ export function ServicesSection({
             </Suspense>
 
             {/* Edit dialog */}
-            {editService && (
-                <Suspense fallback={null}>
-                    <ServiceDialog
-                        open={editOpen}
-                        onOpenChange={handleEditOpenChange}
-                        service={editService}
-                        categoryOptions={categoryOptions}
-                        onSubmit={async (payload, iconFile, removeIcon) => {
-                            await onUpdate(
-                                editService.id,
-                                payload as UpdateServicePayload,
-                                iconFile,
-                                removeIcon
-                            );
-                            handleEditOpenChange(false);
-                        }}
-                        onDelete={async () => {
-                            await onDelete(editService.id);
-                            handleEditOpenChange(false);
-                        }}
-                    />
-                </Suspense>
-            )}
+            <Suspense fallback={null}>
+                <ServiceDialog
+                    open={editingService !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setEditingService(null);
+                        }
+                    }}
+                    service={editingService}
+                    categoryOptions={categoryOptions}
+                    onSubmit={async (payload, iconFile, removeIcon) => {
+                        if (!editingService) {
+                            return;
+                        }
+
+                        await onUpdate(
+                            editingService.id,
+                            payload as UpdateServicePayload,
+                            iconFile,
+                            removeIcon
+                        );
+                    }}
+                    onDelete={
+                        editingService
+                            ? async () => {
+                                  await onDelete(editingService.id);
+                              }
+                            : undefined
+                    }
+                />
+            </Suspense>
 
             {/* Delete confirmation dialog */}
             <Dialog
@@ -241,6 +229,9 @@ export function ServicesSection({
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Delete service</DialogTitle>
+                        <DialogDescription>
+                            Confirm service deletion before removing it permanently.
+                        </DialogDescription>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
                         Are you sure you want to delete{" "}

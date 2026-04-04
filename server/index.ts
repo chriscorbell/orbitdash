@@ -6,10 +6,23 @@ import path from "path";
 import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
 import servicesRouter, { getIconsDir } from "./routes/services";
-import { startCollection } from "./metrics";
-import { getDb, getDataDir } from "./db";
+import { startCollection, stopCollection } from "./metrics";
+import { closeDb, getDb, getDataDir } from "./db";
 
 const app = new Hono();
+
+app.onError((error, c) => {
+  console.error(error);
+  return c.json({ error: "internal server error" }, 500);
+});
+
+app.notFound((c) => {
+  if (c.req.path.startsWith("/api/")) {
+    return c.json({ error: "not found" }, 404);
+  }
+
+  return c.text("Not found", 404);
+});
 
 // CORS for development
 app.use("/api/*", cors());
@@ -62,6 +75,10 @@ if (fs.existsSync(distPath)) {
 
   // SPA fallback — serve index.html for non-API, non-asset routes
   app.get("*", (c) => {
+    if (c.req.path.startsWith("/api/")) {
+      return c.json({ error: "not found" }, 404);
+    }
+
     const indexPath = path.join(distPath, "index.html");
     if (fs.existsSync(indexPath)) {
       const html = fs.readFileSync(indexPath, "utf-8");
@@ -76,6 +93,14 @@ getDb();
 
 // Start metrics collection
 startCollection();
+
+function shutdown() {
+  stopCollection();
+  closeDb();
+}
+
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 

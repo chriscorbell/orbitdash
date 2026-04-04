@@ -21,6 +21,18 @@ const CONTENT_TYPE_TO_EXT: Record<string, string> = {
     "image/vnd.microsoft.icon": ".ico",
 };
 
+type ServiceRecord = Omit<Service, "open_in_new_tab"> & {
+    open_in_new_tab: boolean | number;
+};
+type RequestFormData = Awaited<ReturnType<Request["formData"]>>;
+
+interface ParsedServicePayload<TPayload> {
+    iconFile: File | null;
+    iconUrl: string | null;
+    payload: TPayload;
+    removeIcon: boolean;
+}
+
 function getIconsDir(): string {
     const dir = path.join(getDataDir(), ICONS_DIR_NAME);
     fs.mkdirSync(dir, { recursive: true });
@@ -91,51 +103,125 @@ function getUploadedIconExt(file: File): string | null {
     return CONTENT_TYPE_TO_EXT[normalizedType] || null;
 }
 
+function trimToNull(value: string | null | undefined): string | null {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+}
+
+function normalizeServiceRecord(service: ServiceRecord): Service {
+    return {
+        ...service,
+        open_in_new_tab: Boolean(service.open_in_new_tab),
+    };
+}
+
+function readOptionalString(formData: RequestFormData, key: string): string | undefined {
+    const value = formData.get(key);
+    if (value === null) {
+        return undefined;
+    }
+
+    return String(value);
+}
+
+async function parseServicePayload<TPayload extends CreateServicePayload | UpdateServicePayload>(
+    request: Request,
+    createPayload: (formData: RequestFormData) => TPayload
+): Promise<ParsedServicePayload<TPayload>> {
+    const contentType = request.headers.get("content-type") || "";
+
+    if (!contentType.includes("multipart/form-data")) {
+        const payload = (await request.json()) as TPayload;
+        return {
+            iconFile: null,
+            iconUrl: trimToNull(payload.icon_url),
+            payload,
+            removeIcon: false,
+        };
+    }
+
+    const formData = await request.formData();
+    const file = formData.get("icon_file");
+    const iconFile = file instanceof File && file.size > 0 ? file : null;
+
+    return {
+        iconFile,
+        iconUrl: trimToNull(readOptionalString(formData, "icon_url")),
+        payload: createPayload(formData),
+        removeIcon: formData.get("remove_icon") === "true",
+    };
+}
+
+function createServicePayloadFromFormData(formData: RequestFormData): CreateServicePayload {
+    return {
+        name: String(formData.get("name") ?? ""),
+        url: String(formData.get("url") ?? ""),
+        description: trimToNull(readOptionalString(formData, "description")),
+        category: trimToNull(readOptionalString(formData, "category")),
+        open_in_new_tab: formData.get("open_in_new_tab") !== "false",
+    };
+}
+
+function updateServicePayloadFromFormData(formData: RequestFormData): UpdateServicePayload {
+    const payload: UpdateServicePayload = {};
+    const name = readOptionalString(formData, "name");
+    const url = readOptionalString(formData, "url");
+    const description = readOptionalString(formData, "description");
+    const category = readOptionalString(formData, "category");
+    const openInNewTab = formData.get("open_in_new_tab");
+
+    if (name !== undefined) {
+        payload.name = name;
+    }
+    if (url !== undefined) {
+        payload.url = url;
+    }
+    if (description !== undefined) {
+        payload.description = trimToNull(description);
+    }
+    if (category !== undefined) {
+        payload.category = trimToNull(category);
+    }
+    if (openInNewTab !== null) {
+        payload.open_in_new_tab = openInNewTab !== "false";
+    }
+
+    return payload;
+}
+
+function persistIcon(filename: string, buffer: Buffer) {
+    fs.writeFileSync(path.join(getIconsDir(), filename), buffer);
+}
+
+function removeIconFile(iconFilename: string | null) {
+    if (!iconFilename) {
+        return;
+    }
+
+    const iconPath = path.join(getIconsDir(), iconFilename);
+    if (fs.existsSync(iconPath)) {
+        fs.unlinkSync(iconPath);
+    }
+}
+
 /** GET /api/services */
 servicesRouter.get("/", (c) => {
     const db = getDb();
     const services = db
         .prepare("SELECT * FROM services ORDER BY category ASC, name ASC")
-        .all() as Service[];
-    // Convert open_in_new_tab from 0/1 to boolean
-    const result = services.map((s) => ({
-        ...s,
-        open_in_new_tab: Boolean(s.open_in_new_tab),
-    }));
-    return c.json(result);
+        .all() as ServiceRecord[];
+
+    return c.json(services.map(normalizeServiceRecord));
 });
 
 /** POST /api/services */
 servicesRouter.post("/", async (c) => {
-    const contentType = c.req.header("content-type") || "";
-    let payload: CreateServicePayload;
-    let iconFile: File | null = null;
-    let iconUrl: string | null = null;
+    const { payload, iconFile, iconUrl } = await parseServicePayload(
+        c.req.raw,
+        createServicePayloadFromFormData
+    );
 
-    if (contentType.includes("multipart/form-data")) {
-        const formData = await c.req.formData();
-        payload = {
-            name: formData.get("name") as string,
-            url: formData.get("url") as string,
-            description: (formData.get("description") as string) || null,
-            category: (formData.get("category") as string) || null,
-            open_in_new_tab: formData.get("open_in_new_tab") !== "false",
-        };
-        const file = formData.get("icon_file");
-        if (file && file instanceof File && file.size > 0) {
-            iconFile = file;
-        }
-        const iconUrlValue = formData.get("icon_url");
-        if (iconUrlValue) {
-            const url = String(iconUrlValue).trim();
-            if (url) iconUrl = url;
-        }
-    } else {
-        payload = await c.req.json<CreateServicePayload>();
-        iconUrl = payload.icon_url ? payload.icon_url.trim() : null;
-    }
-
-    const normalizedName = payload.name?.trim();
+    const normalizedName = trimToNull(payload.name);
     const normalizedUrl = normalizeServiceUrl(payload.url ?? "");
     if (!normalizedName) {
         return c.json({ error: "name is required" }, 400);
@@ -158,12 +244,12 @@ servicesRouter.post("/", async (c) => {
         }
         iconFilename = `${id}${ext}`;
         const buf = Buffer.from(await iconFile.arrayBuffer());
-        fs.writeFileSync(path.join(getIconsDir(), iconFilename), buf);
+        persistIcon(iconFilename, buf);
     } else if (iconUrl) {
         try {
             const { buffer, ext } = await downloadIcon(iconUrl);
             iconFilename = `${id}${ext}`;
-            fs.writeFileSync(path.join(getIconsDir(), iconFilename), buffer);
+            persistIcon(iconFilename, buffer);
         } catch (error) {
             return c.json({
                 error: error instanceof Error ? error.message : "failed to download icon",
@@ -187,8 +273,8 @@ servicesRouter.post("/", async (c) => {
         now
     );
 
-    const service = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as Service;
-    return c.json({ ...service, open_in_new_tab: Boolean(service.open_in_new_tab) }, 201);
+    const service = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as ServiceRecord;
+    return c.json(normalizeServiceRecord(service), 201);
 });
 
 /** PUT /api/services/:id */
@@ -196,50 +282,20 @@ servicesRouter.put("/:id", async (c) => {
     const id = c.req.param("id");
     const db = getDb();
 
-    const existing = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as Service | undefined;
+    const existing = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as
+        | ServiceRecord
+        | undefined;
     if (!existing) {
         return c.json({ error: "not found" }, 404);
     }
 
-    const contentType = c.req.header("content-type") || "";
-    let payload: UpdateServicePayload;
-    let iconFile: File | null = null;
-    let removeIcon = false;
-    let iconUrl: string | null = null;
-
-    if (contentType.includes("multipart/form-data")) {
-        const formData = await c.req.formData();
-        payload = {};
-        const name = formData.get("name");
-        if (name !== null) payload.name = name as string;
-        const url = formData.get("url");
-        if (url !== null) payload.url = url as string;
-        const desc = formData.get("description");
-        if (desc !== null) payload.description = (desc as string) || null;
-        const cat = formData.get("category");
-        if (cat !== null) payload.category = (cat as string) || null;
-        const newTab = formData.get("open_in_new_tab");
-        if (newTab !== null) payload.open_in_new_tab = newTab !== "false";
-
-        const file = formData.get("icon_file");
-        if (file && file instanceof File && file.size > 0) {
-            iconFile = file;
-        }
-        const iconUrlValue = formData.get("icon_url");
-        if (iconUrlValue !== null) {
-            const url = String(iconUrlValue).trim();
-            if (url) iconUrl = url;
-        }
-        if (formData.get("remove_icon") === "true") {
-            removeIcon = true;
-        }
-    } else {
-        payload = await c.req.json<UpdateServicePayload>();
-        iconUrl = payload.icon_url ? payload.icon_url.trim() : null;
-    }
+    const { payload, iconFile, iconUrl, removeIcon } = await parseServicePayload(
+        c.req.raw,
+        updateServicePayloadFromFormData
+    );
 
     const now = Date.now();
-    const nextName = payload.name !== undefined ? payload.name.trim() : existing.name;
+    const nextName = payload.name !== undefined ? trimToNull(payload.name) : existing.name;
     const nextUrl = payload.url !== undefined ? normalizeServiceUrl(payload.url) : existing.url;
     if (!nextName) {
         return c.json({ error: "name is required" }, 400);
@@ -253,8 +309,7 @@ servicesRouter.put("/:id", async (c) => {
 
     // Handle icon removal when not replacing
     if (!replacingIcon && removeIcon && existing.icon) {
-        const oldPath = path.join(getIconsDir(), existing.icon);
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        removeIconFile(existing.icon);
         iconFilename = null;
     }
 
@@ -267,25 +322,19 @@ servicesRouter.put("/:id", async (c) => {
         if (!ext) {
             return c.json({ error: "unsupported icon type" }, 400);
         }
-        if (existing.icon) {
-            const oldPath = path.join(getIconsDir(), existing.icon);
-            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-        }
+        removeIconFile(existing.icon);
         iconFilename = `${id}${ext}`;
         const buf = Buffer.from(await iconFile.arrayBuffer());
-        fs.writeFileSync(path.join(getIconsDir(), iconFilename), buf);
+        persistIcon(iconFilename, buf);
     }
 
     // Replace icon via URL download
     if (!iconFile && iconUrl) {
-        if (existing.icon) {
-            const oldPath = path.join(getIconsDir(), existing.icon);
-            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-        }
         try {
             const { buffer, ext } = await downloadIcon(iconUrl);
+            removeIconFile(existing.icon);
             iconFilename = `${id}${ext}`;
-            fs.writeFileSync(path.join(getIconsDir(), iconFilename), buffer);
+            persistIcon(iconFilename, buffer);
         } catch (error) {
             return c.json({
                 error: error instanceof Error ? error.message : "failed to download icon",
@@ -309,8 +358,8 @@ servicesRouter.put("/:id", async (c) => {
         id
     );
 
-    const updated = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as Service;
-    return c.json({ ...updated, open_in_new_tab: Boolean(updated.open_in_new_tab) });
+    const updated = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as ServiceRecord;
+    return c.json(normalizeServiceRecord(updated));
 });
 
 /** DELETE /api/services/:id */
@@ -318,16 +367,15 @@ servicesRouter.delete("/:id", (c) => {
     const id = c.req.param("id");
     const db = getDb();
 
-    const existing = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as Service | undefined;
+    const existing = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as
+        | ServiceRecord
+        | undefined;
     if (!existing) {
         return c.json({ error: "not found" }, 404);
     }
 
     // Remove icon file if exists
-    if (existing.icon) {
-        const iconPath = path.join(getIconsDir(), existing.icon);
-        if (fs.existsSync(iconPath)) fs.unlinkSync(iconPath);
-    }
+    removeIconFile(existing.icon);
 
     db.prepare("DELETE FROM services WHERE id = ?").run(id);
     return c.json({ success: true });

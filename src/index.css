@@ -136,6 +136,21 @@
 }
 
 @layer utilities {
+  .service-card-menu-trigger {
+    opacity: 0.5;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .service-card-menu-trigger {
+      opacity: 0;
+    }
+
+    .group:hover .service-card-menu-trigger {
+      opacity: 1;
+      transform: translateY(-0.125rem);
+    }
+  }
+
   .page-load>* {
     animation: rise-fade 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }

@@ -1,9 +1,9 @@
-import { buildApiUrl, requestJson } from "@/lib/api/client";
+import { buildApiUrl, requestJsonCached } from "@/lib/api/client";
 import type { MetricSample, MetricsResponse } from "@shared/types";
 
 /** Fetch recent metric samples */
 export async function fetchMetrics(windowSec: number = 30): Promise<MetricSample[]> {
-    const data = await requestJson<MetricsResponse>(
+    const data = await requestJsonCached<MetricsResponse>(
         `/api/metrics?window=${windowSec}`,
         {},
         "Failed to fetch metrics"

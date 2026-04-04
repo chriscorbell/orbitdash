@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MetricSample } from "@shared/types";
 import { fetchMetrics, subscribeMetrics } from "@/lib/api/metrics";
 
@@ -10,43 +10,60 @@ export function useMetrics() {
     const [status, setStatus] = useState<"connecting" | "connected" | "offline">(
         "connecting"
     );
-    const samplesRef = useRef<MetricSample[]>([]);
+    const [error, setError] = useState<string | null>(null);
     const lastSampleRef = useRef<number | null>(null);
 
-    const addSample = useCallback((sample: MetricSample) => {
-        const next = [...samplesRef.current, sample].slice(-MAX_POINTS);
-        samplesRef.current = next;
-        setSamples(next);
-    }, []);
-
-    const recordSampleTs = useCallback((ts: number) => {
-        lastSampleRef.current = ts;
-    }, []);
-
     useEffect(() => {
-        let cleanup: (() => void) | undefined;
+        let isActive = true;
+        let cleanup = () => {};
 
-        // Load initial data
-        fetchMetrics(MAX_POINTS)
-            .then((initial) => {
+        const applyLatestTimestamp = (nextSamples: MetricSample[]) => {
+            lastSampleRef.current =
+                nextSamples.length > 0 ? nextSamples[nextSamples.length - 1].ts : null;
+        };
+
+        const loadAndSubscribe = async () => {
+            try {
+                const initial = await fetchMetrics(MAX_POINTS);
+                if (!isActive) {
+                    return;
+                }
+
                 const trimmed = initial.slice(-MAX_POINTS);
-                samplesRef.current = trimmed;
                 setSamples(trimmed);
-            })
-            .catch(console.error)
-            .finally(() => {
-                // Subscribe to SSE
-                cleanup = subscribeMetrics(
-                    (sample) => {
-                        setStatus("connected");
-                        recordSampleTs(sample.ts);
-                        addSample(sample);
-                    },
-                    () => {
+                applyLatestTimestamp(trimmed);
+                setError(null);
+            } catch (loadError) {
+                if (!isActive) {
+                    return;
+                }
+
+                setError(loadError instanceof Error ? loadError.message : "Failed to load metrics");
+            }
+
+            if (!isActive) {
+                return;
+            }
+
+            cleanup = subscribeMetrics(
+                (sample) => {
+                    setStatus("connected");
+                    setError(null);
+                    setSamples((current) => {
+                        const next = [...current, sample].slice(-MAX_POINTS);
+                        applyLatestTimestamp(next);
+                        return next;
+                    });
+                },
+                () => {
+                    if (isActive) {
                         setStatus("connecting");
                     }
-                );
-            });
+                }
+            );
+        };
+
+        void loadAndSubscribe();
 
         const checkOffline = setInterval(() => {
             const lastSampleTs = lastSampleRef.current;
@@ -59,18 +76,15 @@ export function useMetrics() {
         }, 1000);
 
         return () => {
+            isActive = false;
             clearInterval(checkOffline);
-            cleanup?.();
+            cleanup();
         };
-    }, [addSample, recordSampleTs]);
+    }, []);
 
-    const latest = samples.length > 0 ? samples[samples.length - 1] : null;
+    const latest = useMemo(() => {
+        return samples.length > 0 ? samples[samples.length - 1] : null;
+    }, [samples]);
 
-    useEffect(() => {
-        if (latest?.ts && lastSampleRef.current !== latest.ts) {
-            lastSampleRef.current = latest.ts;
-        }
-    }, [latest]);
-
-    return { samples, latest, status };
+    return { samples, latest, status, error };
 }

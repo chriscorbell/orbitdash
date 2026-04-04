@@ -1,9 +1,81 @@
-import { buildApiUrl, request, requestJson } from "@/lib/api/client";
+import {
+    buildApiUrl,
+    invalidateRequestCache,
+    request,
+    requestJson,
+    requestJsonCached,
+} from "@/lib/api/client";
 import type { CreateServicePayload, Service, UpdateServicePayload } from "@shared/types";
+
+function appendOptionalField(
+    formData: FormData,
+    key: string,
+    value: string | null | undefined,
+    options?: { includeEmptyString?: boolean }
+) {
+    if (value === undefined) {
+        return;
+    }
+
+    const normalizedValue = value ?? "";
+    if (!options?.includeEmptyString && normalizedValue === "") {
+        return;
+    }
+
+    formData.append(key, normalizedValue);
+}
+
+function appendBooleanField(formData: FormData, key: string, value: boolean | undefined) {
+    if (value === undefined) {
+        return;
+    }
+
+    formData.append(key, String(value));
+}
+
+function buildServiceFormData(
+    payload: CreateServicePayload | UpdateServicePayload,
+    options?: {
+        iconFile?: File;
+        removeIcon?: boolean;
+        includeDefaultOpenInNewTab?: boolean;
+        allowEmptyFields?: boolean;
+    }
+): FormData {
+    const formData = new FormData();
+    const includeEmptyFields = options?.allowEmptyFields ?? false;
+
+    appendOptionalField(formData, "name", payload.name);
+    appendOptionalField(formData, "url", payload.url);
+    appendOptionalField(formData, "description", payload.description, {
+        includeEmptyString: includeEmptyFields,
+    });
+    appendOptionalField(formData, "category", payload.category, {
+        includeEmptyString: includeEmptyFields,
+    });
+    appendOptionalField(formData, "icon_url", payload.icon_url, {
+        includeEmptyString: includeEmptyFields,
+    });
+
+    const openInNewTab =
+        payload.open_in_new_tab ??
+        (options?.includeDefaultOpenInNewTab ? true : undefined);
+    appendBooleanField(formData, "open_in_new_tab", openInNewTab);
+
+    if (options?.iconFile) {
+        formData.append("icon_file", options.iconFile);
+    }
+
+    if (options?.removeIcon) {
+        formData.append("remove_icon", "true");
+    }
+
+    return formData;
+}
 
 /** Fetch all services */
 export async function fetchServices(): Promise<Service[]> {
-    return requestJson<Service[]>(
+    return requestJsonCached<Service[]>(
         "/api/services",
         {},
         "Failed to fetch services"
@@ -15,16 +87,12 @@ export async function createService(
     payload: CreateServicePayload,
     iconFile?: File
 ): Promise<Service> {
-    const formData = new FormData();
-    formData.append("name", payload.name);
-    formData.append("url", payload.url);
-    if (payload.description) formData.append("description", payload.description);
-    if (payload.category) formData.append("category", payload.category);
-    if (payload.icon_url) formData.append("icon_url", payload.icon_url);
-    formData.append("open_in_new_tab", String(payload.open_in_new_tab ?? true));
-    if (iconFile) formData.append("icon_file", iconFile);
+    const formData = buildServiceFormData(payload, {
+        iconFile,
+        includeDefaultOpenInNewTab: true,
+    });
 
-    return requestJson<Service>(
+    const service = await requestJson<Service>(
         "/api/services",
         {
             method: "POST",
@@ -32,6 +100,9 @@ export async function createService(
         },
         "Failed to create service"
     );
+
+    invalidateRequestCache("/api/services");
+    return service;
 }
 
 /** Update a service */
@@ -41,19 +112,13 @@ export async function updateService(
     iconFile?: File,
     removeIcon?: boolean
 ): Promise<Service> {
-    const formData = new FormData();
-    if (payload.name !== undefined) formData.append("name", payload.name);
-    if (payload.url !== undefined) formData.append("url", payload.url);
-    if (payload.description !== undefined) formData.append("description", payload.description || "");
-    if (payload.category !== undefined) formData.append("category", payload.category || "");
-    if (payload.icon_url !== undefined) formData.append("icon_url", payload.icon_url || "");
-    if (payload.open_in_new_tab !== undefined) {
-        formData.append("open_in_new_tab", String(payload.open_in_new_tab));
-    }
-    if (iconFile) formData.append("icon_file", iconFile);
-    if (removeIcon) formData.append("remove_icon", "true");
+    const formData = buildServiceFormData(payload, {
+        allowEmptyFields: true,
+        iconFile,
+        removeIcon,
+    });
 
-    return requestJson<Service>(
+    const service = await requestJson<Service>(
         `/api/services/${id}`,
         {
             method: "PUT",
@@ -61,6 +126,9 @@ export async function updateService(
         },
         "Failed to update service"
     );
+
+    invalidateRequestCache("/api/services");
+    return service;
 }
 
 /** Delete a service */
@@ -72,6 +140,8 @@ export async function deleteService(id: string): Promise<void> {
         },
         "Failed to delete service"
     );
+
+    invalidateRequestCache("/api/services");
 }
 
 /** Build the URL for a service icon */

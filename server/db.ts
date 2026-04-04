@@ -17,7 +17,7 @@ function resolveDataDir(): string {
 const DATA_DIR = resolveDataDir();
 const DB_PATH = path.join(DATA_DIR, "orbitdash.db");
 
-let db: Database;
+let db: Database | null = null;
 
 export function getDb(): Database {
   if (!db) {
@@ -56,9 +56,21 @@ function initSchema(db: Database): void {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS services_category_name_idx
+    ON services (category, name);
   `);
 }
 
 export function getDataDir(): string {
   return DATA_DIR;
+}
+
+export function closeDb(): void {
+  if (!db) {
+    return;
+  }
+
+  db.close();
+  db = null;
 }

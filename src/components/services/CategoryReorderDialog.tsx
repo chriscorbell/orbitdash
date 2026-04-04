@@ -15,6 +15,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -68,6 +69,9 @@ export function CategoryReorderDialog({
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Reorder categories</DialogTitle>
+                    <DialogDescription>
+                        Drag categories or use the move buttons to update the saved order.
+                    </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                     <DndContext
@@ -112,7 +116,7 @@ export function CategoryReorderDialog({
                             onClick={onSave}
                             disabled={saving}
                         >
-                            {saving ? "Saving..." : "Save"}
+                            {saving ? "Saving…" : "Save"}
                         </Button>
                     </DialogFooter>
                 </div>
