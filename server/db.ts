@@ -66,6 +66,15 @@ export function getDataDir(): string {
   return DATA_DIR;
 }
 
+export function isDbHealthy(): boolean {
+  try {
+    getDb().prepare("SELECT 1").get();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function closeDb(): void {
   if (!db) {
     return;

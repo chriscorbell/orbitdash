@@ -87,6 +87,12 @@ The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` i
 
 Outside Docker, orbitdash stores data in `./data` by default. You can override the storage path in any environment with `ORBITDASH_DATA_DIR=/path/to/data`.
 
+## Health Checks
+
+- `GET /healthz` returns liveness for process-level checks.
+- `GET /readyz` returns readiness for deployment and CI probes, including a SQLite connectivity check.
+- `GET /api/health` returns the same readiness payload as `readyz` for API-oriented clients.
+
 ## Contributing
 
 Issues and PRs are welcomed. Please include description, screenshots and any related logs.

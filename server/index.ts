@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import fs from "fs";
@@ -7,9 +7,23 @@ import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
 import servicesRouter, { getIconsDir } from "./routes/services";
 import { startCollection, stopCollection } from "./metrics";
-import { closeDb, getDb, getDataDir } from "./db";
+import { closeDb, getDb, getDataDir, isDbHealthy } from "./db";
 
 const app = new Hono();
+
+function createHealthPayload(status: "ok" | "error") {
+  return {
+    status,
+    service: "orbitdash",
+    observedAt: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+  };
+}
+
+function respondWithHealth(c: Context, statusCode: 200 | 503, payload: Record<string, unknown>) {
+  c.header("Cache-Control", "no-store, no-cache, must-revalidate");
+  return c.json(payload, statusCode);
+}
 
 app.onError((error, c) => {
   console.error(error);
@@ -27,10 +41,43 @@ app.notFound((c) => {
 // CORS for development
 app.use("/api/*", cors());
 
+app.get("/healthz", (c) => {
+  return respondWithHealth(c, 200, createHealthPayload("ok"));
+});
+
+app.get("/readyz", (c) => {
+  const databaseHealthy = isDbHealthy();
+
+  return respondWithHealth(
+    c,
+    databaseHealthy ? 200 : 503,
+    {
+      ...createHealthPayload(databaseHealthy ? "ok" : "error"),
+      checks: {
+        database: databaseHealthy ? "ok" : "error",
+      },
+    }
+  );
+});
+
 // API routes
 app.route("/api/metrics", metricsRouter);
 app.route("/api/settings", settingsRouter);
 app.route("/api/services", servicesRouter);
+app.get("/api/health", (c) => {
+  const databaseHealthy = isDbHealthy();
+
+  return respondWithHealth(
+    c,
+    databaseHealthy ? 200 : 503,
+    {
+      ...createHealthPayload(databaseHealthy ? "ok" : "error"),
+      checks: {
+        database: databaseHealthy ? "ok" : "error",
+      },
+    }
+  );
+});
 
 // Serve uploaded icons
 app.get("/api/icons/:filename", (c) => {
