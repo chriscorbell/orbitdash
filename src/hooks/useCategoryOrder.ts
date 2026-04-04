@@ -4,7 +4,7 @@ import { fetchCategoryOrder, updateCategoryOrder } from "@/lib/api/settings";
 import { mergeCategoryOrder, UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service } from "@shared/types";
 
-interface UseCategoryOrderResult {
+export interface UseCategoryOrderResult {
   draftOrder: string[];
   error: string | null;
   hasNamedCategories: boolean;

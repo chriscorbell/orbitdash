@@ -2,9 +2,16 @@ import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
-import { useCategoryOrder } from "@/hooks/useCategoryOrder";
-import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
+import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 
 const ServiceDialog = lazy(() =>
@@ -21,6 +28,8 @@ const CategoryReorderDialog = lazy(() =>
 
 interface ServicesSectionProps {
     services: Service[];
+    categoryOrder: UseCategoryOrderResult;
+    isFiveColumn: boolean;
     onCreate: (payload: CreateServicePayload, iconFile?: File) => Promise<Service>;
     onUpdate: (
         id: string,
@@ -33,6 +42,8 @@ interface ServicesSectionProps {
 
 export function ServicesSection({
     services,
+    categoryOrder,
+    isFiveColumn,
     onCreate,
     onUpdate,
     onDelete,
@@ -40,26 +51,22 @@ export function ServicesSection({
     const [addOpen, setAddOpen] = useState(false);
     const [editService, setEditService] = useState<Service | null>(null);
     const [editOpen, setEditOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const [search, setSearch] = useState("");
-    const [gridColumns, setGridColumns] = useLocalStorageState("orbitdash.servicesGrid", "4");
     const editCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const {
         draftOrder,
         error: categoryOrderError,
         hasNamedCategories,
         isReorderMode,
-        loading: isCategoryOrderLoading,
-        namedCategories,
         saving: isCategoryOrderSaving,
         visibleCategoryOrder,
-        beginReorder,
         cancelReorder,
         moveCategory,
         reorderCategories,
         saveOrder,
-    } = useCategoryOrder(services);
-    const normalizedGridColumns = gridColumns === "5" ? "5" : "4";
-    const isFiveColumn = normalizedGridColumns === "5";
+    } = categoryOrder;
 
     const filtered = useMemo(() => {
         if (!search.trim()) return services;
@@ -100,7 +107,6 @@ export function ServicesSection({
         return options.sort((a, b) => a.localeCompare(b));
     }, [services]);
 
-    const canReorderCategories = namedCategories.length >= 2;
     const handleEdit = (service: Service) => {
         if (editCloseTimerRef.current) {
             clearTimeout(editCloseTimerRef.current);
@@ -120,6 +126,19 @@ export function ServicesSection({
         }
     };
 
+    const handleDeleteConfirm = async () => {
+        if (!deleteTarget) return;
+        setDeleting(true);
+        try {
+            await onDelete(deleteTarget.id);
+            setDeleteTarget(null);
+        } catch {
+            // Error handling is in the parent
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     const gridClassName = isFiveColumn
         ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
         : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4";
@@ -132,16 +151,10 @@ export function ServicesSection({
     return (
         <div className="space-y-4">
             <ServicesToolbar
-                canReorderCategories={canReorderCategories}
-                isCategoryOrderBusy={isCategoryOrderLoading || isCategoryOrderSaving}
-                columnCount={isFiveColumn ? 5 : 4}
-                isReorderMode={isReorderMode}
                 search={search}
                 servicesCount={services.length}
                 onAddService={() => setAddOpen(true)}
                 onSearchChange={setSearch}
-                onToggleGrid={() => setGridColumns((prev) => (prev === "5" ? "4" : "5"))}
-                onToggleReorder={isReorderMode ? cancelReorder : beginReorder}
             />
 
             <Suspense fallback={null}>
@@ -176,6 +189,7 @@ export function ServicesSection({
                     gridClassName={gridClassName}
                     hasNamedCategories={hasNamedCategories}
                     services={filtered}
+                    onDelete={setDeleteTarget}
                     onEdit={handleEdit}
                 />
             )}
@@ -216,6 +230,43 @@ export function ServicesSection({
                     />
                 </Suspense>
             )}
+
+            {/* Delete confirmation dialog */}
+            <Dialog
+                open={!!deleteTarget}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+            >
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Delete service</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Are you sure you want to delete{" "}
+                        <span className="font-medium text-foreground">
+                            {deleteTarget?.name}
+                        </span>
+                        ? This cannot be undone.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteTarget(null)}
+                            disabled={deleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteConfirm}
+                            disabled={deleting}
+                        >
+                            {deleting ? "Deleting…" : "Delete"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

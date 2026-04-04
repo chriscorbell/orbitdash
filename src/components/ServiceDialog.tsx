@@ -200,9 +200,22 @@ export function ServiceDialog({
                             className="font-normal"
                             required
                         />
-                        <p className="text-xs text-muted-foreground">
-                            Use a full `http://` or `https://` address.
-                        </p>
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">
+                                Use a full `http://` or `https://` address.
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="svc-newtab" className="text-xs text-muted-foreground">
+                                    Open in new tab
+                                </Label>
+                                <Switch
+                                    id="svc-newtab"
+                                    size="sm"
+                                    checked={openInNewTab}
+                                    onCheckedChange={setOpenInNewTab}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-2">
@@ -268,7 +281,6 @@ export function ServiceDialog({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="font-semibold"
                             >
                                 <Upload className="mr-1.5 h-3.5 w-3.5" />
                                 {iconPreview ? "Change" : "Upload"}
@@ -299,17 +311,6 @@ export function ServiceDialog({
                         </p>
                     )}
 
-                    <div className="flex items-center justify-end gap-3">
-                        <Label htmlFor="svc-newtab" className="font-semibold text-right">
-                            Open in new tab
-                        </Label>
-                        <Switch
-                            id="svc-newtab"
-                            checked={openInNewTab}
-                            onCheckedChange={setOpenInNewTab}
-                        />
-                    </div>
-
                     <DialogFooter className="flex gap-2 sm:justify-between">
                         {isEdit && onDelete && (
                             <Button
@@ -317,7 +318,7 @@ export function ServiceDialog({
                                 variant="destructive"
                                 onClick={handleDelete}
                                 disabled={deleting}
-                                className="mr-auto !bg-[#f7768e] font-semibold !text-black hover:!bg-[#f7768e]/90"
+                                className="mr-auto"
                             >
                                 {deleting ? "Deleting…" : "Delete"}
                             </Button>
@@ -327,7 +328,6 @@ export function ServiceDialog({
                                 type="button"
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
-                                className="font-semibold"
                             >
                                 Cancel
                             </Button>
@@ -339,7 +339,6 @@ export function ServiceDialog({
                                     !url.trim() ||
                                     (selectedCategory === NEW_CATEGORY_VALUE && !newCategory.trim())
                                 }
-                                className="font-semibold"
                             >
                                 {submitting ? "Saving…" : isEdit ? "Save changes" : "Add service"}
                             </Button>

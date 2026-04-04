@@ -70,29 +70,62 @@ function getRamUsage(): number {
     const used = total - available;
     return Math.round((used / total) * 10000) / 100;
   } catch {
-    // Fallback: os.freemem (less accurate, counts buffers/cache as used)
-    const total = os.totalmem();
-    const free = os.freemem();
-    const used = total - free;
-    return Math.round((used / total) * 10000) / 100;
+    // macOS fallback: use vm_stat to compute available memory the same way
+    // btop/Activity Monitor do (free + inactive + speculative + purgeable pages)
+    try {
+      return getMacRamUsage();
+    } catch {
+      // Last resort: os.freemem counts only truly-free pages and will over-report usage
+      const total = os.totalmem();
+      const free = os.freemem();
+      const used = total - free;
+      return Math.round((used / total) * 10000) / 100;
+    }
   }
+}
+
+function getMacRamUsage(): number {
+  const vmstat = execFileSync("vm_stat", { encoding: "utf-8" });
+  const pageSize = (() => {
+    const match = vmstat.match(/page size of (\d+) bytes/);
+    return match ? parseInt(match[1], 10) : 4096;
+  })();
+  const getPages = (key: string): number => {
+    const match = vmstat.match(new RegExp(`${key}:\\s+(\\d+)\\.`));
+    return match ? parseInt(match[1], 10) : 0;
+  };
+  const free = getPages("Pages free");
+  const inactive = getPages("Pages inactive");
+  const speculative = getPages("Pages speculative");
+  const purgeable = getPages("Pages purgeable");
+  const total = os.totalmem();
+  const available = (free + inactive + speculative + purgeable) * pageSize;
+  const used = Math.max(0, total - available);
+  return Math.round((used / total) * 10000) / 100;
 }
 
 /** Disk usage as percentage. Uses configured mount or root. */
 function getDiskUsage(): number {
   const mountPath = process.env.ORBITDASH_DISK_PATH || "/";
-  try {
-    // Use df output; last line is the selected mount.
-    const result = execFileSync("df", ["-B1", mountPath], { encoding: "utf-8" });
+
+  const parse = (result: string, blockSize: number): number => {
     const lines = result.trim().split("\n");
     const dataLine = lines[lines.length - 1] || "";
     const parts = dataLine.trim().split(/\s+/);
-    // parts: [filesystem, 1K-blocks, used, available, use%, mountpoint]
-    const used = parseInt(parts[2], 10);
-    const available = parseInt(parts[3], 10);
-    const total = used + available;
+    // parts: [filesystem, total-blocks, used, available, use%, mountpoint]
+    // Use total from parts[1] rather than used+available — the latter ignores
+    // reserved blocks (Linux) and other APFS volumes (macOS), causing under-reporting.
+    const total = parseInt(parts[1], 10) * blockSize;
+    const available = parseInt(parts[3], 10) * blockSize;
     if (total === 0) return 0;
+    const used = total - available;
     return Math.round((used / total) * 10000) / 100;
+  };
+
+  try {
+    // Use a POSIX-compatible format so the same command works on macOS and Linux.
+    const result = execFileSync("df", ["-Pk", mountPath], { encoding: "utf-8" });
+    return parse(result, 1024);
   } catch {
     return 0;
   }

@@ -1,16 +1,24 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getIconUrl } from "@/lib/api/services";
 import type { Service } from "@shared/types";
 import { normalizeServiceUrl } from "@shared/urls";
-import { Pencil, Globe } from "lucide-react";
+import { EllipsisVertical, Globe, Pencil, Trash2 } from "lucide-react";
 
 interface ServiceCardProps {
     service: Service;
     onEdit: (service: Service) => void;
+    onDelete: (service: Service) => void;
 }
 
-export function ServiceCard({ service, onEdit }: ServiceCardProps) {
+export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
     const hasDescription = Boolean(service.description?.trim());
     const safeUrl = normalizeServiceUrl(service.url);
 
@@ -58,18 +66,41 @@ export function ServiceCard({ service, onEdit }: ServiceCardProps) {
                     </CardContent>
                 </Card>
             </a>
-            <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1.5 top-1.5 h-6 w-6 rounded-lg opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:-translate-y-0.5 hover:!bg-foreground/15 hover:text-foreground"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onEdit(service);
-                }}
-            >
-                <Pencil className="h-3 w-3" />
-            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="absolute right-1.5 top-1.5 rounded-lg opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:-translate-y-0.5 hover:!bg-foreground/15 hover:text-foreground max-[hover:none]:opacity-50"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }}
+                    >
+                        <EllipsisVertical className="h-3.5 w-3.5" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            onEdit(service);
+                        }}
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => {
+                            onDelete(service);
+                        }}
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 }

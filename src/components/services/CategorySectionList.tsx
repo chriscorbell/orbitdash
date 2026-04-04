@@ -6,6 +6,7 @@ interface CategorySectionListProps {
     gridClassName: string;
     hasNamedCategories: boolean;
     services: Service[];
+    onDelete: (service: Service) => void;
     onEdit: (service: Service) => void;
 }
 
@@ -14,6 +15,7 @@ export function CategorySectionList({
     gridClassName,
     hasNamedCategories,
     services,
+    onDelete,
     onEdit,
 }: CategorySectionListProps) {
     if (hasNamedCategories) {
@@ -27,6 +29,7 @@ export function CategorySectionList({
                         <ServiceCard
                             key={service.id}
                             service={service}
+                            onDelete={onDelete}
                             onEdit={onEdit}
                         />
                     ))}
@@ -41,6 +44,7 @@ export function CategorySectionList({
                 <ServiceCard
                     key={service.id}
                     service={service}
+                    onDelete={onDelete}
                     onEdit={onEdit}
                 />
             ))}

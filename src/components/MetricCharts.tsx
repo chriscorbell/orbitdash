@@ -38,12 +38,10 @@ function MetricLineChart({
 }) {
     const domainStart = data.length > 0 ? data[0].ts : nowTs - 30_000;
     const domain = [domainStart, nowTs];
-    const allTicks = [nowTs - 30000, nowTs - 25000, nowTs - 20000, nowTs - 15000, nowTs - 10000, nowTs - 5000, nowTs];
-    const ticks = allTicks.filter(t => t >= domainStart);
     return (
         <div className="h-full min-h-[180px] md:min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
                     <defs>
                         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={color} stopOpacity={0.3} />
@@ -60,16 +58,7 @@ function MetricLineChart({
                         type="number"
                         domain={domain}
                         allowDataOverflow={true}
-                        height={20}
-                        tickMargin={4}
-                        tickFormatter={(ts: number) => {
-                            const ago = Math.round((nowTs - ts) / 1000);
-                            return `${ago}s`;
-                        }}
-                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                        tickLine={false}
-                        axisLine={false}
-                        ticks={ticks}
+                        hide
                     />
                     <YAxis
                         domain={[0, 100]}

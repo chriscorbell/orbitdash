@@ -1,9 +1,11 @@
 import { lazy, Suspense } from "react";
+import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { MetricCard } from "@/components/MetricCard";
 import { ServicesSection } from "@/components/ServicesSection";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useServices } from "@/hooks/useServices";
@@ -21,12 +23,16 @@ function MetricChartsFallback() {
 function App() {
   const { samples, latest } = useMetrics();
   const { services, create, update, remove } = useServices();
+  const categoryOrder = useCategoryOrder(services);
   const sectionOrderStorageKey = "orbitdash.sectionOrder";
   const [sectionOrder, setSectionOrder] = useLocalStorageState(
     sectionOrderStorageKey,
     "stats-first"
   );
+  const [gridColumns, setGridColumns] = useLocalStorageState("orbitdash.servicesGrid", "4");
   const showStatsFirst = sectionOrder !== "services-first";
+  const isFiveColumn = gridColumns === "5";
+  const canReorderCategories = categoryOrder.namedCategories.length >= 2;
 
   const statsSection = (
     <div className="space-y-4">
@@ -49,6 +55,8 @@ function App() {
   const servicesSection = (
     <ServicesSection
       services={services}
+      categoryOrder={categoryOrder}
+      isFiveColumn={isFiveColumn}
       onCreate={create}
       onUpdate={update}
       onDelete={remove}
@@ -56,20 +64,31 @@ function App() {
   );
 
   return (
-    <div className="min-h-svh bg-background">
+    <div className="flex min-h-svh flex-col bg-background">
       <Header
+        canReorderCategories={canReorderCategories}
+        columnCount={isFiveColumn ? 5 : 4}
+        isCategoryOrderBusy={categoryOrder.loading || categoryOrder.saving}
+        isReorderMode={categoryOrder.isReorderMode}
         showStatsFirst={showStatsFirst}
+        onToggleGrid={() => setGridColumns((prev) => (prev === "5" ? "4" : "5"))}
+        onToggleReorder={
+          categoryOrder.isReorderMode
+            ? categoryOrder.cancelReorder
+            : categoryOrder.beginReorder
+        }
         onToggleSectionOrder={() =>
           setSectionOrder((prev) =>
             prev === "stats-first" ? "services-first" : "stats-first"
           )
         }
       />
-      <main className="page-load mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+      <main className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6">
         {showStatsFirst ? statsSection : servicesSection}
         <Separator />
         {showStatsFirst ? servicesSection : statsSection}
       </main>
+      <Footer />
     </div>
   );
 }
