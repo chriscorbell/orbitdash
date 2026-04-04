@@ -38,10 +38,10 @@ function App() {
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Stats</h2>
       <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-stretch">
-        <div className="space-y-3">
-          <MetricCard title="CPU" value={latest?.cpu ?? null} icon="cpu" />
-          <MetricCard title="RAM" value={latest?.ram ?? null} icon="ram" />
-          <MetricCard title="Disk" value={latest?.disk ?? null} icon="disk" />
+        <div className="grid gap-3 md:h-full md:grid-rows-3">
+          <MetricCard className="h-full" title="CPU" value={latest?.cpu ?? null} icon="cpu" />
+          <MetricCard className="h-full" title="RAM" value={latest?.ram ?? null} icon="ram" />
+          <MetricCard className="h-full" title="Disk" value={latest?.disk ?? null} icon="disk" />
         </div>
         <div className="min-w-0 md:h-full">
           <Suspense fallback={<MetricChartsFallback />}>

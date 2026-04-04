@@ -2,6 +2,7 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Cpu, MemoryStick, HardDrive } from "lucide-react";
 
 interface MetricCardProps {
+    className?: string;
     title: string;
     value: number | null;
     icon: "cpu" | "ram" | "disk";
@@ -13,7 +14,7 @@ const iconMap = {
     disk: HardDrive,
 };
 
-export function MetricCard({ title, value, icon }: MetricCardProps) {
+export function MetricCard({ className, title, value, icon }: MetricCardProps) {
     const Icon = iconMap[icon];
     const displayValue = value !== null ? value.toFixed(1) : "—";
 
@@ -33,8 +34,8 @@ export function MetricCard({ title, value, icon }: MetricCardProps) {
     };
 
     return (
-        <Card size="sm">
-            <CardContent className="space-y-2">
+        <Card size="sm" className={className}>
+            <CardContent className="flex h-full flex-col justify-between gap-2">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-muted-foreground" />
