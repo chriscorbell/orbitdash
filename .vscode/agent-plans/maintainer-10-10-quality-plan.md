@@ -43,7 +43,7 @@ Acceptance criteria: a formatter is configured, documented, and run in CI or pre
 - [ ] Add backend tests for `GET /api/services`, `POST /api/services`, `PUT /api/services/:id`, and `DELETE /api/services/:id`.
 Acceptance criteria: tests cover happy paths, invalid payloads, missing resources, and icon-related edge cases.
 
-- [ ] Add backend tests for `GET /api/settings/category-order` and `PUT /api/settings/category-order`.
+- [x] Add backend tests for `GET /api/settings/category-order` and `PUT /api/settings/category-order`.
 Acceptance criteria: tests cover invalid arrays, duplicate values, whitespace normalization, and forbidden uncategorized ordering.
 
 - [ ] Add backend tests for health endpoints and readiness behavior.

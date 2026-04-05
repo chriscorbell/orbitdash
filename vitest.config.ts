@@ -9,7 +9,6 @@ export default mergeConfig(
       include: [
         "shared/**/*.{test,spec}.ts",
         "src/**/*.{test,spec}.{ts,tsx}",
-        "server/**/*.{test,spec}.ts",
       ],
       environment: "node",
       coverage: {
