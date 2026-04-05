@@ -57,9 +57,7 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     [namedCategories, draftOrder]
   );
   const visibleCategoryOrder = useMemo(() => {
-    return hasUncategorized
-      ? [...mergedSavedOrder, UNCATEGORIZED_CATEGORY]
-      : mergedSavedOrder;
+    return hasUncategorized ? [...mergedSavedOrder, UNCATEGORIZED_CATEGORY] : mergedSavedOrder;
   }, [hasUncategorized, mergedSavedOrder]);
 
   useEffect(() => {

@@ -66,11 +66,7 @@ describe("useCategoryOrder", () => {
 
     expect(result.current.error).toBeNull();
     expect(result.current.namedCategories).toEqual(["Media", "Infra"]);
-    expect(result.current.visibleCategoryOrder).toEqual([
-      "Media",
-      "Infra",
-      "Uncategorized",
-    ]);
+    expect(result.current.visibleCategoryOrder).toEqual(["Media", "Infra", "Uncategorized"]);
   });
 
   it("supports reordering and saving category order", async () => {
@@ -97,11 +93,7 @@ describe("useCategoryOrder", () => {
     });
     expect(result.current.error).toBeNull();
     expect(result.current.isReorderMode).toBe(false);
-    expect(result.current.visibleCategoryOrder).toEqual([
-      "Infra",
-      "Media",
-      "Uncategorized",
-    ]);
+    expect(result.current.visibleCategoryOrder).toEqual(["Infra", "Media", "Uncategorized"]);
   });
 
   it("captures load and save failures", async () => {

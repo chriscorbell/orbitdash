@@ -3,9 +3,7 @@ import { normalizeIconUrl, normalizeServiceUrl } from "@shared/urls";
 
 describe("normalizeServiceUrl", () => {
   it("normalizes a valid https URL", () => {
-    expect(normalizeServiceUrl(" https://example.com/app ")).toBe(
-      "https://example.com/app"
-    );
+    expect(normalizeServiceUrl(" https://example.com/app ")).toBe("https://example.com/app");
   });
 
   it("rejects unsupported protocols", () => {
@@ -20,9 +18,7 @@ describe("normalizeServiceUrl", () => {
 
 describe("normalizeIconUrl", () => {
   it("normalizes a valid http URL", () => {
-    expect(normalizeIconUrl("http://example.com/icon.svg")).toBe(
-      "http://example.com/icon.svg"
-    );
+    expect(normalizeIconUrl("http://example.com/icon.svg")).toBe("http://example.com/icon.svg");
   });
 
   it("rejects invalid input", () => {

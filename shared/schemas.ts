@@ -23,69 +23,87 @@ function trimNullableString(value: unknown): unknown {
   return trimmed === "" ? null : trimmed;
 }
 
-const requiredNameSchema = z.preprocess(
-  trimString,
-  z.string().min(1, "name is required")
-);
+const requiredNameSchema = z.preprocess(trimString, z.string().min(1, "name is required"));
 
 const optionalNameSchema = z.preprocess(
   trimOptionalString,
   z.string().min(1, "name is required").optional()
 );
 
-const createTextFieldSchema = z.preprocess(
-  trimNullableString,
-  z.string().nullable().optional()
-).transform((value) => value ?? null);
+const createTextFieldSchema = z
+  .preprocess(trimNullableString, z.string().nullable().optional())
+  .transform((value) => value ?? null);
 
-const updateTextFieldSchema = z.preprocess(
-  trimNullableString,
-  z.string().nullable().optional()
-);
+const updateTextFieldSchema = z.preprocess(trimNullableString, z.string().nullable().optional());
 
-const requiredServiceUrlSchema = z.preprocess(
-  trimString,
-  z.string().refine((value) => normalizeServiceUrl(value) !== null, {
-    message: "service url must be a valid http(s) URL",
-  })
-).transform((value) => normalizeServiceUrl(value)!);
+const requiredServiceUrlSchema = z
+  .preprocess(
+    trimString,
+    z.string().refine((value) => normalizeServiceUrl(value) !== null, {
+      message: "service url must be a valid http(s) URL",
+    })
+  )
+  .transform((value) => normalizeServiceUrl(value)!);
 
-const optionalServiceUrlSchema = z.preprocess(
-  trimOptionalString,
-  z.string().refine((value) => normalizeServiceUrl(value) !== null, {
-    message: "service url must be a valid http(s) URL",
-  }).optional()
-).transform((value) => (value === undefined ? undefined : normalizeServiceUrl(value)!));
+const optionalServiceUrlSchema = z
+  .preprocess(
+    trimOptionalString,
+    z
+      .string()
+      .refine((value) => normalizeServiceUrl(value) !== null, {
+        message: "service url must be a valid http(s) URL",
+      })
+      .optional()
+  )
+  .transform((value) => (value === undefined ? undefined : normalizeServiceUrl(value)!));
 
-const createIconUrlSchema = z.preprocess(
-  trimNullableString,
-  z.string().nullable().optional().refine((value) => {
-    return value === undefined || value === null || normalizeIconUrl(value) !== null;
-  }, {
-    message: "icon url must be a valid http(s) URL",
-  })
-).transform((value) => {
-  if (value === undefined || value === null) {
-    return null;
-  }
+const createIconUrlSchema = z
+  .preprocess(
+    trimNullableString,
+    z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        (value) => {
+          return value === undefined || value === null || normalizeIconUrl(value) !== null;
+        },
+        {
+          message: "icon url must be a valid http(s) URL",
+        }
+      )
+  )
+  .transform((value) => {
+    if (value === undefined || value === null) {
+      return null;
+    }
 
-  return normalizeIconUrl(value)!;
-});
+    return normalizeIconUrl(value)!;
+  });
 
-const updateIconUrlSchema = z.preprocess(
-  trimNullableString,
-  z.string().nullable().optional().refine((value) => {
-    return value === undefined || value === null || normalizeIconUrl(value) !== null;
-  }, {
-    message: "icon url must be a valid http(s) URL",
-  })
-).transform((value) => {
-  if (value === undefined || value === null) {
-    return value;
-  }
+const updateIconUrlSchema = z
+  .preprocess(
+    trimNullableString,
+    z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        (value) => {
+          return value === undefined || value === null || normalizeIconUrl(value) !== null;
+        },
+        {
+          message: "icon url must be a valid http(s) URL",
+        }
+      )
+  )
+  .transform((value) => {
+    if (value === undefined || value === null) {
+      return value;
+    }
 
-  return normalizeIconUrl(value)!;
-});
+    return normalizeIconUrl(value)!;
+  });
 
 export const serviceCreateSchema = z.object({
   name: requiredNameSchema,
@@ -105,24 +123,29 @@ export const serviceUpdateSchema = z.object({
   open_in_new_tab: z.boolean().optional(),
 });
 
-export const categoryOrderUpdateSchema = z.object({
-  order: z.array(z.string()),
-}).superRefine(({ order }, ctx) => {
-  if (order.some((value) => value.trim() === UNCATEGORIZED_CATEGORY)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `"${UNCATEGORIZED_CATEGORY}" cannot be manually ordered`,
-      path: ["order"],
-    });
-  }
-}).transform(({ order }) => ({
-  order: sanitizeCategoryOrder(order),
-}));
+export const categoryOrderUpdateSchema = z
+  .object({
+    order: z.array(z.string()),
+  })
+  .superRefine(({ order }, ctx) => {
+    if (order.some((value) => value.trim() === UNCATEGORIZED_CATEGORY)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `"${UNCATEGORIZED_CATEGORY}" cannot be manually ordered`,
+        path: ["order"],
+      });
+    }
+  })
+  .transform(({ order }) => ({
+    order: sanitizeCategoryOrder(order),
+  }));
 
 export const metricsQuerySchema = z.object({
-  window: z.coerce.number({
-    invalid_type_error: "window must be a positive integer",
-  }).int("window must be a positive integer")
+  window: z.coerce
+    .number({
+      invalid_type_error: "window must be a positive integer",
+    })
+    .int("window must be a positive integer")
     .positive("window must be a positive integer")
     .max(3600, "window must be 3600 seconds or less")
     .default(30),

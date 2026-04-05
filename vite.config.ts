@@ -1,7 +1,7 @@
-import path from "path"
-import tailwindcss from "@tailwindcss/vite"
-import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
+import path from "path";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -27,11 +27,7 @@ export default defineConfig({
             return "drag-drop";
           }
 
-          if (
-            id.includes("/react/") ||
-            id.includes("/react-dom/") ||
-            id.includes("/scheduler/")
-          ) {
+          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/")) {
             return "react-vendor";
           }
 
@@ -48,4 +44,4 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "./shared"),
     },
   },
-})
+});

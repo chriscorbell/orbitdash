@@ -73,14 +73,10 @@ function App() {
         showStatsFirst={showStatsFirst}
         onToggleGrid={() => setGridColumns((prev) => (prev === "5" ? "4" : "5"))}
         onToggleReorder={
-          categoryOrder.isReorderMode
-            ? categoryOrder.cancelReorder
-            : categoryOrder.beginReorder
+          categoryOrder.isReorderMode ? categoryOrder.cancelReorder : categoryOrder.beginReorder
         }
         onToggleSectionOrder={() =>
-          setSectionOrder((prev) =>
-            prev === "stats-first" ? "services-first" : "stats-first"
-          )
+          setSectionOrder((prev) => (prev === "stats-first" ? "services-first" : "stats-first"))
         }
       />
       <main className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6">

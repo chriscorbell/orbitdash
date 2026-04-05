@@ -72,14 +72,7 @@ describe("ServiceDialog", () => {
   it("shows schema validation errors and prevents invalid submission", async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
 
-    render(
-      <ServiceDialog
-        open
-        onOpenChange={vi.fn()}
-        categoryOptions={[]}
-        onSubmit={onSubmit}
-      />
-    );
+    render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={onSubmit} />);
 
     fireEvent.change(screen.getByLabelText("Name *"), {
       target: { value: "Orbit" },
@@ -109,7 +102,9 @@ describe("ServiceDialog", () => {
       />
     );
 
-    const newCategoryInput = screen.getByPlaceholderText("e.g. Infrastructure, Media") as HTMLInputElement;
+    const newCategoryInput = screen.getByPlaceholderText(
+      "e.g. Infrastructure, Media"
+    ) as HTMLInputElement;
     expect(newCategoryInput.value).toBe("Monitoring");
 
     const previewImage = screen.getByAltText("Icon preview") as HTMLImageElement;

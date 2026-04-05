@@ -7,10 +7,7 @@ import { initializeServer } from "./runtime";
 // In production, serve built frontend assets
 const distPath = path.resolve(import.meta.dirname, "../dist");
 if (fs.existsSync(distPath)) {
-  app.use(
-    "/*",
-    serveStatic({ root: "./dist" })
-  );
+  app.use("/*", serveStatic({ root: "./dist" }));
 
   // SPA fallback — serve index.html for non-API, non-asset routes
   app.get("*", (c) => {

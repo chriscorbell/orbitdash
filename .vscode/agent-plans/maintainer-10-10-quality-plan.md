@@ -35,7 +35,7 @@ Acceptance criteria: coverage runs in CI; thresholds are enforced; failing cover
 - [x] Add a dedicated `typecheck` script instead of relying only on `build`.
 Acceptance criteria: maintainers can run type validation without performing a production bundle.
 
-- [ ] Add a formatting strategy and enforce it automatically.
+- [x] Add a formatting strategy and enforce it automatically.
 Acceptance criteria: a formatter is configured, documented, and run in CI or pre-commit hooks.
 
 ## Priority 1: Add Real Test Coverage

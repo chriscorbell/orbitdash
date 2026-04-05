@@ -24,12 +24,14 @@ metricsRouter.get("/stream", (c) => {
 
     const unsubscribe = subscribe((sample) => {
       if (!alive) return;
-      stream.writeSSE({
-        event: "sample",
-        data: JSON.stringify(sample),
-      }).catch(() => {
-        alive = false;
-      });
+      stream
+        .writeSSE({
+          event: "sample",
+          data: JSON.stringify(sample),
+        })
+        .catch(() => {
+          alive = false;
+        });
     });
 
     // Keep alive with comment pings every 15s

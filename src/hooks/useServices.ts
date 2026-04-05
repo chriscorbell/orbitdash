@@ -24,14 +24,11 @@ export function useServices() {
     load();
   }, [load]);
 
-  const create = useCallback(
-    async (payload: CreateServicePayload, iconFile?: File) => {
-      const service = await api.createService(payload, iconFile);
-      setServices((prev) => [...prev, service]);
-      return service;
-    },
-    []
-  );
+  const create = useCallback(async (payload: CreateServicePayload, iconFile?: File) => {
+    const service = await api.createService(payload, iconFile);
+    setServices((prev) => [...prev, service]);
+    return service;
+  }, []);
 
   const update = useCallback(
     async (id: string, payload: UpdateServicePayload, iconFile?: File, removeIcon?: boolean) => {

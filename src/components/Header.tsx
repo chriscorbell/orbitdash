@@ -5,13 +5,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ArrowUpDown,
-  Columns4,
-  LayoutGrid,
-  ListOrdered,
-  SlidersHorizontal,
-} from "lucide-react";
+import { ArrowUpDown, Columns4, LayoutGrid, ListOrdered, SlidersHorizontal } from "lucide-react";
 
 interface HeaderProps {
   canReorderCategories: boolean;
@@ -41,9 +35,7 @@ export function Header({
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2.5">
           <img src="/orbitdash.svg" alt="orbitdash" className="h-7 w-7" />
-          <span className="text-lg font-semibold tracking-tight text-foreground">
-            orbitdash
-          </span>
+          <span className="text-lg font-semibold tracking-tight text-foreground">orbitdash</span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -57,20 +49,13 @@ export function Header({
               {showStatsFirst ? "Show services first" : "Show stats first"}
             </DropdownMenuItem>
             {canReorderCategories && (
-              <DropdownMenuItem
-                onClick={onToggleReorder}
-                disabled={isCategoryOrderBusy}
-              >
+              <DropdownMenuItem onClick={onToggleReorder} disabled={isCategoryOrderBusy}>
                 <ListOrdered className="h-4 w-4" />
                 {isReorderMode ? "Cancel reordering" : "Reorder categories"}
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={onToggleGrid}>
-              {isFiveColumn ? (
-                <LayoutGrid className="h-4 w-4" />
-              ) : (
-                <Columns4 className="h-4 w-4" />
-              )}
+              {isFiveColumn ? <LayoutGrid className="h-4 w-4" /> : <Columns4 className="h-4 w-4" />}
               {isFiveColumn ? "Switch to 4 columns" : "Switch to 5 columns"}
             </DropdownMenuItem>
           </DropdownMenuContent>

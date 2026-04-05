@@ -3,29 +3,29 @@ import type { CategoryOrderResponse, UpdateCategoryOrderPayload } from "@shared/
 
 /** Fetch the saved category order */
 export async function fetchCategoryOrder(): Promise<CategoryOrderResponse> {
-    return requestJsonCached<CategoryOrderResponse>(
-        "/api/settings/category-order",
-        {},
-        "Failed to fetch category order"
-    );
+  return requestJsonCached<CategoryOrderResponse>(
+    "/api/settings/category-order",
+    {},
+    "Failed to fetch category order"
+  );
 }
 
 /** Persist category order */
 export async function updateCategoryOrder(
-    payload: UpdateCategoryOrderPayload
+  payload: UpdateCategoryOrderPayload
 ): Promise<CategoryOrderResponse> {
-    const response = await requestJson<CategoryOrderResponse>(
-        "/api/settings/category-order",
-        {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        },
-        "Failed to save category order"
-    );
+  const response = await requestJson<CategoryOrderResponse>(
+    "/api/settings/category-order",
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+    "Failed to save category order"
+  );
 
-    invalidateRequestCache("/api/settings/category-order");
-    return response;
+  invalidateRequestCache("/api/settings/category-order");
+  return response;
 }

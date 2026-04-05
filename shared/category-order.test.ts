@@ -8,13 +8,7 @@ import {
 describe("sanitizeCategoryOrder", () => {
   it("trims values, removes duplicates, and excludes uncategorized", () => {
     expect(
-      sanitizeCategoryOrder([
-        " Media ",
-        "",
-        "Infrastructure",
-        UNCATEGORIZED_CATEGORY,
-        "Media",
-      ])
+      sanitizeCategoryOrder([" Media ", "", "Infrastructure", UNCATEGORIZED_CATEGORY, "Media"])
     ).toEqual(["Media", "Infrastructure"]);
   });
 });
@@ -30,10 +24,6 @@ describe("mergeCategoryOrder", () => {
   });
 
   it("returns a deterministic alphabetical order when there is no saved order", () => {
-    expect(mergeCategoryOrder(["Zeta", "Alpha", "Beta"], [])).toEqual([
-      "Alpha",
-      "Beta",
-      "Zeta",
-    ]);
+    expect(mergeCategoryOrder(["Zeta", "Alpha", "Beta"], [])).toEqual(["Alpha", "Beta", "Zeta"]);
   });
 });

@@ -28,7 +28,7 @@
 
 ## Preview
 
-<img src=".github/images/preview.png" alt="Screenshot of the app" /> 
+<img src=".github/images/preview.png" alt="Screenshot of the app" />
 
 ## Features
 
@@ -98,6 +98,8 @@ Outside Docker, orbitdash stores data in `./data` by default. You can override t
 Use the following commands for the initial automated test workflow:
 
 ```bash
+npm run format
+npm run format:check
 npm run typecheck
 npm run test:unit
 npm run test:integration
@@ -110,6 +112,9 @@ The current test suite starts with pure shared-module coverage so the project ha
 gate without being blocked by Bun-specific database and server boot side effects. Backend route
 tests and frontend hook/component tests should be added next after isolating the database singleton
 and top-level server initialization.
+
+Formatting is enforced with Prettier. Use `npm run format` locally to normalize files and
+`npm run format:check` to run the same check that CI uses.
 
 The enforced coverage gate currently applies to shared runtime modules under `shared/` excluding
 type-only definitions in `shared/types.ts`. Expand that coverage scope as backend, hook, component,

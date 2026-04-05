@@ -76,7 +76,9 @@ describe("useServices", () => {
       updated_at: 2,
     };
 
-    fetchServicesMock.mockResolvedValueOnce([existingService]).mockResolvedValueOnce([updatedService]);
+    fetchServicesMock
+      .mockResolvedValueOnce([existingService])
+      .mockResolvedValueOnce([updatedService]);
     createServiceMock.mockResolvedValue(createdService);
     updateServiceMock.mockResolvedValue(updatedService);
     deleteServiceMock.mockResolvedValue(undefined);

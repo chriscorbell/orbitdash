@@ -54,7 +54,7 @@ describe("services routes", () => {
     const createResponse = await createService();
 
     expect(createResponse.status).toBe(201);
-    const created = await createResponse.json() as Service;
+    const created = (await createResponse.json()) as Service;
 
     expect(created.name).toBe("Orbit");
     expect(created.url).toBe("https://example.com/orbit");
@@ -81,7 +81,7 @@ describe("services routes", () => {
 
   it("updates an existing service", async () => {
     const createResponse = await createService();
-    const created = await createResponse.json() as Service;
+    const created = (await createResponse.json()) as Service;
 
     const updateResponse = await app.request(`/api/services/${created.id}`, {
       method: "PUT",
@@ -128,7 +128,7 @@ describe("services routes", () => {
 
   it("deletes an existing service", async () => {
     const createResponse = await createService();
-    const created = await createResponse.json() as Service;
+    const created = (await createResponse.json()) as Service;
 
     const deleteResponse = await app.request(`/api/services/${created.id}`, {
       method: "DELETE",
@@ -157,7 +157,7 @@ describe("services routes", () => {
     });
 
     expect(response.status).toBe(201);
-    const created = await response.json() as Service;
+    const created = (await response.json()) as Service;
     expect(created.icon).toMatch(/\.svg$/);
 
     const iconPath = path.join(testDataDir, "icons", created.icon as string);

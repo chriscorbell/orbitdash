@@ -6,20 +6,14 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      include: [
-        "shared/**/*.{test,spec}.ts",
-        "src/**/*.{test,spec}.{ts,tsx}",
-      ],
+      include: ["shared/**/*.{test,spec}.ts", "src/**/*.{test,spec}.{ts,tsx}"],
       environment: "node",
       coverage: {
         all: true,
         provider: "v8",
         reporter: ["text", "html"],
         include: ["shared/**/*.ts"],
-        exclude: [
-          "**/*.{test,spec}.*",
-          "shared/types.ts",
-        ],
+        exclude: ["**/*.{test,spec}.*", "shared/types.ts"],
         thresholds: {
           branches: 100,
           functions: 100,

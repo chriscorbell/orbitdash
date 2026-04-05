@@ -1,13 +1,8 @@
 import { Hono } from "hono";
 import { getDb } from "../db";
-import {
-  CATEGORY_ORDER_SETTING_KEY,
-  sanitizeCategoryOrder,
-} from "@shared/category-order";
+import { CATEGORY_ORDER_SETTING_KEY, sanitizeCategoryOrder } from "@shared/category-order";
 import { categoryOrderUpdateSchema, getValidationMessage } from "@shared/schemas";
-import type {
-  CategoryOrderResponse,
-} from "@shared/types";
+import type { CategoryOrderResponse } from "@shared/types";
 
 const settingsRouter = new Hono();
 
@@ -46,7 +41,10 @@ settingsRouter.put("/category-order", async (c) => {
   if (!result.success) {
     const hasOrderTypeError = result.error.issues.some((issue) => issue.path[0] === "order");
 
-    if (hasOrderTypeError && result.error.issues[0]?.message !== '"Uncategorized" cannot be manually ordered') {
+    if (
+      hasOrderTypeError &&
+      result.error.issues[0]?.message !== '"Uncategorized" cannot be manually ordered'
+    ) {
       return c.json({ error: "order must be an array of category names" }, 400);
     }
 

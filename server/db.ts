@@ -53,8 +53,7 @@ function applyPragmas(database: Database): void {
 
 export function initializeDb(options: DatabaseInitOptions = {}): Database {
   const location = resolveDatabaseLocation(options);
-  const locationChanged =
-    location.dataDir !== currentDataDir || location.dbPath !== currentDbPath;
+  const locationChanged = location.dataDir !== currentDataDir || location.dbPath !== currentDbPath;
 
   if (db && locationChanged) {
     closeDb();

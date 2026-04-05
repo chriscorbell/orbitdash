@@ -45,16 +45,12 @@ app.get("/healthz", (c) => {
 app.get("/readyz", (c) => {
   const databaseHealthy = isDbHealthy();
 
-  return respondWithHealth(
-    c,
-    databaseHealthy ? 200 : 503,
-    {
-      ...createHealthPayload(databaseHealthy ? "ok" : "error"),
-      checks: {
-        database: databaseHealthy ? "ok" : "error",
-      },
-    }
-  );
+  return respondWithHealth(c, databaseHealthy ? 200 : 503, {
+    ...createHealthPayload(databaseHealthy ? "ok" : "error"),
+    checks: {
+      database: databaseHealthy ? "ok" : "error",
+    },
+  });
 });
 
 app.route("/api/metrics", metricsRouter);
@@ -64,16 +60,12 @@ app.route("/api/services", servicesRouter);
 app.get("/api/health", (c) => {
   const databaseHealthy = isDbHealthy();
 
-  return respondWithHealth(
-    c,
-    databaseHealthy ? 200 : 503,
-    {
-      ...createHealthPayload(databaseHealthy ? "ok" : "error"),
-      checks: {
-        database: databaseHealthy ? "ok" : "error",
-      },
-    }
-  );
+  return respondWithHealth(c, databaseHealthy ? 200 : 503, {
+    ...createHealthPayload(databaseHealthy ? "ok" : "error"),
+    checks: {
+      database: databaseHealthy ? "ok" : "error",
+    },
+  });
 });
 
 app.get("/api/icons/:filename", (c) => {
