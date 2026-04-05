@@ -65,12 +65,20 @@ describe("useMetrics", () => {
     expect(result.current.latest).toEqual(nextSample);
     expect(result.current.status).toBe("connected");
     expect(result.current.error).toBeNull();
+    expect(result.current.recoveredAt).toBeNull();
 
     await act(async () => {
       onError?.(new Event("error"));
     });
 
     expect(result.current.status).toBe("connecting");
+
+    await act(async () => {
+      onSample?.({ ts: Date.now() + 2_000, cpu: 11, ram: 22, disk: 33 });
+    });
+
+    expect(result.current.status).toBe("connected");
+    expect(result.current.recoveredAt).toBeTruthy();
 
     unmount();
     expect(cleanupMock).toHaveBeenCalled();
@@ -87,6 +95,7 @@ describe("useMetrics", () => {
 
     expect(result.current.samples).toEqual([]);
     expect(result.current.status).toBe("connecting");
+    expect(result.current.recoveredAt).toBeNull();
   });
 
   it("marks metrics as offline when samples go stale", async () => {
@@ -115,5 +124,6 @@ describe("useMetrics", () => {
     });
 
     expect(result.current.status).toBe("offline");
+    expect(result.current.recoveredAt).toBeNull();
   });
 });

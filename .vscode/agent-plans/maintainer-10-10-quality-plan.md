@@ -118,7 +118,7 @@ Acceptance criteria: unexpected failures include route context and actionable me
 - [x] Improve user-visible error handling in the frontend.
 Acceptance criteria: service creation, update, deletion, metrics failures, and category-order failures all show clear UI feedback.
 
-- [ ] Add retry or reconnect strategy visibility for live metrics.
+- [x] Add retry or reconnect strategy visibility for live metrics.
 Acceptance criteria: the UI communicates disconnected, reconnecting, and recovered states consistently.
 
 ## Priority 5: Tighten Database And Data Model Quality

@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { AlertCircle, LoaderCircle, WifiOff } from "lucide-react";
+import { AlertCircle, CheckCircle2, LoaderCircle, WifiOff } from "lucide-react";
 
 interface SectionStateCardProps {
   title: string;
   description: string;
-  tone: "error" | "loading" | "offline";
+  tone: "error" | "loading" | "offline" | "success";
   actionLabel?: string;
   onAction?: () => void;
 }
@@ -24,6 +24,11 @@ const toneConfig = {
   offline: {
     icon: WifiOff,
     iconClassName: "text-amber-500",
+    liveMode: "polite",
+  },
+  success: {
+    icon: CheckCircle2,
+    iconClassName: "text-emerald-600",
     liveMode: "polite",
   },
 } satisfies Record<

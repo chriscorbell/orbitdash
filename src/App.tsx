@@ -22,7 +22,13 @@ function MetricChartsFallback() {
 }
 
 function App() {
-  const { samples, latest, status: metricsStatus, error: metricsError } = useMetrics();
+  const {
+    samples,
+    latest,
+    status: metricsStatus,
+    error: metricsError,
+    recoveredAt: metricsRecoveredAt,
+  } = useMetrics();
   const {
     services,
     loading: servicesLoading,
@@ -47,6 +53,7 @@ function App() {
   const showMetricsError = metricsError !== null && samples.length === 0;
   const showMetricsOffline = metricsStatus === "offline";
   const showMetricsWarning = metricsError !== null && samples.length > 0;
+  const showMetricsRecovered = metricsRecoveredAt !== null && !showMetricsOffline;
 
   const statsSection = (
     <div className="space-y-4">
@@ -70,6 +77,13 @@ function App() {
       )}
       {showMetricsWarning && !showMetricsOffline && (
         <SectionStateCard tone="error" title="Metrics may be stale" description={metricsError} />
+      )}
+      {showMetricsRecovered && !showMetricsConnecting && !showMetricsWarning && (
+        <SectionStateCard
+          tone="success"
+          title="Metrics stream restored"
+          description="Live updates have resumed after the last interruption."
+        />
       )}
       <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-stretch">
         <div className="grid gap-3 md:h-full md:grid-rows-3">
