@@ -10,7 +10,7 @@
     "dev:all:host": "vite --host & bun run dev:server",
     "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json",
-    "prepare": "if command -v simple-git-hooks >/dev/null 2>&1; then simple-git-hooks; fi",
+    "prepare": "node scripts/prepare-git-hooks.mjs",
     "start": "NODE_ENV=production bun server/index.ts",
     "preview": "vite preview",
     "format": "prettier --write .",
