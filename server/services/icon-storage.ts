@@ -1,0 +1,235 @@
+import fs from "fs";
+import net from "net";
+import path from "path";
+import { getDataDir } from "../db";
+import { normalizeIconUrl } from "@shared/urls";
+
+const ICONS_DIR_NAME = "icons";
+export const MAX_ICON_BYTES = 2 * 1024 * 1024;
+const MAX_ICON_REDIRECTS = 3;
+
+export function getIconsDir(): string {
+  const dir = path.join(getDataDir(), ICONS_DIR_NAME);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function isPrivateIpv4(hostname: string): boolean {
+  const [first, second] = hostname.split(".").map(Number);
+
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168)
+  );
+}
+
+function isPrivateIpv6(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+
+  return (
+    normalized === "::1" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("::ffff:127.") ||
+    normalized.startsWith("::ffff:10.") ||
+    normalized.startsWith("::ffff:192.168.")
+  );
+}
+
+function isBlockedRemoteHost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
+  if (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".local")
+  ) {
+    return true;
+  }
+
+  const ipVersion = net.isIP(normalized);
+  if (ipVersion === 4) {
+    return isPrivateIpv4(normalized);
+  }
+
+  if (ipVersion === 6) {
+    return isPrivateIpv6(normalized);
+  }
+
+  return false;
+}
+
+function assertSafeRemoteIconUrl(iconUrl: string): URL {
+  const parsed = new URL(iconUrl);
+  if (isBlockedRemoteHost(parsed.hostname)) {
+    throw new Error("Remote icon host is not allowed");
+  }
+
+  return parsed;
+}
+
+async function fetchIconResponse(iconUrl: string, signal: AbortSignal): Promise<Response> {
+  let currentUrl = assertSafeRemoteIconUrl(iconUrl).toString();
+
+  for (let redirectCount = 0; redirectCount <= MAX_ICON_REDIRECTS; redirectCount += 1) {
+    const response = await fetch(currentUrl, {
+      redirect: "manual",
+      signal,
+    });
+
+    if (![301, 302, 303, 307, 308].includes(response.status)) {
+      return response;
+    }
+
+    if (redirectCount === MAX_ICON_REDIRECTS) {
+      throw new Error("Too many redirects while downloading icon");
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error("Failed to download icon");
+    }
+
+    currentUrl = assertSafeRemoteIconUrl(new URL(location, currentUrl).toString()).toString();
+  }
+
+  throw new Error("Failed to download icon");
+}
+
+function detectIconExt(buffer: Buffer): string | null {
+  if (
+    buffer.byteLength >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))
+  ) {
+    return ".png";
+  }
+
+  if (buffer.byteLength >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return ".jpg";
+  }
+
+  const gifHeader = buffer.subarray(0, 6).toString("ascii");
+  if (gifHeader === "GIF87a" || gifHeader === "GIF89a") {
+    return ".gif";
+  }
+
+  if (
+    buffer.byteLength >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return ".webp";
+  }
+
+  if (
+    buffer.byteLength >= 4 &&
+    buffer[0] === 0x00 &&
+    buffer[1] === 0x00 &&
+    buffer[2] === 0x01 &&
+    buffer[3] === 0x00
+  ) {
+    return ".ico";
+  }
+
+  const headerText = buffer.subarray(0, 512).toString("utf-8").trimStart();
+  const normalizedHeaderText = headerText.startsWith("\uFEFF") ? headerText.slice(1) : headerText;
+  if (/^(<\?xml[\s\S]*?)?<svg[\s>]/i.test(normalizedHeaderText)) {
+    return ".svg";
+  }
+
+  return null;
+}
+
+function persistIcon(filename: string, buffer: Buffer): void {
+  fs.writeFileSync(path.join(getIconsDir(), filename), buffer);
+}
+
+function validateUploadedIconBuffer(buffer: Buffer): string {
+  const ext = detectIconExt(buffer);
+  if (!ext) {
+    throw new Error("unsupported icon type");
+  }
+
+  return ext;
+}
+
+export function removeStoredIcon(iconFilename: string | null | undefined): void {
+  if (!iconFilename) {
+    return;
+  }
+
+  const iconPath = path.join(getIconsDir(), iconFilename);
+  if (fs.existsSync(iconPath)) {
+    fs.unlinkSync(iconPath);
+  }
+}
+
+function replaceStoredIcon(
+  previousIcon: string | null | undefined,
+  nextFilename: string,
+  buffer: Buffer
+): string {
+  removeStoredIcon(previousIcon);
+  persistIcon(nextFilename, buffer);
+  return nextFilename;
+}
+
+export async function persistUploadedIcon(
+  serviceId: string,
+  iconFile: File,
+  previousIcon?: string | null
+): Promise<string> {
+  if (iconFile.size > MAX_ICON_BYTES) {
+    throw new Error("icon file is too large");
+  }
+
+  const buffer = Buffer.from(await iconFile.arrayBuffer());
+  const ext = validateUploadedIconBuffer(buffer);
+  return replaceStoredIcon(previousIcon, `${serviceId}${ext}`, buffer);
+}
+
+export async function persistDownloadedIcon(
+  serviceId: string,
+  iconUrl: string,
+  previousIcon?: string | null
+): Promise<string> {
+  const normalizedIconUrl = normalizeIconUrl(iconUrl);
+  if (!normalizedIconUrl) {
+    throw new Error("Icon URL must be a valid http(s) URL");
+  }
+
+  assertSafeRemoteIconUrl(normalizedIconUrl);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetchIconResponse(normalizedIconUrl, controller.signal);
+    if (!response.ok) {
+      throw new Error("Failed to download icon");
+    }
+
+    const contentLength = Number(response.headers.get("content-length") || "0");
+    if (contentLength > MAX_ICON_BYTES) {
+      throw new Error("Icon file is too large");
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength > MAX_ICON_BYTES) {
+      throw new Error("Icon file is too large");
+    }
+
+    const ext = detectIconExt(buffer);
+    if (!ext) {
+      throw new Error("Unsupported icon type");
+    }
+
+    return replaceStoredIcon(previousIcon, `${serviceId}${ext}`, buffer);
+  } finally {
+    clearTimeout(timeout);
+  }
+}

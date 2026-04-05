@@ -86,7 +86,7 @@ Acceptance criteria: contributors can find canonical field rules without reading
 - [ ] Split `src/components/ServiceDialog.tsx` into focused units.
 Acceptance criteria: dialog state, icon handling, category selection, and submit/delete actions are separated into smaller components or hooks.
 
-- [ ] Extract service route business logic from `server/routes/services.ts` into service-layer modules.
+- [x] Extract service route business logic from `server/routes/services.ts` into service-layer modules.
 Acceptance criteria: the route file becomes mostly HTTP orchestration; validation, persistence, and icon storage concerns are isolated.
 
 - [ ] Introduce a storage abstraction for icons.

@@ -4,9 +4,10 @@ import fs from "fs";
 import path from "path";
 import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
-import servicesRouter, { getIconsDir } from "./routes/services";
+import servicesRouter from "./routes/services";
 import { isDbHealthy } from "./db";
 import { getRequestMetricsSnapshot, logOperationalError, recordRequest } from "./observability";
+import { getIconsDir } from "./services/icon-storage";
 
 export const app = new Hono();
 
