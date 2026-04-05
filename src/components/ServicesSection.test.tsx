@@ -2,6 +2,15 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/ServiceDialog", () => ({
+  ServiceDialog: () => null,
+}));
+
+vi.mock("@/components/services/CategoryReorderDialog", () => ({
+  CategoryReorderDialog: () => null,
+}));
+
 import { ServicesSection } from "@/components/ServicesSection";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service } from "@shared/types";
