@@ -152,7 +152,7 @@ Acceptance criteria: every async section has an intentional loading, success, em
 - [ ] Reduce unnecessary casting in client code.
 Acceptance criteria: payload and response flows are strongly typed end-to-end without avoidable `as` usage.
 
-- [ ] Measure and document bundle-size expectations.
+- [x] Measure and document bundle-size expectations.
 Acceptance criteria: large chunks are identified, monitored, and reduced if they exceed agreed thresholds.
 
 ## Priority 7: Improve Developer Experience

@@ -32,6 +32,7 @@ npm run format
 npm run format:check
 npm run lint
 npm run typecheck
+npm run bundle:check
 npm run test:unit
 npm run test:integration
 npm run test:e2e
@@ -41,6 +42,9 @@ npm run build
 
 These scripts are the canonical local task aliases for formatting, validation, testing, and
 building.
+
+Run `npm run build && npm run bundle:check` when changing charting, drag-and-drop, dialog, or
+vendor-heavy frontend dependencies.
 
 ## Local Hooks
 

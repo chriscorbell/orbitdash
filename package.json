@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0",
+    "bundle:check": "node scripts/check-bundle-size.mjs",
     "test": "vitest",
     "test:run": "vitest --run",
     "test:unit": "vitest --run shared src",
