@@ -64,7 +64,7 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
           </CardContent>
         </Card>
       </a>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
