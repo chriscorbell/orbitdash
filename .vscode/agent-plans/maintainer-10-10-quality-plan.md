@@ -126,7 +126,7 @@ Acceptance criteria: the UI communicates disconnected, reconnecting, and recover
 - [ ] Add migration support instead of relying only on startup schema creation.
 Acceptance criteria: schema changes are versioned, repeatable, and safe for upgrades.
 
-- [ ] Add database integration tests using an isolated temporary database.
+- [x] Add database integration tests using an isolated temporary database.
 Acceptance criteria: tests verify schema initialization, inserts, updates, deletes, and readiness checks.
 
 - [ ] Define constraints closer to the database where appropriate.
