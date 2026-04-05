@@ -18,7 +18,6 @@ export function MetricCard({ className, title, value, icon }: MetricCardProps) {
   const Icon = iconMap[icon];
   const displayValue = value !== null ? value.toFixed(1) : "—";
 
-  // Color coding based on value
   const getValueColor = (v: number | null) => {
     if (v === null) return "text-muted-foreground";
     if (v >= 90) return "text-red-500";
