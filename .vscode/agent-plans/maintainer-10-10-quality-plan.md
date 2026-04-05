@@ -200,7 +200,7 @@ Acceptance criteria: the same concepts use the same names everywhere unless a tr
 - [ ] Review comment quality and add only the high-value comments that explain non-obvious behavior.
 Acceptance criteria: comments describe intent and edge cases rather than repeating the code.
 
-- [ ] Add a lightweight quality rubric to the repo.
+- [x] Add a lightweight quality rubric to the repo.
 Acceptance criteria: maintainers can score architecture, tests, resilience, performance, and docs during major changes.
 
 - [ ] Re-run the full assessment after all tasks are complete.

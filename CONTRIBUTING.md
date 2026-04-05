@@ -86,6 +86,8 @@ behind the current stack.
 
 For SQLite query and index rationale, see [docs/database-indexing.md](docs/database-indexing.md).
 
+For release-time quality scoring, see [docs/quality-rubric.md](docs/quality-rubric.md).
+
 ## Frontend Async States
 
 See [docs/frontend-state-guidelines.md](docs/frontend-state-guidelines.md) for the expected loading,
