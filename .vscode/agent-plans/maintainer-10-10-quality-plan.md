@@ -89,7 +89,7 @@ Acceptance criteria: dialog state, icon handling, category selection, and submit
 - [x] Extract service route business logic from `server/routes/services.ts` into service-layer modules.
 Acceptance criteria: the route file becomes mostly HTTP orchestration; validation, persistence, and icon storage concerns are isolated.
 
-- [ ] Introduce a storage abstraction for icons.
+- [x] Introduce a storage abstraction for icons.
 Acceptance criteria: icon download, file validation, file persistence, and deletion live outside the route handler.
 
 - [ ] Centralize API error translation.
