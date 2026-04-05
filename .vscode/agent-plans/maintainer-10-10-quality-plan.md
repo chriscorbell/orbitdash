@@ -58,7 +58,7 @@ Acceptance criteria: tests cover valid URLs, invalid schemes, trimming, normaliz
 - [x] Add hook tests for `useServices`, `useMetrics`, and `useCategoryOrder`.
 Acceptance criteria: tests verify loading states, success paths, error paths, optimistic/local state updates, and cleanup behavior.
 
-- [ ] Add component tests for the service CRUD flow.
+- [x] Add component tests for the service CRUD flow.
 Acceptance criteria: tests cover add, edit, delete, validation messages, icon preview behavior, and category handling.
 
 - [ ] Add end-to-end smoke tests for the primary user journey.
