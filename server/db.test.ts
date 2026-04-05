@@ -45,10 +45,14 @@ describe("database integration", () => {
       "settings",
     ]);
 
-    expect(db.prepare("SELECT id, name FROM schema_migrations").all()).toEqual([
+    expect(db.prepare("SELECT id, name FROM schema_migrations ORDER BY id ASC").all()).toEqual([
       {
         id: 1,
         name: "initial-schema",
+      },
+      {
+        id: 2,
+        name: "services-constraints",
       },
     ]);
   });
@@ -81,5 +85,26 @@ describe("database integration", () => {
     db.prepare("DELETE FROM services WHERE id = ?").run("svc-1");
 
     expect(db.prepare("SELECT name FROM services WHERE id = ?").get("svc-1")).toBeNull();
+  });
+
+  it("enforces basic service invariants in the database schema", () => {
+    initializeDb({ dataDir: testDataDir! });
+
+    const db = getDb();
+    const now = Date.now();
+
+    expect(() => {
+      db.prepare(
+        `INSERT INTO services (id, name, url, description, icon, category, open_in_new_tab, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run("svc-invalid-name", "   ", "https://example.com/orbit", null, null, null, 1, now, now);
+    }).toThrow();
+
+    expect(() => {
+      db.prepare(
+        `INSERT INTO services (id, name, url, description, icon, category, open_in_new_tab, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run("svc-invalid-tab", "Orbit", "https://example.com/orbit", null, null, null, 2, now, now);
+    }).toThrow();
   });
 });

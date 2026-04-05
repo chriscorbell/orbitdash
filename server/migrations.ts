@@ -36,6 +36,30 @@ const migrations: Migration[] = [
        ON services (category, name)`,
     ],
   },
+  {
+    id: 2,
+    name: "services-constraints",
+    statements: [
+      `ALTER TABLE services RENAME TO services_legacy`,
+      `CREATE TABLE services (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+        url TEXT NOT NULL CHECK (length(trim(url)) > 0),
+        description TEXT,
+        icon TEXT,
+        category TEXT,
+        open_in_new_tab INTEGER NOT NULL DEFAULT 1 CHECK (open_in_new_tab IN (0, 1)),
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+      `INSERT INTO services (id, name, url, description, icon, category, open_in_new_tab, created_at, updated_at)
+       SELECT id, trim(name), trim(url), description, icon, category, open_in_new_tab, created_at, updated_at
+       FROM services_legacy`,
+      `DROP TABLE services_legacy`,
+      `CREATE INDEX IF NOT EXISTS services_category_name_idx
+       ON services (category, name)`,
+    ],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {

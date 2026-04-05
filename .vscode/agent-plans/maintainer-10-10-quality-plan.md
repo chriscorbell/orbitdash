@@ -124,7 +124,7 @@ Acceptance criteria: schema changes are versioned, repeatable, and safe for upgr
 - [x] Add database integration tests using an isolated temporary database.
 Acceptance criteria: tests verify schema initialization, inserts, updates, deletes, and readiness checks.
 
-- [ ] Define constraints closer to the database where appropriate.
+- [x] Define constraints closer to the database where appropriate.
 Acceptance criteria: important invariants such as required fields and sensible defaults are enforced in schema design, not only application code.
 
 - [x] Review sorting and indexing strategy for services and metrics queries.
