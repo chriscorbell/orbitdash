@@ -186,7 +186,7 @@ Acceptance criteria: outdated dependencies and security advisories are surfaced 
 
 ## Priority 9: Finish The Last 10 Percent
 
-- [ ] Remove leftover duplication between frontend API modules and backend route logic where shared helpers would reduce drift.
+- [x] Remove leftover duplication between frontend API modules and backend route logic where shared helpers would reduce drift.
 Acceptance criteria: repeated field normalization and error message patterns are intentionally centralized.
 
 - [ ] Audit naming consistency across client, server, and shared types.

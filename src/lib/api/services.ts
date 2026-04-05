@@ -6,72 +6,8 @@ import {
   requestJsonCached,
 } from "@/lib/api/client";
 import { serviceSchema, servicesResponseSchema } from "@shared/schemas";
+import { buildServiceFormData } from "@shared/service-form-data";
 import type { CreateServicePayload, Service, UpdateServicePayload } from "@shared/types";
-
-function appendOptionalField(
-  formData: FormData,
-  key: string,
-  value: string | null | undefined,
-  options?: { includeEmptyString?: boolean }
-) {
-  if (value === undefined) {
-    return;
-  }
-
-  const normalizedValue = value ?? "";
-  if (!options?.includeEmptyString && normalizedValue === "") {
-    return;
-  }
-
-  formData.append(key, normalizedValue);
-}
-
-function appendBooleanField(formData: FormData, key: string, value: boolean | undefined) {
-  if (value === undefined) {
-    return;
-  }
-
-  formData.append(key, String(value));
-}
-
-function buildServiceFormData(
-  payload: CreateServicePayload | UpdateServicePayload,
-  options?: {
-    iconFile?: File;
-    removeIcon?: boolean;
-    includeDefaultOpenInNewTab?: boolean;
-    allowEmptyFields?: boolean;
-  }
-): FormData {
-  const formData = new FormData();
-  const includeEmptyFields = options?.allowEmptyFields ?? false;
-
-  appendOptionalField(formData, "name", payload.name);
-  appendOptionalField(formData, "url", payload.url);
-  appendOptionalField(formData, "description", payload.description, {
-    includeEmptyString: includeEmptyFields,
-  });
-  appendOptionalField(formData, "category", payload.category, {
-    includeEmptyString: includeEmptyFields,
-  });
-  appendOptionalField(formData, "icon_url", payload.icon_url, {
-    includeEmptyString: includeEmptyFields,
-  });
-
-  const openInNewTab =
-    payload.open_in_new_tab ?? (options?.includeDefaultOpenInNewTab ? true : undefined);
-  appendBooleanField(formData, "open_in_new_tab", openInNewTab);
-
-  if (options?.iconFile) {
-    formData.append("icon_file", options.iconFile);
-  }
-
-  if (options?.removeIcon) {
-    formData.append("remove_icon", "true");
-  }
-
-  return formData;
-}
 
 /** Fetch all services */
 export async function fetchServices(): Promise<Service[]> {
