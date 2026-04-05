@@ -83,7 +83,7 @@ Acceptance criteria: contributors can find canonical field rules without reading
 
 ## Priority 3: Refactor Maintainability Hotspots
 
-- [ ] Split `src/components/ServiceDialog.tsx` into focused units.
+- [x] Split `src/components/ServiceDialog.tsx` into focused units.
 Acceptance criteria: dialog state, icon handling, category selection, and submit/delete actions are separated into smaller components or hooks.
 
 - [x] Extract service route business logic from `server/routes/services.ts` into service-layer modules.

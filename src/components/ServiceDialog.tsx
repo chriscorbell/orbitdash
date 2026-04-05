@@ -1,51 +1,25 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-  type RefObject,
-} from "react";
+import { useState, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { ServiceCategoryField } from "@/components/services/ServiceCategoryField";
+import { ServiceDialogActions } from "@/components/services/ServiceDialogActions";
+import { ServiceIconField } from "@/components/services/ServiceIconField";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { getIconUrl } from "@/lib/api/services";
+  buildServicePayload,
+  isServiceDialogSubmittable,
+  useServiceDialogState,
+} from "@/components/services/useServiceDialogState";
 import { getValidationMessage, serviceCreateSchema } from "@shared/schemas";
 import type { Service, CreateServicePayload } from "@shared/types";
-import { Upload, X } from "lucide-react";
-
-const NEW_CATEGORY_VALUE = "__new__";
-const NONE_CATEGORY_VALUE = "__none__";
-
-interface ServiceDialogFormState {
-  description: string;
-  iconPreview: string | null;
-  iconUrl: string;
-  name: string;
-  newCategory: string;
-  openInNewTab: boolean;
-  removeIcon: boolean;
-  selectedCategory: string;
-  url: string;
-}
 
 interface ServiceDialogProps {
   open: boolean;
@@ -56,88 +30,37 @@ interface ServiceDialogProps {
   onDelete?: () => Promise<void>;
 }
 
-function getServiceIconPreview(service?: Service | null) {
-  return service?.icon ? getIconUrl(service.icon, service.updated_at) : null;
-}
+type ServiceDialogBodyProps = Omit<ServiceDialogProps, "open">;
 
-function resolveInitialCategoryState(
-  service: Service | null | undefined,
-  categoryOptions: string[]
-) {
-  const initialCategory = service?.category?.trim() ?? "";
-
-  if (!initialCategory) {
-    return {
-      newCategory: "",
-      selectedCategory: NONE_CATEGORY_VALUE,
-    };
-  }
-
-  if (categoryOptions.includes(initialCategory)) {
-    return {
-      newCategory: "",
-      selectedCategory: initialCategory,
-    };
-  }
-
-  return {
-    newCategory: initialCategory,
-    selectedCategory: NEW_CATEGORY_VALUE,
-  };
-}
-
-function createInitialFormState(
-  service: Service | null | undefined,
-  categoryOptions: string[]
-): ServiceDialogFormState {
-  const categoryState = resolveInitialCategoryState(service, categoryOptions);
-
-  return {
-    description: service?.description ?? "",
-    iconPreview: getServiceIconPreview(service),
-    iconUrl: "",
-    name: service?.name ?? "",
-    newCategory: categoryState.newCategory,
-    openInNewTab: service?.open_in_new_tab ?? true,
-    removeIcon: false,
-    selectedCategory: categoryState.selectedCategory,
-    url: service?.url ?? "",
-  };
-}
-
-function resetFileInput(fileInputRef: RefObject<HTMLInputElement | null>) {
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
-  }
-}
-
-export function ServiceDialog({
-  open,
+function ServiceDialogBody({
   onOpenChange,
   service,
   categoryOptions,
   onSubmit,
   onDelete,
-}: ServiceDialogProps) {
+}: ServiceDialogBodyProps) {
   const isEdit = !!service;
-  const [iconFile, setIconFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const fieldIdPrefix = useId();
-  const [formState, setFormState] = useState<ServiceDialogFormState>(() =>
-    createInitialFormState(service, categoryOptions)
-  );
-
-  const nameInputId = `${fieldIdPrefix}-name`;
-  const urlInputId = `${fieldIdPrefix}-url`;
-  const newTabInputId = `${fieldIdPrefix}-new-tab`;
-  const descriptionInputId = `${fieldIdPrefix}-description`;
-  const categoryInputId = `${fieldIdPrefix}-category`;
-  const newCategoryInputId = `${fieldIdPrefix}-new-category`;
-  const iconFileInputId = `${fieldIdPrefix}-icon-file`;
-  const iconUrlInputId = `${fieldIdPrefix}-icon-url`;
+  const {
+    fieldIds,
+    fileInputRef,
+    formState,
+    iconFile,
+    handleIconChange,
+    handleIconUrlChange,
+    handleRemoveIcon,
+    setDescription,
+    setName,
+    setNewCategory,
+    setOpenInNewTab,
+    setSelectedCategory,
+    setUrl,
+  } = useServiceDialogState({
+    categoryOptions,
+    service,
+  });
 
   const {
     description,
@@ -150,86 +73,16 @@ export function ServiceDialog({
     selectedCategory,
     url,
   } = formState;
-
-  const handleIconChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIconFile(file);
-      setFormState((current) => ({
-        ...current,
-        iconPreview: null,
-        iconUrl: "",
-        removeIcon: false,
-      }));
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result;
-        setFormState((current) => ({
-          ...current,
-          iconPreview: typeof result === "string" ? result : null,
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleIconUrlChange = (value: string) => {
-    setIconFile(null);
-    setFormState((current) => {
-      const trimmed = value.trim();
-      return {
-        ...current,
-        iconPreview: trimmed || getServiceIconPreview(service),
-        iconUrl: value,
-        removeIcon: false,
-      };
-    });
-  };
-
-  const handleRemoveIcon = () => {
-    setIconFile(null);
-    setFormState((current) => ({
-      ...current,
-      iconPreview: null,
-      iconUrl: "",
-      removeIcon: true,
-    }));
-    resetFileInput(fileInputRef);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-
-    setFormState(createInitialFormState(service, categoryOptions));
-    setIconFile(null);
-    setErrorMessage(null);
-    resetFileInput(fileInputRef);
-  }, [open, service, categoryOptions]);
+  const canSubmit = isServiceDialogSubmittable(formState);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!name.trim() || !url.trim()) return;
-
-    const resolvedCategory =
-      selectedCategory === NEW_CATEGORY_VALUE
-        ? newCategory.trim()
-        : selectedCategory === NONE_CATEGORY_VALUE
-          ? ""
-          : selectedCategory.trim();
-
-    if (selectedCategory === NEW_CATEGORY_VALUE && !resolvedCategory) return;
+    if (!canSubmit) return;
 
     setSubmitting(true);
     setErrorMessage(null);
     try {
-      const payload: CreateServicePayload = {
-        name: name.trim(),
-        url: url.trim(),
-        description: description.trim() || null,
-        icon_url: iconUrl.trim() || null,
-        category: resolvedCategory || null,
-        open_in_new_tab: openInNewTab,
-      };
+      const payload = buildServicePayload(formState);
 
       const validation = serviceCreateSchema.safeParse(payload);
       if (!validation.success) {
@@ -261,260 +114,141 @@ export function ServiceDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Service" : "Add Service"}</DialogTitle>
-          <DialogDescription>
-            Add the service details, optional category, and icon source.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor={nameInputId} className="font-semibold">
-              Name *
-            </Label>
-            <Input
-              id={nameInputId}
-              name="name"
-              autoComplete="organization"
-              value={name}
-              onChange={(e) =>
-                setFormState((current) => ({
-                  ...current,
-                  name: e.target.value,
-                }))
-              }
-              placeholder="My Service"
-              className="font-normal"
-              required
-            />
-          </div>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>{isEdit ? "Edit Service" : "Add Service"}</DialogTitle>
+        <DialogDescription>
+          Add the service details, optional category, and icon source.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor={fieldIds.nameInputId} className="font-semibold">
+            Name *
+          </Label>
+          <Input
+            id={fieldIds.nameInputId}
+            name="name"
+            autoComplete="organization"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="My Service"
+            className="font-normal"
+            required
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor={urlInputId} className="font-semibold">
-              URL *
-            </Label>
-            <Input
-              id={urlInputId}
-              name="url"
-              autoComplete="url"
-              value={url}
-              onChange={(e) =>
-                setFormState((current) => ({
-                  ...current,
-                  url: e.target.value,
-                }))
-              }
-              placeholder="https://example.com"
-              className="font-normal"
-              required
-            />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                Use a full `http://` or `https://` address.
-              </p>
-              <div className="flex items-center gap-2">
-                <Label
-                  id={`${newTabInputId}-label`}
-                  htmlFor={newTabInputId}
-                  className="text-xs text-muted-foreground"
-                >
-                  Open in new tab
-                </Label>
-                <Switch
-                  id={newTabInputId}
-                  aria-labelledby={`${newTabInputId}-label`}
-                  checked={openInNewTab}
-                  size="sm"
-                  onCheckedChange={(checked) =>
-                    setFormState((current) => ({
-                      ...current,
-                      openInNewTab: checked,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={descriptionInputId} className="font-semibold">
-              Description
-            </Label>
-            <Textarea
-              id={descriptionInputId}
-              name="description"
-              autoComplete="off"
-              value={description}
-              onChange={(e) =>
-                setFormState((current) => ({
-                  ...current,
-                  description: e.target.value,
-                }))
-              }
-              placeholder="Optional description"
-              className="font-normal"
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              id={`${categoryInputId}-label`}
-              htmlFor={categoryInputId}
-              className="font-semibold"
-            >
-              Category
-            </Label>
-            <Select
-              value={selectedCategory}
-              onValueChange={(value) =>
-                setFormState((current) => ({
-                  ...current,
-                  selectedCategory: value,
-                }))
-              }
-            >
-              <SelectTrigger
-                id={categoryInputId}
-                name="category"
-                aria-label="Category"
-                aria-labelledby={`${categoryInputId}-label`}
-                className="w-full font-normal"
-              >
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE_CATEGORY_VALUE}>Uncategorized</SelectItem>
-                {categoryOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-                <SelectItem value={NEW_CATEGORY_VALUE}>New category…</SelectItem>
-              </SelectContent>
-            </Select>
-            {selectedCategory === NEW_CATEGORY_VALUE && (
-              <>
-                <Label htmlFor={newCategoryInputId} className="sr-only">
-                  New category name
-                </Label>
-                <Input
-                  id={newCategoryInputId}
-                  name="newCategory"
-                  autoComplete="off"
-                  value={newCategory}
-                  onChange={(e) =>
-                    setFormState((current) => ({
-                      ...current,
-                      newCategory: e.target.value,
-                    }))
-                  }
-                  placeholder="e.g. Infrastructure, Media"
-                  className="font-normal"
-                  required
-                />
-              </>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="font-semibold">Icon (PNG/SVG)</Label>
-            <div className="flex flex-wrap items-center gap-3">
-              {iconPreview && (
-                <div className="relative h-10 w-10 rounded-md border border-border bg-muted">
-                  <img
-                    src={iconPreview}
-                    alt="Icon preview"
-                    className="h-full w-full object-contain p-1"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Remove icon"
-                    onClick={handleRemoveIcon}
-                    className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-0.5 text-white hover:bg-destructive/80"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-label="Upload icon"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="mr-1.5 h-3.5 w-3.5" />
-                {iconPreview ? "Change" : "Upload"}
-              </Button>
-              <Label htmlFor={iconFileInputId} className="sr-only">
-                Upload icon file
-              </Label>
-              <input
-                id={iconFileInputId}
-                name="iconFile"
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/svg+xml"
-                onChange={handleIconChange}
-                aria-label="Upload icon file"
-                autoComplete="off"
-                className="hidden"
-              />
-              <Label htmlFor={iconUrlInputId} className="sr-only">
-                Icon URL
-              </Label>
-              <Input
-                id={iconUrlInputId}
-                name="iconUrl"
-                type="url"
-                autoComplete="url"
-                value={iconUrl}
-                onChange={(e) => handleIconUrlChange(e.target.value)}
-                placeholder="https://example.com/icon.png"
-                className="min-w-48 flex-1 font-normal"
-              />
-            </div>
+        <div className="space-y-2">
+          <Label htmlFor={fieldIds.urlInputId} className="font-semibold">
+            URL *
+          </Label>
+          <Input
+            id={fieldIds.urlInputId}
+            name="url"
+            autoComplete="url"
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder="https://example.com"
+            className="font-normal"
+            required
+          />
+          <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              Enter a direct `http://` or `https://` URL to a PNG or SVG icon.
+              Use a full `http://` or `https://` address.
             </p>
-          </div>
-
-          {errorMessage && <p className="text-sm font-medium text-destructive">{errorMessage}</p>}
-
-          <DialogFooter className="flex gap-2 sm:justify-between">
-            {isEdit && onDelete && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="mr-auto"
+            <div className="flex items-center gap-2">
+              <Label
+                id={`${fieldIds.newTabInputId}-label`}
+                htmlFor={fieldIds.newTabInputId}
+                className="text-xs text-muted-foreground"
               >
-                {deleting ? "Deleting…" : "Delete"}
-              </Button>
-            )}
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  submitting ||
-                  !name.trim() ||
-                  !url.trim() ||
-                  (selectedCategory === NEW_CATEGORY_VALUE && !newCategory.trim())
-                }
-              >
-                {submitting ? "Saving…" : isEdit ? "Save changes" : "Add service"}
-              </Button>
+                Open in new tab
+              </Label>
+              <Switch
+                id={fieldIds.newTabInputId}
+                aria-labelledby={`${fieldIds.newTabInputId}-label`}
+                checked={openInNewTab}
+                size="sm"
+                onCheckedChange={setOpenInNewTab}
+              />
             </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={fieldIds.descriptionInputId} className="font-semibold">
+            Description
+          </Label>
+          <Textarea
+            id={fieldIds.descriptionInputId}
+            name="description"
+            autoComplete="off"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Optional description"
+            className="font-normal"
+            rows={2}
+          />
+        </div>
+
+        <ServiceCategoryField
+          categoryInputId={fieldIds.categoryInputId}
+          categoryOptions={categoryOptions}
+          newCategory={newCategory}
+          newCategoryInputId={fieldIds.newCategoryInputId}
+          onNewCategoryChange={setNewCategory}
+          onSelectedCategoryChange={setSelectedCategory}
+          selectedCategory={selectedCategory}
+        />
+
+        <ServiceIconField
+          fileInputId={fieldIds.iconFileInputId}
+          fileInputRef={fileInputRef}
+          iconPreview={iconPreview}
+          iconUrl={iconUrl}
+          iconUrlInputId={fieldIds.iconUrlInputId}
+          onIconChange={handleIconChange}
+          onIconUrlChange={handleIconUrlChange}
+          onRemoveIcon={handleRemoveIcon}
+        />
+
+        {errorMessage && <p className="text-sm font-medium text-destructive">{errorMessage}</p>}
+
+        <ServiceDialogActions
+          canSubmit={canSubmit}
+          deleting={deleting}
+          isEdit={isEdit}
+          onCancel={() => onOpenChange(false)}
+          onDelete={onDelete ? handleDelete : undefined}
+          submitting={submitting}
+        />
+      </form>
+    </DialogContent>
+  );
+}
+
+export function ServiceDialog({
+  open,
+  onOpenChange,
+  service,
+  categoryOptions,
+  onSubmit,
+  onDelete,
+}: ServiceDialogProps) {
+  const dialogStateKey = `${service?.id ?? "new"}:${categoryOptions.join("|")}`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open ? (
+        <ServiceDialogBody
+          key={dialogStateKey}
+          onOpenChange={onOpenChange}
+          service={service}
+          categoryOptions={categoryOptions}
+          onSubmit={onSubmit}
+          onDelete={onDelete}
+        />
+      ) : null}
     </Dialog>
   );
 }
