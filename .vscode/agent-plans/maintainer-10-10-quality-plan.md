@@ -149,7 +149,7 @@ Acceptance criteria: controls expose correct labels, focus behavior, and keyboar
 - [x] Add loading and empty-state consistency guidelines.
 Acceptance criteria: every async section has an intentional loading, success, empty, and error presentation.
 
-- [ ] Reduce unnecessary casting in client code.
+- [x] Reduce unnecessary casting in client code.
 Acceptance criteria: payload and response flows are strongly typed end-to-end without avoidable `as` usage.
 
 - [x] Measure and document bundle-size expectations.

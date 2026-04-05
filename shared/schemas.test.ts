@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  categoryOrderResponseSchema,
   categoryOrderUpdateSchema,
   getValidationMessage,
+  metricsResponseSchema,
   metricsQuerySchema,
+  metricSampleSchema,
   serviceCreateSchema,
+  serviceSchema,
   serviceUpdateSchema,
+  servicesResponseSchema,
 } from "@shared/schemas";
 
 describe("serviceCreateSchema", () => {
@@ -140,6 +145,43 @@ describe("categoryOrderUpdateSchema", () => {
     if (!result.success) {
       expect(getValidationMessage(result.error)).toBe('"Uncategorized" cannot be manually ordered');
     }
+  });
+});
+
+describe("response schemas", () => {
+  it("validates metric samples and metric responses", () => {
+    const sample = {
+      ts: 1,
+      cpu: 42,
+      ram: 58,
+      disk: 73,
+    };
+
+    expect(metricSampleSchema.parse(sample)).toEqual(sample);
+    expect(metricsResponseSchema.parse({ samples: [sample] })).toEqual({ samples: [sample] });
+  });
+
+  it("validates services and service collections", () => {
+    const service = {
+      id: "svc-1",
+      name: "Orbit",
+      url: "https://example.com/orbit",
+      description: null,
+      icon: null,
+      category: "Infra",
+      open_in_new_tab: true,
+      created_at: 1,
+      updated_at: 2,
+    };
+
+    expect(serviceSchema.parse(service)).toEqual(service);
+    expect(servicesResponseSchema.parse([service])).toEqual([service]);
+  });
+
+  it("validates category order responses", () => {
+    expect(categoryOrderResponseSchema.parse({ order: ["Infra", "Media"] })).toEqual({
+      order: ["Infra", "Media"],
+    });
   });
 });
 

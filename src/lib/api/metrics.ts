@@ -1,4 +1,5 @@
 import { buildApiUrl, requestJsonCached } from "@/lib/api/client";
+import { metricSampleSchema, metricsResponseSchema } from "@shared/schemas";
 import type { MetricSample, MetricsResponse } from "@shared/types";
 
 /** Fetch recent metric samples */
@@ -6,7 +7,8 @@ export async function fetchMetrics(windowSec: number = 30): Promise<MetricSample
   const data = await requestJsonCached<MetricsResponse>(
     `/api/metrics?window=${windowSec}`,
     {},
-    "Failed to fetch metrics"
+    "Failed to fetch metrics",
+    metricsResponseSchema
   );
   return data.samples;
 }
@@ -20,8 +22,10 @@ export function subscribeMetrics(
 
   es.addEventListener("sample", (e) => {
     try {
-      const sample: MetricSample = JSON.parse(e.data);
-      onSample(sample);
+      const parsed = metricSampleSchema.safeParse(JSON.parse(e.data));
+      if (parsed.success) {
+        onSample(parsed.data);
+      }
     } catch {
       // Ignore malformed events.
     }

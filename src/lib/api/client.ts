@@ -1,13 +1,15 @@
+import type { ZodType } from "zod";
+
 const API_BASE = "";
 const DEFAULT_REQUEST_CACHE_TTL_MS = 1_000;
 
-interface CachedJsonEntry<T> {
-  data?: T;
+interface CachedJsonEntry {
+  data?: unknown;
   expiresAt: number;
-  promise?: Promise<T>;
+  promise?: Promise<unknown>;
 }
 
-const requestCache = new Map<string, CachedJsonEntry<unknown>>();
+const requestCache = new Map<string, CachedJsonEntry>();
 
 function getRequestCacheKey(path: string, init: RequestInit): string {
   return `${init.method ?? "GET"}:${path}`;
@@ -58,41 +60,49 @@ export async function request(
 export async function requestJson<T>(
   path: string,
   init: RequestInit,
-  fallbackMessage: string
+  fallbackMessage: string,
+  schema: ZodType<T>
 ): Promise<T> {
   const res = await request(path, init, fallbackMessage);
-  return res.json() as Promise<T>;
+  const data = await res.json();
+  return schema.parse(data);
 }
 
 export async function requestJsonCached<T>(
   path: string,
   init: RequestInit,
   fallbackMessage: string,
+  schema: ZodType<T>,
   ttlMs: number = DEFAULT_REQUEST_CACHE_TTL_MS
 ): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
   if (method !== "GET") {
-    return requestJson<T>(path, init, fallbackMessage);
+    return requestJson(path, init, fallbackMessage, schema);
   }
 
   const cacheKey = getRequestCacheKey(path, init);
-  const cached = requestCache.get(cacheKey) as CachedJsonEntry<T> | undefined;
+  const cached = requestCache.get(cacheKey);
   const now = Date.now();
 
   if (cached?.data !== undefined && cached.expiresAt > now) {
-    return cached.data;
+    return schema.parse(cached.data);
   }
 
   if (cached?.promise) {
-    return cached.promise;
+    return cached.promise.then((data) => schema.parse(data));
   }
 
-  const promise = requestJson<T>(path, init, fallbackMessage)
-    .then((data) => {
+  const promise = request(path, init, fallbackMessage)
+    .then(async (res) => {
+      const data = await res.json();
+      const parsed = schema.parse(data);
       requestCache.set(cacheKey, {
-        data,
+        data: parsed,
         expiresAt: Date.now() + ttlMs,
       });
+      return parsed;
+    })
+    .then((data) => {
       return data;
     })
     .catch((error) => {

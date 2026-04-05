@@ -5,6 +5,7 @@ import {
   requestJson,
   requestJsonCached,
 } from "@/lib/api/client";
+import { serviceSchema, servicesResponseSchema } from "@shared/schemas";
 import type { CreateServicePayload, Service, UpdateServicePayload } from "@shared/types";
 
 function appendOptionalField(
@@ -74,7 +75,7 @@ function buildServiceFormData(
 
 /** Fetch all services */
 export async function fetchServices(): Promise<Service[]> {
-  return requestJsonCached<Service[]>("/api/services", {}, "Failed to fetch services");
+  return requestJsonCached("/api/services", {}, "Failed to fetch services", servicesResponseSchema);
 }
 
 /** Create a new service (with optional icon file upload) */
@@ -93,7 +94,8 @@ export async function createService(
       method: "POST",
       body: formData,
     },
-    "Failed to create service"
+    "Failed to create service",
+    serviceSchema
   );
 
   invalidateRequestCache("/api/services");
@@ -119,7 +121,8 @@ export async function updateService(
       method: "PUT",
       body: formData,
     },
-    "Failed to update service"
+    "Failed to update service",
+    serviceSchema
   );
 
   invalidateRequestCache("/api/services");
