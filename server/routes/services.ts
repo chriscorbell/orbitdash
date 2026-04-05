@@ -2,6 +2,11 @@ import { Hono } from "hono";
 import { v4 as uuidv4 } from "uuid";
 import { getDb, getDataDir } from "../db";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import {
+    getValidationMessage,
+    serviceCreateSchema,
+    serviceUpdateSchema,
+} from "@shared/schemas";
 import { normalizeIconUrl, normalizeServiceUrl } from "@shared/urls";
 import fs from "fs";
 import path from "path";
@@ -28,7 +33,6 @@ type RequestFormData = Awaited<ReturnType<Request["formData"]>>;
 
 interface ParsedServicePayload<TPayload> {
     iconFile: File | null;
-    iconUrl: string | null;
     payload: TPayload;
     removeIcon: boolean;
 }
@@ -131,10 +135,9 @@ async function parseServicePayload<TPayload extends CreateServicePayload | Updat
     const contentType = request.headers.get("content-type") || "";
 
     if (!contentType.includes("multipart/form-data")) {
-        const payload = (await request.json()) as TPayload;
+        const payload = await request.json() as unknown as TPayload;
         return {
             iconFile: null,
-            iconUrl: trimToNull(payload.icon_url),
             payload,
             removeIcon: false,
         };
@@ -146,7 +149,6 @@ async function parseServicePayload<TPayload extends CreateServicePayload | Updat
 
     return {
         iconFile,
-        iconUrl: trimToNull(readOptionalString(formData, "icon_url")),
         payload: createPayload(formData),
         removeIcon: formData.get("remove_icon") === "true",
     };
@@ -216,13 +218,21 @@ servicesRouter.get("/", (c) => {
 
 /** POST /api/services */
 servicesRouter.post("/", async (c) => {
-    const { payload, iconFile, iconUrl } = await parseServicePayload(
+    const { payload, iconFile } = await parseServicePayload(
         c.req.raw,
         createServicePayloadFromFormData
     );
 
-    const normalizedName = trimToNull(payload.name);
-    const normalizedUrl = normalizeServiceUrl(payload.url ?? "");
+    const validation = serviceCreateSchema.safeParse(payload);
+
+    if (!validation.success) {
+        return c.json({ error: getValidationMessage(validation.error) }, 400);
+    }
+
+    const validatedPayload = validation.data;
+
+    const normalizedName = trimToNull(validatedPayload.name);
+    const normalizedUrl = normalizeServiceUrl(validatedPayload.url ?? "");
     if (!normalizedName) {
         return c.json({ error: "name is required" }, 400);
     }
@@ -245,9 +255,9 @@ servicesRouter.post("/", async (c) => {
         iconFilename = `${id}${ext}`;
         const buf = Buffer.from(await iconFile.arrayBuffer());
         persistIcon(iconFilename, buf);
-    } else if (iconUrl) {
+    } else if (validatedPayload.icon_url) {
         try {
-            const { buffer, ext } = await downloadIcon(iconUrl);
+            const { buffer, ext } = await downloadIcon(validatedPayload.icon_url);
             iconFilename = `${id}${ext}`;
             persistIcon(iconFilename, buffer);
         } catch (error) {
@@ -265,10 +275,10 @@ servicesRouter.post("/", async (c) => {
         id,
         normalizedName,
         normalizedUrl,
-        payload.description?.trim() || null,
+        validatedPayload.description?.trim() || null,
         iconFilename,
-        payload.category?.trim() || null,
-        payload.open_in_new_tab !== false ? 1 : 0,
+        validatedPayload.category?.trim() || null,
+        validatedPayload.open_in_new_tab !== false ? 1 : 0,
         now,
         now
     );
@@ -289,14 +299,22 @@ servicesRouter.put("/:id", async (c) => {
         return c.json({ error: "not found" }, 404);
     }
 
-    const { payload, iconFile, iconUrl, removeIcon } = await parseServicePayload(
+    const { payload, iconFile, removeIcon } = await parseServicePayload(
         c.req.raw,
         updateServicePayloadFromFormData
     );
 
+    const validation = serviceUpdateSchema.safeParse(payload);
+
+    if (!validation.success) {
+        return c.json({ error: getValidationMessage(validation.error) }, 400);
+    }
+
+    const validatedPayload = validation.data;
+
     const now = Date.now();
-    const nextName = payload.name !== undefined ? trimToNull(payload.name) : existing.name;
-    const nextUrl = payload.url !== undefined ? normalizeServiceUrl(payload.url) : existing.url;
+    const nextName = validatedPayload.name !== undefined ? trimToNull(validatedPayload.name) : existing.name;
+    const nextUrl = validatedPayload.url !== undefined ? normalizeServiceUrl(validatedPayload.url) : existing.url;
     if (!nextName) {
         return c.json({ error: "name is required" }, 400);
     }
@@ -305,7 +323,7 @@ servicesRouter.put("/:id", async (c) => {
     }
     let iconFilename = existing.icon;
 
-    const replacingIcon = Boolean(iconFile || iconUrl);
+    const replacingIcon = Boolean(iconFile || validatedPayload.icon_url);
 
     // Handle icon removal when not replacing
     if (!replacingIcon && removeIcon && existing.icon) {
@@ -329,9 +347,9 @@ servicesRouter.put("/:id", async (c) => {
     }
 
     // Replace icon via URL download
-    if (!iconFile && iconUrl) {
+    if (!iconFile && validatedPayload.icon_url) {
         try {
-            const { buffer, ext } = await downloadIcon(iconUrl);
+            const { buffer, ext } = await downloadIcon(validatedPayload.icon_url);
             removeIconFile(existing.icon);
             iconFilename = `${id}${ext}`;
             persistIcon(iconFilename, buffer);
@@ -350,10 +368,10 @@ servicesRouter.put("/:id", async (c) => {
     ).run(
         nextName,
         nextUrl,
-        payload.description !== undefined ? payload.description?.trim() || null : existing.description,
+        validatedPayload.description !== undefined ? validatedPayload.description?.trim() || null : existing.description,
         iconFilename,
-        payload.category !== undefined ? payload.category?.trim() || null : existing.category,
-        payload.open_in_new_tab !== undefined ? (payload.open_in_new_tab ? 1 : 0) : (existing.open_in_new_tab ? 1 : 0),
+        validatedPayload.category !== undefined ? validatedPayload.category?.trim() || null : existing.category,
+        validatedPayload.open_in_new_tab !== undefined ? (validatedPayload.open_in_new_tab ? 1 : 0) : (existing.open_in_new_tab ? 1 : 0),
         now,
         id
     );

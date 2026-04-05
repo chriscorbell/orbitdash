@@ -1,17 +1,19 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { getRecentSamples, subscribe } from "../metrics";
+import { getValidationMessage, metricsQuerySchema } from "@shared/schemas";
 
 const metricsRouter = new Hono();
 
 /** GET /api/metrics?window=30 */
 metricsRouter.get("/", (c) => {
-  const windowParam = c.req.query("window");
-  const parsedWindowSec = windowParam ? parseInt(windowParam, 10) : 30;
-  const windowSec = Number.isFinite(parsedWindowSec) && parsedWindowSec > 0
-    ? parsedWindowSec
-    : 30;
-  const samples = getRecentSamples(windowSec);
+  const result = metricsQuerySchema.safeParse(c.req.query());
+
+  if (!result.success) {
+    return c.json({ error: getValidationMessage(result.error) }, 400);
+  }
+
+  const samples = getRecentSamples(result.data.window);
   return c.json({ samples });
 });
 

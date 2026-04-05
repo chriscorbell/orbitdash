@@ -66,19 +66,19 @@ Acceptance criteria: tests start the app, create a service, edit it, reorder cat
 
 ## Priority 2: Replace Ad Hoc Validation With Shared Schemas
 
-- [ ] Introduce a schema validation library for request bodies, query strings, and persisted shapes.
+- [x] Introduce a schema validation library for request bodies, query strings, and persisted shapes.
 Acceptance criteria: backend routes parse external input through schemas before business logic executes.
 
-- [ ] Define schemas for service create/update payloads, category order updates, and metrics query params.
+- [x] Define schemas for service create/update payloads, category order updates, and metrics query params.
 Acceptance criteria: invalid input returns consistent 4xx responses with useful error messages.
 
-- [ ] Reuse those schemas for frontend form validation where practical.
+- [x] Reuse those schemas for frontend form validation where practical.
 Acceptance criteria: client and server share validation rules for core fields such as name, URL, category, and icon URL.
 
-- [ ] Remove unsafe type assertions around parsed JSON where schemas can provide runtime guarantees.
+- [x] Remove unsafe type assertions around parsed JSON where schemas can provide runtime guarantees.
 Acceptance criteria: route handlers no longer depend on blind casts for request bodies.
 
-- [ ] Document validation rules in one place.
+- [x] Document validation rules in one place.
 Acceptance criteria: contributors can find canonical field rules without reading multiple files.
 
 ## Priority 3: Refactor Maintainability Hotspots

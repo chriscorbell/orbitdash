@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { getIconUrl } from "@/lib/api/services";
 import { cn } from "@/lib/utils";
+import { getValidationMessage, serviceCreateSchema } from "@shared/schemas";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 import { Upload, X } from "lucide-react";
 
@@ -228,7 +229,14 @@ export function ServiceDialog({
                 category: resolvedCategory || null,
                 open_in_new_tab: openInNewTab,
             };
-            await onSubmit(payload, iconFile || undefined, removeIcon);
+
+            const validation = serviceCreateSchema.safeParse(payload);
+            if (!validation.success) {
+                setErrorMessage(getValidationMessage(validation.error));
+                return;
+            }
+
+            await onSubmit(validation.data, iconFile || undefined, removeIcon);
             onOpenChange(false);
         } catch (err) {
             setErrorMessage(err instanceof Error ? err.message : "Failed to save service");

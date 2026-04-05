@@ -115,6 +115,18 @@ The enforced coverage gate currently applies to shared runtime modules under `sh
 type-only definitions in `shared/types.ts`. Expand that coverage scope as backend, hook, component,
 and end-to-end suites are added.
 
+## Validation Rules
+
+Shared runtime validation now lives in `shared/schemas.ts` and is used by both the server routes
+and the service dialog submit path. The current canonical rules are:
+
+- service names are required after trimming
+- service URLs must normalize to valid `http` or `https` URLs
+- icon URLs, when provided, must normalize to valid `http` or `https` URLs
+- category and description fields are trimmed and normalized to `null` when empty
+- the `Uncategorized` section cannot be manually included in saved category ordering
+- metrics `window` must be a positive integer and is bounded to 3600 seconds
+
 ## Contributing
 
 Issues and PRs are welcomed. Please include description, screenshots and any related logs.

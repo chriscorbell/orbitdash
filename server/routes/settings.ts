@@ -2,12 +2,11 @@ import { Hono } from "hono";
 import { getDb } from "../db";
 import {
   CATEGORY_ORDER_SETTING_KEY,
-  UNCATEGORIZED_CATEGORY,
   sanitizeCategoryOrder,
 } from "@shared/category-order";
+import { categoryOrderUpdateSchema, getValidationMessage } from "@shared/schemas";
 import type {
   CategoryOrderResponse,
-  UpdateCategoryOrderPayload,
 } from "@shared/types";
 
 const settingsRouter = new Hono();
@@ -42,14 +41,22 @@ settingsRouter.get("/category-order", (c) => {
 });
 
 settingsRouter.put("/category-order", async (c) => {
-  const payload = await c.req.json<UpdateCategoryOrderPayload>();
+  const result = categoryOrderUpdateSchema.safeParse(await c.req.json());
+
+  if (!result.success) {
+    const hasOrderTypeError = result.error.issues.some((issue) => issue.path[0] === "order");
+
+    if (hasOrderTypeError && result.error.issues[0]?.message !== '"Uncategorized" cannot be manually ordered') {
+      return c.json({ error: "order must be an array of category names" }, 400);
+    }
+
+    return c.json({ error: getValidationMessage(result.error) }, 400);
+  }
+
+  const payload = result.data;
 
   if (!Array.isArray(payload.order) || payload.order.some((value) => typeof value !== "string")) {
     return c.json({ error: "order must be an array of category names" }, 400);
-  }
-
-  if (payload.order.some((value) => value.trim() === UNCATEGORIZED_CATEGORY)) {
-    return c.json({ error: `"${UNCATEGORIZED_CATEGORY}" cannot be manually ordered` }, 400);
   }
 
   const sanitizedOrder = sanitizeCategoryOrder(payload.order);
