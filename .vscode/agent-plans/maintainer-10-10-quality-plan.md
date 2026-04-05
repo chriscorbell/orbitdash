@@ -20,19 +20,19 @@ How to use this plan:
 
 ## Priority 0: Establish Non-Negotiable Quality Gates
 
-- [ ] Add a test runner and a `test` script to `package.json`.
+- [x] Add a test runner and a `test` script to `package.json`.
 Acceptance criteria: `npm test` runs locally and in CI; the script exits non-zero on failures.
 
-- [ ] Add separate `test:unit`, `test:integration`, and `test:e2e` scripts if the chosen stack supports them.
+- [x] Add separate `test:unit`, `test:integration`, and `test:e2e` scripts if the chosen stack supports them.
 Acceptance criteria: each script is independently runnable; CI can target them separately.
 
-- [ ] Add CI to run lint, typecheck, tests, and production build on every PR.
+- [x] Add CI to run lint, typecheck, tests, and production build on every PR.
 Acceptance criteria: pull requests cannot merge without passing all required checks.
 
-- [ ] Add coverage reporting with a documented minimum threshold.
+- [x] Add coverage reporting with a documented minimum threshold.
 Acceptance criteria: coverage runs in CI; thresholds are enforced; failing coverage blocks merges.
 
-- [ ] Add a dedicated `typecheck` script instead of relying only on `build`.
+- [x] Add a dedicated `typecheck` script instead of relying only on `build`.
 Acceptance criteria: maintainers can run type validation without performing a production bundle.
 
 - [ ] Add a formatting strategy and enforce it automatically.
@@ -49,10 +49,10 @@ Acceptance criteria: tests cover invalid arrays, duplicate values, whitespace no
 - [ ] Add backend tests for health endpoints and readiness behavior.
 Acceptance criteria: tests verify healthy and degraded database states for `/healthz`, `/readyz`, and `/api/health`.
 
-- [ ] Add unit tests for `shared/category-order.ts`.
+- [x] Add unit tests for `shared/category-order.ts`.
 Acceptance criteria: tests cover duplicate suppression, trimming, uncategorized handling, and deterministic merge behavior.
 
-- [ ] Add unit tests for `shared/urls.ts`.
+- [x] Add unit tests for `shared/urls.ts`.
 Acceptance criteria: tests cover valid URLs, invalid schemes, trimming, normalization, and icon URL handling.
 
 - [ ] Add hook tests for `useServices`, `useMetrics`, and `useCategoryOrder`.

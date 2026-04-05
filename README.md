@@ -98,6 +98,10 @@ Outside Docker, orbitdash stores data in `./data` by default. You can override t
 Use the following commands for the initial automated test workflow:
 
 ```bash
+npm run typecheck
+npm run test:unit
+npm run test:integration
+npm run test:e2e
 npm test -- --run
 npm run test:coverage
 ```
@@ -106,6 +110,10 @@ The current test suite starts with pure shared-module coverage so the project ha
 gate without being blocked by Bun-specific database and server boot side effects. Backend route
 tests and frontend hook/component tests should be added next after isolating the database singleton
 and top-level server initialization.
+
+The enforced coverage gate currently applies to shared runtime modules under `shared/` excluding
+type-only definitions in `shared/types.ts`. Expand that coverage scope as backend, hook, component,
+and end-to-end suites are added.
 
 ## Contributing
 
