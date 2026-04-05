@@ -80,6 +80,11 @@ When changing server routes or shared validation logic, run both `test:unit` and
 See [docs/architecture.md](docs/architecture.md) for the high-level design choices and the reasons
 behind the current stack.
 
+## Frontend Async States
+
+See [docs/frontend-state-guidelines.md](docs/frontend-state-guidelines.md) for the expected loading,
+success, empty, and error-state patterns across the dashboard UI.
+
 ## Release Workflow
 
 See [docs/release-checklist.md](docs/release-checklist.md) for the release procedure, pre-publish

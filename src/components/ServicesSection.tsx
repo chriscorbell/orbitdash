@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
+import { SectionStateCard } from "@/components/common/SectionStateCard";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +31,10 @@ const CategoryReorderDialog = lazy(() =>
 interface ServicesSectionProps {
   services: Service[];
   categoryOrder: UseCategoryOrderResult;
+  loading: boolean;
+  error: string | null;
   isFiveColumn: boolean;
+  onRetry: () => Promise<void>;
   onCreate: (payload: CreateServicePayload, iconFile?: File) => Promise<Service>;
   onUpdate: (
     id: string,
@@ -44,7 +48,10 @@ interface ServicesSectionProps {
 export function ServicesSection({
   services,
   categoryOrder,
+  loading,
+  error,
   isFiveColumn,
+  onRetry,
   onCreate,
   onUpdate,
   onDelete,
@@ -127,6 +134,9 @@ export function ServicesSection({
       cancelReorder();
     }
   };
+  const showInitialLoading = loading && services.length === 0;
+  const showInitialError = !loading && error !== null && services.length === 0;
+  const showInlineError = error !== null && services.length > 0;
 
   return (
     <div className="space-y-4">
@@ -150,11 +160,46 @@ export function ServicesSection({
         />
       </Suspense>
 
-      {filtered.length === 0 && services.length === 0 && (
-        <ServicesEmptyState mode="empty" onAddService={() => setAddOpen(true)} />
+      {showInlineError && (
+        <SectionStateCard
+          tone="error"
+          title="Services may be stale"
+          description={`${error} The last saved list is still visible.`}
+          actionLabel="Retry"
+          onAction={() => {
+            void onRetry();
+          }}
+        />
       )}
 
-      {filtered.length === 0 && services.length > 0 && (
+      {showInitialLoading && (
+        <SectionStateCard
+          tone="loading"
+          title="Loading services"
+          description="Fetching your saved services and category layout."
+        />
+      )}
+
+      {showInitialError && (
+        <SectionStateCard
+          tone="error"
+          title="Services are unavailable"
+          description={error}
+          actionLabel="Retry"
+          onAction={() => {
+            void onRetry();
+          }}
+        />
+      )}
+
+      {!showInitialLoading &&
+        !showInitialError &&
+        filtered.length === 0 &&
+        services.length === 0 && (
+          <ServicesEmptyState mode="empty" onAddService={() => setAddOpen(true)} />
+        )}
+
+      {!showInitialLoading && filtered.length === 0 && services.length > 0 && (
         <ServicesEmptyState
           mode="search"
           search={search}
@@ -163,7 +208,7 @@ export function ServicesSection({
         />
       )}
 
-      {filtered.length > 0 && (
+      {!showInitialLoading && !showInitialError && filtered.length > 0 && (
         <CategorySectionList
           grouped={grouped}
           gridClassName={gridClassName}

@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { MetricCard } from "@/components/MetricCard";
 import { ServicesSection } from "@/components/ServicesSection";
+import { SectionStateCard } from "@/components/common/SectionStateCard";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
@@ -21,8 +22,16 @@ function MetricChartsFallback() {
 }
 
 function App() {
-  const { samples, latest } = useMetrics();
-  const { services, create, update, remove } = useServices();
+  const { samples, latest, status: metricsStatus, error: metricsError } = useMetrics();
+  const {
+    services,
+    loading: servicesLoading,
+    error: servicesError,
+    create,
+    update,
+    remove,
+    reload,
+  } = useServices();
   const categoryOrder = useCategoryOrder(services);
   const sectionOrderStorageKey = "orbitdash.sectionOrder";
   const [sectionOrder, setSectionOrder] = useLocalStorageState(
@@ -33,10 +42,35 @@ function App() {
   const showStatsFirst = sectionOrder !== "services-first";
   const isFiveColumn = gridColumns === "5";
   const canReorderCategories = categoryOrder.namedCategories.length >= 2;
+  const showMetricsConnecting =
+    metricsStatus === "connecting" && samples.length === 0 && !metricsError;
+  const showMetricsError = metricsError !== null && samples.length === 0;
+  const showMetricsOffline = metricsStatus === "offline";
+  const showMetricsWarning = metricsError !== null && samples.length > 0;
 
   const statsSection = (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Stats</h2>
+      {showMetricsConnecting && (
+        <SectionStateCard
+          tone="loading"
+          title="Connecting to live metrics"
+          description="Waiting for the first metrics snapshot and stream updates."
+        />
+      )}
+      {showMetricsError && (
+        <SectionStateCard tone="error" title="Metrics are unavailable" description={metricsError} />
+      )}
+      {showMetricsOffline && (
+        <SectionStateCard
+          tone="offline"
+          title="Metrics stream offline"
+          description="Showing the last received samples while the connection recovers."
+        />
+      )}
+      {showMetricsWarning && !showMetricsOffline && (
+        <SectionStateCard tone="error" title="Metrics may be stale" description={metricsError} />
+      )}
       <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-stretch">
         <div className="grid gap-3 md:h-full md:grid-rows-3">
           <MetricCard className="h-full" title="CPU" value={latest?.cpu ?? null} icon="cpu" />
@@ -56,7 +90,10 @@ function App() {
     <ServicesSection
       services={services}
       categoryOrder={categoryOrder}
+      loading={servicesLoading}
+      error={servicesError}
       isFiveColumn={isFiveColumn}
+      onRetry={reload}
       onCreate={create}
       onUpdate={update}
       onDelete={remove}

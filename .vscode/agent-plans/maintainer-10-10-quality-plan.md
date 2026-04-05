@@ -146,7 +146,7 @@ Acceptance criteria: core flows are operable by keyboard and pass automated a11y
 - [x] Replace any custom interactive control that lacks full semantics with hardened primitives or equivalent behavior.
 Acceptance criteria: controls expose correct labels, focus behavior, and keyboard support.
 
-- [ ] Add loading and empty-state consistency guidelines.
+- [x] Add loading and empty-state consistency guidelines.
 Acceptance criteria: every async section has an intentional loading, success, empty, and error presentation.
 
 - [ ] Reduce unnecessary casting in client code.
