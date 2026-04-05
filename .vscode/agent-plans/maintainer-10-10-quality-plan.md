@@ -132,7 +132,7 @@ Acceptance criteria: tests verify schema initialization, inserts, updates, delet
 - [ ] Define constraints closer to the database where appropriate.
 Acceptance criteria: important invariants such as required fields and sensible defaults are enforced in schema design, not only application code.
 
-- [ ] Review sorting and indexing strategy for services and metrics queries.
+- [x] Review sorting and indexing strategy for services and metrics queries.
 Acceptance criteria: indexes are justified by real query patterns and documented where non-obvious.
 
 - [x] Add a backup and restore story for persisted data.

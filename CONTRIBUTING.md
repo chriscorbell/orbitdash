@@ -84,6 +84,8 @@ When changing server routes or shared validation logic, run both `test:unit` and
 See [docs/architecture.md](docs/architecture.md) for the high-level design choices and the reasons
 behind the current stack.
 
+For SQLite query and index rationale, see [docs/database-indexing.md](docs/database-indexing.md).
+
 ## Frontend Async States
 
 See [docs/frontend-state-guidelines.md](docs/frontend-state-guidelines.md) for the expected loading,
