@@ -93,6 +93,20 @@ Outside Docker, orbitdash stores data in `./data` by default. You can override t
 - `GET /readyz` returns readiness for deployment and CI probes, including a SQLite connectivity check.
 - `GET /api/health` returns the same readiness payload as `readyz` for API-oriented clients.
 
+## Testing
+
+Use the following commands for the initial automated test workflow:
+
+```bash
+npm test -- --run
+npm run test:coverage
+```
+
+The current test suite starts with pure shared-module coverage so the project has a real `test`
+gate without being blocked by Bun-specific database and server boot side effects. Backend route
+tests and frontend hook/component tests should be added next after isolating the database singleton
+and top-level server initialization.
+
 ## Contributing
 
 Issues and PRs are welcomed. Please include description, screenshots and any related logs.
