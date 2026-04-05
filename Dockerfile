@@ -4,6 +4,7 @@ FROM oven/bun:1 AS deps
 WORKDIR /app
 
 COPY package.json bun.lock* ./
+COPY scripts/prepare-git-hooks.mjs ./scripts/prepare-git-hooks.mjs
 RUN bun install --frozen-lockfile
 
 # Install only production dependencies for the runtime image.
@@ -12,6 +13,7 @@ FROM oven/bun:1 AS prod-deps
 WORKDIR /app
 
 COPY package.json bun.lock* ./
+COPY scripts/prepare-git-hooks.mjs ./scripts/prepare-git-hooks.mjs
 RUN bun install --frozen-lockfile --production
 
 # Build stage

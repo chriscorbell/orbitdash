@@ -4,7 +4,6 @@ import path from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { setHooksFromConfig, skipInstall } = require("simple-git-hooks/simple-git-hooks");
 
 function runGit(args) {
   return execFileSync("git", args, {
@@ -34,13 +33,30 @@ function unsetGitConfig(key) {
   }
 }
 
-if (skipInstall()) {
-  process.exit(0);
-}
-
 try {
   runGit(["rev-parse", "--git-dir"]);
 } catch {
+  process.exit(0);
+}
+
+let setHooksFromConfig;
+let skipInstall;
+
+try {
+  ({ setHooksFromConfig, skipInstall } = require("simple-git-hooks/simple-git-hooks"));
+} catch (error) {
+  if (
+    error?.code === "MODULE_NOT_FOUND" &&
+    typeof error.message === "string" &&
+    error.message.includes("simple-git-hooks/simple-git-hooks")
+  ) {
+    process.exit(0);
+  }
+
+  throw error;
+}
+
+if (skipInstall()) {
   process.exit(0);
 }
 
