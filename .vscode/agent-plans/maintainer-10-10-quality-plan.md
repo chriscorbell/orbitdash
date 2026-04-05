@@ -61,7 +61,7 @@ Acceptance criteria: tests verify loading states, success paths, error paths, op
 - [x] Add component tests for the service CRUD flow.
 Acceptance criteria: tests cover add, edit, delete, validation messages, icon preview behavior, and category handling.
 
-- [ ] Add end-to-end smoke tests for the primary user journey.
+- [x] Add end-to-end smoke tests for the primary user journey.
 Acceptance criteria: tests start the app, create a service, edit it, reorder categories, and verify stats UI renders.
 
 ## Priority 2: Replace Ad Hoc Validation With Shared Schemas

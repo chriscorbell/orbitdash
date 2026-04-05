@@ -28,6 +28,7 @@ npm run dev:all
 ## Common Commands
 
 ```bash
+npm run test:e2e:install
 npm run format
 npm run format:check
 npm run lint
@@ -64,8 +65,11 @@ npm run prepare
 - `test:unit` covers shared runtime logic and frontend unit/component tests through Vitest.
 - `test:integration` covers backend route and runtime integration tests through Bun's native test
   runner.
-- `test:e2e` is reserved for browser smoke coverage.
+- `test:e2e` runs the Playwright browser smoke suite against the real frontend and backend.
 - `test:coverage` currently enforces shared runtime coverage and should expand as more suites land.
+
+Run `npm run test:e2e:install` once per machine before using the browser suite so Chromium is
+installed locally.
 
 When changing server routes or shared validation logic, run both `test:unit` and
 `test:integration` locally before pushing.

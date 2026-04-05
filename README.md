@@ -121,6 +121,7 @@ Also confirm that:
 Use the following commands for the initial automated test workflow:
 
 ```bash
+npm run test:e2e:install
 npm run format
 npm run format:check
 npm run typecheck
@@ -131,10 +132,8 @@ npm test -- --run
 npm run test:coverage
 ```
 
-The current test suite starts with pure shared-module coverage so the project has a real `test`
-gate without being blocked by Bun-specific database and server boot side effects. Backend route
-tests and frontend hook/component tests should be added next after isolating the database singleton
-and top-level server initialization.
+Run `npm run test:e2e:install` once per machine before the first browser smoke test so Chromium is
+available locally.
 
 Formatting is enforced with Prettier. Use `npm run format` locally to normalize files and
 `npm run format:check` to run the same check that CI uses.

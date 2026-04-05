@@ -13,6 +13,9 @@ dist
 dist-ssr
 dist-server
 data
+.e2e-data
+playwright-report
+test-results
 *.local
 
 # Editor directories and files

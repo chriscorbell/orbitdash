@@ -41,7 +41,10 @@ jobs:
       - name: Run integration tests
         run: npm run test:integration
 
-      - name: Run end-to-end placeholder suite
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end smoke tests
         run: npm run test:e2e
 
       - name: Enforce coverage threshold

@@ -7,8 +7,9 @@
 3. Run `npm run typecheck`.
 4. Run `npm run test:unit`.
 5. Run `npm run test:integration`.
-6. Run `npm run test:coverage`.
-7. Run `npm run build`.
+6. Run `npm run test:e2e`.
+7. Run `npm run test:coverage`.
+8. Run `npm run build`.
 
 ## Container Verification
 
