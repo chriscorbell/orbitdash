@@ -163,7 +163,7 @@ Acceptance criteria: a new contributor can clone, run, test, and understand the 
 - [x] Add `make`, npm, or task aliases for common workflows.
 Acceptance criteria: linting, testing, building, and running the full stack are available through obvious commands.
 
-- [ ] Add pre-commit or pre-push hooks for fast local validation.
+- [x] Add pre-commit or pre-push hooks for fast local validation.
 Acceptance criteria: basic quality checks run automatically before code leaves a developer machine.
 
 - [x] Document environment variables and defaults comprehensively.

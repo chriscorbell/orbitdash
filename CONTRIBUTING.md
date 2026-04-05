@@ -42,6 +42,19 @@ npm run build
 These scripts are the canonical local task aliases for formatting, validation, testing, and
 building.
 
+## Local Hooks
+
+Git hooks are installed through `npm run prepare` during dependency installation.
+
+- `pre-commit` runs `lint-staged`, which formats staged files and lints staged TypeScript files.
+- `pre-push` runs `npm run typecheck` and `npm run test:unit`.
+
+If hooks need to be reinstalled manually, run:
+
+```bash
+npm run prepare
+```
+
 ## Test Strategy
 
 - `test:unit` covers shared runtime logic and frontend unit/component tests through Vitest.
