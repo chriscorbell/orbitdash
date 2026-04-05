@@ -16,7 +16,7 @@
     "test": "vitest",
     "test:run": "vitest --run",
     "test:unit": "vitest --run shared src",
-    "test:integration": "vitest --run server --passWithNoTests",
+    "test:integration": "bunx vitest --run server --passWithNoTests",
     "test:e2e": "vitest --run e2e --passWithNoTests",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --run --coverage"

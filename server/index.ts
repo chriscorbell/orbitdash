@@ -7,9 +7,19 @@ import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
 import servicesRouter, { getIconsDir } from "./routes/services";
 import { startCollection, stopCollection } from "./metrics";
-import { closeDb, getDb, getDataDir, isDbHealthy } from "./db";
+import { closeDb, getDataDir, initializeDb, isDbHealthy } from "./db";
+
+interface InitializeServerOptions {
+  dataDir?: string;
+  dbPath?: string;
+  logStartup?: boolean;
+  registerSignalHandlers?: boolean;
+  startMetrics?: boolean;
+}
 
 const app = new Hono();
+let runtimeInitialized = false;
+let signalHandlersRegistered = false;
 
 function createHealthPayload(status: "ok" | "error") {
   return {
@@ -135,27 +145,61 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-// Initialize database
-getDb();
-
-// Start metrics collection
-startCollection();
-
-function shutdown() {
+export function shutdown() {
   stopCollection();
   closeDb();
+  runtimeInitialized = false;
 }
 
-process.once("SIGINT", shutdown);
-process.once("SIGTERM", shutdown);
+function registerSignalHandlers() {
+  if (signalHandlersRegistered) {
+    return;
+  }
+
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+  signalHandlersRegistered = true;
+}
+
+export function initializeServer(options: InitializeServerOptions = {}) {
+  if (runtimeInitialized) {
+    return;
+  }
+
+  initializeDb({
+    dataDir: options.dataDir,
+    dbPath: options.dbPath,
+  });
+
+  if (options.startMetrics !== false) {
+    startCollection();
+  }
+
+  if (options.registerSignalHandlers !== false) {
+    registerSignalHandlers();
+  }
+
+  if (options.logStartup !== false) {
+    console.log(`🚀 orbitdash server starting on port ${PORT}`);
+    console.log(`📁 Data directory: ${getDataDir()}`);
+  }
+
+  runtimeInitialized = true;
+}
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
-console.log(`🚀 orbitdash server starting on port ${PORT}`);
-console.log(`📁 Data directory: ${getDataDir()}`);
+if (import.meta.main) {
+  initializeServer();
+}
+
+export { app };
 
 export default {
   port: PORT,
   hostname: "0.0.0.0",
-  fetch: app.fetch,
+  fetch: (request: Request, server?: Parameters<typeof app.fetch>[1]) => {
+    initializeServer();
+    return app.fetch(request, server);
+  },
 };
