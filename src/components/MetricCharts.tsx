@@ -19,6 +19,10 @@ interface MetricChartsProps {
 
 type MetricKey = "cpu" | "ram" | "disk";
 
+function isMetricKey(value: string): value is MetricKey {
+  return value === "cpu" || value === "ram" || value === "disk";
+}
+
 const chartConfig = {
   cpu: { label: "CPU", color: "#ffffff" },
   ram: { label: "RAM", color: "#ffffff" },
@@ -115,7 +119,11 @@ export function MetricCharts({ samples }: MetricChartsProps) {
     <Card size="sm" className="h-full py-2">
       <Tabs
         value={activeMetric}
-        onValueChange={(value) => setActiveMetric(value as MetricKey)}
+        onValueChange={(value) => {
+          if (isMetricKey(value)) {
+            setActiveMetric(value);
+          }
+        }}
         className="h-full"
       >
         <CardHeader className="flex flex-row items-center justify-between gap-3">

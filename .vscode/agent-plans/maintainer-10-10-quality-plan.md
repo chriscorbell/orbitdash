@@ -140,10 +140,10 @@ Acceptance criteria: maintainers can back up the SQLite file and icon assets wit
 
 ## Priority 6: Strengthen Frontend Quality And Accessibility
 
-- [ ] Add accessibility-focused tests for dialogs, switches, forms, and keyboard interactions.
+- [x] Add accessibility-focused tests for dialogs, switches, forms, and keyboard interactions.
 Acceptance criteria: core flows are operable by keyboard and pass automated a11y checks.
 
-- [ ] Replace any custom interactive control that lacks full semantics with hardened primitives or equivalent behavior.
+- [x] Replace any custom interactive control that lacks full semantics with hardened primitives or equivalent behavior.
 Acceptance criteria: controls expose correct labels, focus behavior, and keyboard support.
 
 - [ ] Add loading and empty-state consistency guidelines.

@@ -181,7 +181,7 @@ export function ServicesSection({
           onOpenChange={setAddOpen}
           categoryOptions={categoryOptions}
           onSubmit={async (payload, iconFile) => {
-            await onCreate(payload as CreateServicePayload, iconFile);
+            await onCreate(payload, iconFile);
           }}
         />
       </Suspense>
@@ -202,12 +202,7 @@ export function ServicesSection({
               return;
             }
 
-            await onUpdate(
-              editingService.id,
-              payload as UpdateServicePayload,
-              iconFile,
-              removeIcon
-            );
+            await onUpdate(editingService.id, payload, iconFile, removeIcon);
           }}
           onDelete={
             editingService

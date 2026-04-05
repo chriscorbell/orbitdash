@@ -13,6 +13,19 @@ function getRequestCacheKey(path: string, init: RequestInit): string {
   return `${init.method ?? "GET"}:${path}`;
 }
 
+function getErrorMessage(data: unknown): string | null {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "error" in data &&
+    typeof data.error === "string"
+  ) {
+    return data.error;
+  }
+
+  return null;
+}
+
 async function throwIfNotOk(res: Response, fallbackMessage: string): Promise<void> {
   if (res.ok) {
     return;
@@ -20,9 +33,10 @@ async function throwIfNotOk(res: Response, fallbackMessage: string): Promise<voi
 
   let message = fallbackMessage;
   try {
-    const data = (await res.json()) as { error?: string };
-    if (data.error) {
-      message = data.error;
+    const data = await res.json();
+    const errorMessage = getErrorMessage(data);
+    if (errorMessage) {
+      message = errorMessage;
     }
   } catch {
     // Fall back to the default message when the response body is not JSON.

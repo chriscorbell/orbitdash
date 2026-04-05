@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -27,9 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getIconUrl } from "@/lib/api/services";
-import { cn } from "@/lib/utils";
 import { getValidationMessage, serviceCreateSchema } from "@shared/schemas";
-import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import type { Service, CreateServicePayload } from "@shared/types";
 import { Upload, X } from "lucide-react";
 
 const NEW_CATEGORY_VALUE = "__new__";
@@ -52,11 +52,7 @@ interface ServiceDialogProps {
   onOpenChange: (open: boolean) => void;
   service?: Service | null;
   categoryOptions: string[];
-  onSubmit: (
-    payload: CreateServicePayload | UpdateServicePayload,
-    iconFile?: File,
-    removeIcon?: boolean
-  ) => Promise<void>;
+  onSubmit: (payload: CreateServicePayload, iconFile?: File, removeIcon?: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
 }
 
@@ -166,11 +162,13 @@ export function ServiceDialog({
         removeIcon: false,
       }));
       const reader = new FileReader();
-      reader.onload = () =>
+      reader.onload = () => {
+        const result = reader.result;
         setFormState((current) => ({
           ...current,
-          iconPreview: reader.result as string,
+          iconPreview: typeof result === "string" ? result : null,
         }));
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -224,7 +222,7 @@ export function ServiceDialog({
     setSubmitting(true);
     setErrorMessage(null);
     try {
-      const payload: CreateServicePayload | UpdateServicePayload = {
+      const payload: CreateServicePayload = {
         name: name.trim(),
         url: url.trim(),
         description: description.trim() || null,
@@ -317,33 +315,25 @@ export function ServiceDialog({
                 Use a full `http://` or `https://` address.
               </p>
               <div className="flex items-center gap-2">
-                <Label id={`${newTabInputId}-label`} className="text-xs text-muted-foreground">
+                <Label
+                  id={`${newTabInputId}-label`}
+                  htmlFor={newTabInputId}
+                  className="text-xs text-muted-foreground"
+                >
                   Open in new tab
                 </Label>
-                <button
+                <Switch
                   id={newTabInputId}
-                  type="button"
-                  role="switch"
-                  aria-checked={openInNewTab}
                   aria-labelledby={`${newTabInputId}-label`}
-                  className={cn(
-                    "inline-flex h-3.5 w-6 shrink-0 items-center rounded-full border border-transparent outline-none transition-all focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                    openInNewTab ? "bg-primary" : "bg-input dark:bg-input/80"
-                  )}
-                  onClick={() =>
+                  checked={openInNewTab}
+                  size="sm"
+                  onCheckedChange={(checked) =>
                     setFormState((current) => ({
                       ...current,
-                      openInNewTab: !current.openInNewTab,
+                      openInNewTab: checked,
                     }))
                   }
-                >
-                  <span
-                    className={cn(
-                      "pointer-events-none block size-3 rounded-full bg-background transition-transform",
-                      openInNewTab ? "translate-x-[calc(100%-2px)]" : "translate-x-0"
-                    )}
-                  />
-                </button>
+                />
               </div>
             </div>
           </div>
