@@ -198,3 +198,7 @@ export function stopCollection(): void {
     collectionInterval = null;
   }
 }
+
+export function isCollectionRunning(): boolean {
+  return collectionInterval !== null;
+}

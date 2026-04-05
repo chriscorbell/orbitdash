@@ -177,7 +177,7 @@ Acceptance criteria: maintainers can understand why Bun, Hono, SQLite, SSE, and 
 - [ ] Add request-level logging and basic metrics.
 Acceptance criteria: maintainers can inspect request volume, failures, and health trends in production.
 
-- [ ] Add graceful shutdown tests or documented expectations.
+- [x] Add graceful shutdown tests or documented expectations.
 Acceptance criteria: shutdown closes background loops and the database cleanly under normal stop signals.
 
 - [x] Add container-level documentation and verification for production deployment.
