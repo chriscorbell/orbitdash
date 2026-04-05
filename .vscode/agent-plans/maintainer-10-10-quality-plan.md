@@ -103,7 +103,7 @@ Acceptance criteria: any file mixing multiple responsibilities is reduced to sim
 - [x] Add explicit handling for malformed JSON and unsupported content types.
 Acceptance criteria: routes return structured 400/415 responses instead of generic internal errors.
 
-- [ ] Add icon file content verification beyond extension and declared MIME type.
+- [x] Add icon file content verification beyond extension and declared MIME type.
 Acceptance criteria: the server rejects files whose contents do not match supported image formats.
 
 - [ ] Add limits and safeguards around remote icon downloads.

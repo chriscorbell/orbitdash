@@ -11,17 +11,7 @@ import path from "path";
 const servicesRouter = new Hono();
 
 const ICONS_DIR_NAME = "icons";
-const ALLOWED_ICON_EXTS = new Set([".png", ".svg", ".jpg", ".jpeg", ".gif", ".webp", ".ico"]);
 const MAX_ICON_BYTES = 2 * 1024 * 1024;
-const CONTENT_TYPE_TO_EXT: Record<string, string> = {
-  "image/png": ".png",
-  "image/svg+xml": ".svg",
-  "image/jpeg": ".jpg",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
-  "image/x-icon": ".ico",
-  "image/vnd.microsoft.icon": ".ico",
-};
 
 type ServiceRecord = Omit<Service, "open_in_new_tab"> & {
   open_in_new_tab: boolean | number;
@@ -45,18 +35,48 @@ function getIconsDir(): string {
   return dir;
 }
 
-function resolveIconExt(iconUrl: string, contentType?: string | null): string | null {
-  const normalized = contentType?.split(";")[0].trim().toLowerCase();
-  if (normalized && CONTENT_TYPE_TO_EXT[normalized]) {
-    return CONTENT_TYPE_TO_EXT[normalized];
+function detectIconExt(buffer: Buffer): string | null {
+  if (
+    buffer.byteLength >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))
+  ) {
+    return ".png";
   }
-  try {
-    const parsed = new URL(iconUrl);
-    const ext = path.extname(parsed.pathname).toLowerCase();
-    return ALLOWED_ICON_EXTS.has(ext) ? ext : null;
-  } catch {
-    return null;
+
+  if (buffer.byteLength >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return ".jpg";
   }
+
+  const gifHeader = buffer.subarray(0, 6).toString("ascii");
+  if (gifHeader === "GIF87a" || gifHeader === "GIF89a") {
+    return ".gif";
+  }
+
+  if (
+    buffer.byteLength >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return ".webp";
+  }
+
+  if (
+    buffer.byteLength >= 4 &&
+    buffer[0] === 0x00 &&
+    buffer[1] === 0x00 &&
+    buffer[2] === 0x01 &&
+    buffer[3] === 0x00
+  ) {
+    return ".ico";
+  }
+
+  const headerText = buffer.subarray(0, 512).toString("utf-8").trimStart();
+  const normalizedHeaderText = headerText.startsWith("\uFEFF") ? headerText.slice(1) : headerText;
+  if (/^(<\?xml[\s\S]*?)?<svg[\s>]/i.test(normalizedHeaderText)) {
+    return ".svg";
+  }
+
+  return null;
 }
 
 async function downloadIcon(iconUrl: string): Promise<{ buffer: Buffer; ext: string }> {
@@ -82,31 +102,20 @@ async function downloadIcon(iconUrl: string): Promise<{ buffer: Buffer; ext: str
       throw new Error("Icon file is too large");
     }
 
-    const contentType = res.headers.get("content-type");
-    const ext = resolveIconExt(normalizedIconUrl, contentType);
-    if (!ext) {
-      throw new Error("Unsupported icon type");
-    }
-
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.byteLength > MAX_ICON_BYTES) {
       throw new Error("Icon file is too large");
+    }
+
+    const ext = detectIconExt(buf);
+    if (!ext) {
+      throw new Error("Unsupported icon type");
     }
 
     return { buffer: buf, ext };
   } finally {
     clearTimeout(timeout);
   }
-}
-
-function getUploadedIconExt(file: File): string | null {
-  const ext = path.extname(file.name).toLowerCase();
-  if (ALLOWED_ICON_EXTS.has(ext)) {
-    return ext;
-  }
-
-  const normalizedType = file.type.split(";")[0].trim().toLowerCase();
-  return CONTENT_TYPE_TO_EXT[normalizedType] || null;
 }
 
 function trimToNull(value: string | null | undefined): string | null {
@@ -266,12 +275,12 @@ servicesRouter.post("/", async (c) => {
     if (iconFile.size > MAX_ICON_BYTES) {
       return c.json({ error: "icon file is too large" }, 400);
     }
-    const ext = getUploadedIconExt(iconFile);
+    const buf = Buffer.from(await iconFile.arrayBuffer());
+    const ext = detectIconExt(buf);
     if (!ext) {
       return c.json({ error: "unsupported icon type" }, 400);
     }
     iconFilename = `${id}${ext}`;
-    const buf = Buffer.from(await iconFile.arrayBuffer());
     persistIcon(iconFilename, buf);
   } else if (validatedPayload.icon_url) {
     try {
@@ -361,13 +370,13 @@ servicesRouter.put("/:id", async (c) => {
     if (iconFile.size > MAX_ICON_BYTES) {
       return c.json({ error: "icon file is too large" }, 400);
     }
-    const ext = getUploadedIconExt(iconFile);
+    const buf = Buffer.from(await iconFile.arrayBuffer());
+    const ext = detectIconExt(buf);
     if (!ext) {
       return c.json({ error: "unsupported icon type" }, 400);
     }
     removeIconFile(existing.icon);
     iconFilename = `${id}${ext}`;
-    const buf = Buffer.from(await iconFile.arrayBuffer());
     persistIcon(iconFilename, buf);
   }
 

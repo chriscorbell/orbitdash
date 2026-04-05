@@ -185,6 +185,44 @@ describe("services routes", () => {
     });
   });
 
+  it("rejects downloaded icons whose contents do not match the declared image type", async () => {
+    globalThis.fetch = (async (..._args: Parameters<typeof fetch>) => {
+      return new Response("plain text", {
+        status: 200,
+        headers: {
+          "content-length": "10",
+          "content-type": "image/png",
+        },
+      });
+    }) as unknown as typeof fetch;
+
+    const response = await createService({
+      icon_url: "https://example.com/icon.png",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Unsupported icon type",
+    });
+  });
+
+  it("rejects uploaded icons whose contents do not match a supported image format", async () => {
+    const formData = new FormData();
+    formData.set("name", "Orbit");
+    formData.set("url", "https://example.com/orbit");
+    formData.set("icon_file", new File(["plain text"], "icon.png", { type: "image/png" }));
+
+    const response = await app.request("/api/services", {
+      method: "POST",
+      body: formData,
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "unsupported icon type",
+    });
+  });
+
   it("returns a structured error for malformed JSON payloads", async () => {
     const response = await app.request("/api/services", {
       method: "POST",
