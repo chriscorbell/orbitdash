@@ -77,4 +77,34 @@ describe("settings routes", () => {
       error: '"Uncategorized" cannot be manually ordered',
     });
   });
+
+  it("returns a structured error for malformed JSON payloads", async () => {
+    const response = await app.request("/api/settings/category-order", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: "{",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "request body must be valid JSON",
+    });
+  });
+
+  it("returns a structured error for unsupported content types", async () => {
+    const response = await app.request("/api/settings/category-order", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "text/plain",
+      },
+      body: "order=Infra",
+    });
+
+    expect(response.status).toBe(415);
+    await expect(response.json()).resolves.toEqual({
+      error: "content-type must be application/json",
+    });
+  });
 });

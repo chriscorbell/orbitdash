@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { v4 as uuidv4 } from "uuid";
 import { getDb, getDataDir } from "../db";
+import { hasJsonContentType, parseJsonBody } from "../request-body";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 import { getValidationMessage, serviceCreateSchema, serviceUpdateSchema } from "@shared/schemas";
 import { normalizeIconUrl, normalizeServiceUrl } from "@shared/urls";
@@ -31,6 +32,11 @@ interface ParsedServicePayload<TPayload> {
   iconFile: File | null;
   payload: TPayload;
   removeIcon: boolean;
+}
+
+interface ServicePayloadParseFailure {
+  error: string;
+  status: 400 | 415;
 }
 
 function getIconsDir(): string {
@@ -127,26 +133,40 @@ function readOptionalString(formData: RequestFormData, key: string): string | un
 async function parseServicePayload<TPayload extends CreateServicePayload | UpdateServicePayload>(
   request: Request,
   createPayload: (formData: RequestFormData) => TPayload
-): Promise<ParsedServicePayload<TPayload>> {
+): Promise<ParsedServicePayload<TPayload> | ServicePayloadParseFailure> {
   const contentType = request.headers.get("content-type") || "";
 
-  if (!contentType.includes("multipart/form-data")) {
-    const payload = (await request.json()) as unknown as TPayload;
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const file = formData.get("icon_file");
+    const iconFile = file instanceof File && file.size > 0 ? file : null;
+
+    return {
+      iconFile,
+      payload: createPayload(formData),
+      removeIcon: formData.get("remove_icon") === "true",
+    };
+  }
+
+  if (hasJsonContentType(contentType)) {
+    const parsedBody = await parseJsonBody(request);
+    if (!parsedBody.success) {
+      return {
+        error: parsedBody.error ?? "request body must be valid JSON",
+        status: parsedBody.status ?? 400,
+      };
+    }
+
     return {
       iconFile: null,
-      payload,
+      payload: parsedBody.data as TPayload,
       removeIcon: false,
     };
   }
 
-  const formData = await request.formData();
-  const file = formData.get("icon_file");
-  const iconFile = file instanceof File && file.size > 0 ? file : null;
-
   return {
-    iconFile,
-    payload: createPayload(formData),
-    removeIcon: formData.get("remove_icon") === "true",
+    error: "content-type must be application/json or multipart/form-data",
+    status: 415,
   };
 }
 
@@ -214,10 +234,12 @@ servicesRouter.get("/", (c) => {
 
 /** POST /api/services */
 servicesRouter.post("/", async (c) => {
-  const { payload, iconFile } = await parseServicePayload(
-    c.req.raw,
-    createServicePayloadFromFormData
-  );
+  const parsedPayload = await parseServicePayload(c.req.raw, createServicePayloadFromFormData);
+  if ("error" in parsedPayload) {
+    return c.json({ error: parsedPayload.error }, parsedPayload.status);
+  }
+
+  const { payload, iconFile } = parsedPayload;
 
   const validation = serviceCreateSchema.safeParse(payload);
 
@@ -298,10 +320,12 @@ servicesRouter.put("/:id", async (c) => {
     return c.json({ error: "not found" }, 404);
   }
 
-  const { payload, iconFile, removeIcon } = await parseServicePayload(
-    c.req.raw,
-    updateServicePayloadFromFormData
-  );
+  const parsedPayload = await parseServicePayload(c.req.raw, updateServicePayloadFromFormData);
+  if ("error" in parsedPayload) {
+    return c.json({ error: parsedPayload.error }, parsedPayload.status);
+  }
+
+  const { payload, iconFile, removeIcon } = parsedPayload;
 
   const validation = serviceUpdateSchema.safeParse(payload);
 

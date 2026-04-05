@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getDb } from "../db";
+import { parseJsonBody } from "../request-body";
 import { CATEGORY_ORDER_SETTING_KEY, sanitizeCategoryOrder } from "@shared/category-order";
 import { categoryOrderUpdateSchema, getValidationMessage } from "@shared/schemas";
 import type { CategoryOrderResponse } from "@shared/types";
@@ -36,7 +37,12 @@ settingsRouter.get("/category-order", (c) => {
 });
 
 settingsRouter.put("/category-order", async (c) => {
-  const result = categoryOrderUpdateSchema.safeParse(await c.req.json());
+  const parsedBody = await parseJsonBody(c.req.raw);
+  if (!parsedBody.success) {
+    return c.json({ error: parsedBody.error }, parsedBody.status);
+  }
+
+  const result = categoryOrderUpdateSchema.safeParse(parsedBody.data);
 
   if (!result.success) {
     const hasOrderTypeError = result.error.issues.some((issue) => issue.path[0] === "order");

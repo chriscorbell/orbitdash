@@ -100,7 +100,7 @@ Acceptance criteria: any file mixing multiple responsibilities is reduced to sim
 
 ## Priority 4: Improve Resilience And Failure Handling
 
-- [ ] Add explicit handling for malformed JSON and unsupported content types.
+- [x] Add explicit handling for malformed JSON and unsupported content types.
 Acceptance criteria: routes return structured 400/415 responses instead of generic internal errors.
 
 - [ ] Add icon file content verification beyond extension and declared MIME type.

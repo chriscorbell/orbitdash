@@ -184,4 +184,34 @@ describe("services routes", () => {
       error: "Unsupported icon type",
     });
   });
+
+  it("returns a structured error for malformed JSON payloads", async () => {
+    const response = await app.request("/api/services", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: "{",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "request body must be valid JSON",
+    });
+  });
+
+  it("returns a structured error for unsupported content types", async () => {
+    const response = await app.request("/api/services", {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain",
+      },
+      body: "name=Orbit",
+    });
+
+    expect(response.status).toBe(415);
+    await expect(response.json()).resolves.toEqual({
+      error: "content-type must be application/json or multipart/form-data",
+    });
+  });
 });
