@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/ServiceDialog", () => ({
   ServiceDialog: () => null,
@@ -11,9 +11,34 @@ vi.mock("@/components/services/CategoryReorderDialog", () => ({
   CategoryReorderDialog: () => null,
 }));
 
+vi.mock("@/components/services/CategorySectionList", () => ({
+  CategorySectionList: ({
+    services,
+    onDelete,
+  }: {
+    services: Service[];
+    onDelete: (service: Service) => void;
+  }) => (
+    <div>
+      {services.map((service) => (
+        <div key={service.id}>
+          <span>{service.name}</span>
+          <button type="button" onClick={() => onDelete(service)}>
+            Delete {service.name}
+          </button>
+        </div>
+      ))}
+    </div>
+  ),
+}));
+
 import { ServicesSection } from "@/components/ServicesSection";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service } from "@shared/types";
+
+afterEach(() => {
+  cleanup();
+});
 
 const categoryOrderStub: UseCategoryOrderResult = {
   draftOrder: [],
@@ -84,5 +109,32 @@ describe("ServicesSection", () => {
     expect(screen.getByText("Services may be stale")).toBeTruthy();
     expect(screen.getByText("Refresh failed The last saved list is still visible.")).toBeTruthy();
     expect(screen.getByText("Orbit")).toBeTruthy();
+  });
+
+  it("shows category order load errors outside the reorder dialog", () => {
+    renderServicesSection({
+      categoryOrder: {
+        ...categoryOrderStub,
+        error: "Failed to load category order",
+      },
+    });
+
+    expect(screen.getByText("Category ordering is unavailable")).toBeTruthy();
+    expect(screen.getByText("Failed to load category order")).toBeTruthy();
+  });
+
+  it("surfaces delete confirmation failures in the section UI", async () => {
+    const onDelete = vi.fn().mockRejectedValue(new Error("Delete failed"));
+
+    renderServicesSection({ services: [baseService], onDelete });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Orbit" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Service action failed")).toBeTruthy();
+    });
+
+    expect(screen.getByText("Delete failed")).toBeTruthy();
   });
 });

@@ -60,6 +60,7 @@ export function ServicesSection({
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const {
     draftOrder,
@@ -116,11 +117,14 @@ export function ServicesSection({
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
+    setActionError(null);
     try {
       await onDelete(deleteTarget.id);
       setDeleteTarget(null);
-    } catch {
-      // Error handling is in the parent
+    } catch (deleteError) {
+      setActionError(
+        deleteError instanceof Error ? deleteError.message : "Failed to delete service"
+      );
     } finally {
       setDeleting(false);
     }
@@ -169,6 +173,24 @@ export function ServicesSection({
           onAction={() => {
             void onRetry();
           }}
+        />
+      )}
+
+      {categoryOrderError && !isReorderMode && (
+        <SectionStateCard
+          tone="error"
+          title="Category ordering is unavailable"
+          description={categoryOrderError}
+        />
+      )}
+
+      {actionError && (
+        <SectionStateCard
+          tone="error"
+          title="Service action failed"
+          description={actionError}
+          actionLabel="Dismiss"
+          onAction={() => setActionError(null)}
         />
       )}
 

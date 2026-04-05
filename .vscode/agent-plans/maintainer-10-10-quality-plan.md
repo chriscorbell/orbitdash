@@ -115,7 +115,7 @@ Acceptance criteria: private-network and localhost fetches are either blocked or
 - [ ] Add structured logging for operational errors.
 Acceptance criteria: unexpected failures include route context and actionable metadata without leaking secrets.
 
-- [ ] Improve user-visible error handling in the frontend.
+- [x] Improve user-visible error handling in the frontend.
 Acceptance criteria: service creation, update, deletion, metrics failures, and category-order failures all show clear UI feedback.
 
 - [ ] Add retry or reconnect strategy visibility for live metrics.
