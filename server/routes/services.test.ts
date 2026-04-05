@@ -223,6 +223,48 @@ describe("services routes", () => {
     });
   });
 
+  it("rejects remote icon downloads from blocked local hosts", async () => {
+    let called = false;
+    globalThis.fetch = (async (..._args: Parameters<typeof fetch>) => {
+      called = true;
+      return new Response(null, { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const response = await createService({
+      icon_url: "http://127.0.0.1/icon.svg",
+    });
+
+    expect(called).toBe(false);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Remote icon host is not allowed",
+    });
+  });
+
+  it("rejects remote icon downloads that exceed the redirect limit", async () => {
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const match = url.match(/redirect-(\d+)/);
+      const nextStep = match ? Number(match[1]) + 1 : 1;
+
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: `https://example.com/redirect-${nextStep}`,
+        },
+      });
+    }) as unknown as typeof fetch;
+
+    const response = await createService({
+      icon_url: "https://example.com/redirect-0",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Too many redirects while downloading icon",
+    });
+  });
+
   it("returns a structured error for malformed JSON payloads", async () => {
     const response = await app.request("/api/services", {
       method: "POST",

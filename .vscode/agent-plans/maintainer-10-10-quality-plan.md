@@ -106,10 +106,10 @@ Acceptance criteria: routes return structured 400/415 responses instead of gener
 - [x] Add icon file content verification beyond extension and declared MIME type.
 Acceptance criteria: the server rejects files whose contents do not match supported image formats.
 
-- [ ] Add limits and safeguards around remote icon downloads.
+- [x] Add limits and safeguards around remote icon downloads.
 Acceptance criteria: timeouts, content-length limits, redirect limits, and host/protocol restrictions are enforced and tested.
 
-- [ ] Review the app for server-side request forgery exposure from remote icon fetching.
+- [x] Review the app for server-side request forgery exposure from remote icon fetching.
 Acceptance criteria: private-network and localhost fetches are either blocked or consciously documented and justified.
 
 - [ ] Add structured logging for operational errors.

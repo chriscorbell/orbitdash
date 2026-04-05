@@ -151,6 +151,9 @@ and the service dialog submit path. The current canonical rules are:
 - service names are required after trimming
 - service URLs must normalize to valid `http` or `https` URLs
 - icon URLs, when provided, must normalize to valid `http` or `https` URLs
+- remote icon downloads are limited to 2 MB, time out after 5 seconds, follow at most 3 redirects,
+  reject localhost/private literal hosts, and verify the downloaded bytes match a supported image
+  format
 - category and description fields are trimmed and normalized to `null` when empty
 - the `Uncategorized` section cannot be manually included in saved category ordering
 - metrics `window` must be a positive integer and is bounded to 3600 seconds
