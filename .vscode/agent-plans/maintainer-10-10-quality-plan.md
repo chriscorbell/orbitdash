@@ -186,7 +186,7 @@ Acceptance criteria: documented health checks, volumes, ports, and upgrade behav
 - [ ] Add a release checklist.
 Acceptance criteria: versioning, changelog updates, smoke tests, and image verification happen before publishing.
 
-- [ ] Add dependency maintenance automation.
+- [x] Add dependency maintenance automation.
 Acceptance criteria: outdated dependencies and security advisories are surfaced regularly.
 
 ## Priority 9: Finish The Last 10 Percent
