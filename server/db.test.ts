@@ -38,7 +38,19 @@ describe("database integration", () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name ASC")
       .all() as Array<{ name: string }>;
 
-    expect(tables.map((table) => table.name)).toEqual(["metrics_samples", "services", "settings"]);
+    expect(tables.map((table) => table.name)).toEqual([
+      "metrics_samples",
+      "schema_migrations",
+      "services",
+      "settings",
+    ]);
+
+    expect(db.prepare("SELECT id, name FROM schema_migrations").all()).toEqual([
+      {
+        id: 1,
+        name: "initial-schema",
+      },
+    ]);
   });
 
   it("supports insert, update, and delete flows against the services table", () => {

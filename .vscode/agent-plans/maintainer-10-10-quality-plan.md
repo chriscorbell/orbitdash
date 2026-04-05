@@ -100,22 +100,17 @@ Acceptance criteria: any file mixing multiple responsibilities is reduced to sim
 
 ## Priority 4: Improve Resilience And Failure Handling
 
-- [x] Add explicit handling for malformed JSON and unsupported content types.
 Acceptance criteria: routes return structured 400/415 responses instead of generic internal errors.
 
-- [x] Add icon file content verification beyond extension and declared MIME type.
 Acceptance criteria: the server rejects files whose contents do not match supported image formats.
 
-- [x] Add limits and safeguards around remote icon downloads.
 Acceptance criteria: timeouts, content-length limits, redirect limits, and host/protocol restrictions are enforced and tested.
 
-- [x] Review the app for server-side request forgery exposure from remote icon fetching.
 Acceptance criteria: private-network and localhost fetches are either blocked or consciously documented and justified.
 
-- [x] Add structured logging for operational errors.
+ [x] Add structured logging for operational errors.
 Acceptance criteria: unexpected failures include route context and actionable metadata without leaking secrets.
 
-- [x] Improve user-visible error handling in the frontend.
 Acceptance criteria: service creation, update, deletion, metrics failures, and category-order failures all show clear UI feedback.
 
 - [x] Add retry or reconnect strategy visibility for live metrics.
@@ -123,7 +118,7 @@ Acceptance criteria: the UI communicates disconnected, reconnecting, and recover
 
 ## Priority 5: Tighten Database And Data Model Quality
 
-- [ ] Add migration support instead of relying only on startup schema creation.
+- [x] Add migration support instead of relying only on startup schema creation.
 Acceptance criteria: schema changes are versioned, repeatable, and safe for upgrades.
 
 - [x] Add database integration tests using an isolated temporary database.

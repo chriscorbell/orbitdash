@@ -16,7 +16,8 @@ middleware model without carrying a large framework surface.
 
 SQLite is used because orbitdash is a single-process, home-server-oriented application with simple,
 local persistence requirements. It keeps deployment lightweight and works well with a mounted data
-directory.
+directory. Schema setup now runs through a small migration ledger so upgrades can become explicit
+and repeatable instead of relying on one large startup-only schema block.
 
 ### SSE For Metrics
 

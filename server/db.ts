@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import path from "path";
 import fs from "fs";
+import { applyMigrations } from "./migrations";
 
 interface DatabaseInitOptions {
   dataDir?: string;
@@ -72,7 +73,7 @@ export function initializeDb(options: DatabaseInitOptions = {}): Database {
 
     db = new Database(currentDbPath);
     applyPragmas(db);
-    initSchema(db);
+    applyMigrations(db);
   }
 
   return db;
@@ -84,37 +85,6 @@ export function getDb(): Database {
   }
 
   return db;
-}
-
-function initSchema(db: Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS metrics_samples (
-      ts INTEGER PRIMARY KEY,
-      cpu REAL NOT NULL,
-      ram REAL NOT NULL,
-      disk REAL NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS services (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      url TEXT NOT NULL,
-      description TEXT,
-      icon TEXT,
-      category TEXT,
-      open_in_new_tab INTEGER NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS services_category_name_idx
-    ON services (category, name);
-  `);
 }
 
 export function getDataDir(): string {
