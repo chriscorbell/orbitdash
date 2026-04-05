@@ -55,7 +55,7 @@ Acceptance criteria: tests cover duplicate suppression, trimming, uncategorized 
 - [x] Add unit tests for `shared/urls.ts`.
 Acceptance criteria: tests cover valid URLs, invalid schemes, trimming, normalization, and icon URL handling.
 
-- [ ] Add hook tests for `useServices`, `useMetrics`, and `useCategoryOrder`.
+- [x] Add hook tests for `useServices`, `useMetrics`, and `useCategoryOrder`.
 Acceptance criteria: tests verify loading states, success paths, error paths, optimistic/local state updates, and cleanup behavior.
 
 - [ ] Add component tests for the service CRUD flow.
