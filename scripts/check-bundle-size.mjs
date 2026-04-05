@@ -22,6 +22,13 @@ const budgets = [
   },
   { label: "charts", prefix: "charts-", extension: ".js", maxRawKb: 350, maxGzipKb: 105 },
   {
+    label: "validation",
+    prefix: "validation-",
+    extension: ".js",
+    maxRawKb: 65,
+    maxGzipKb: 16,
+  },
+  {
     label: "service dialog",
     prefix: "ServiceDialog-",
     extension: ".js",

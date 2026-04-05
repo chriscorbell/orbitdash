@@ -11,6 +11,7 @@ drop dependencies, and lazily loaded dialogs. Those chunks now have explicit bun
 | `index-*.css`        |      70 kB |       12 kB | about 60 kB raw / 11 kB gzip   |
 | `react-vendor-*.js`  |     230 kB |       75 kB | about 216 kB raw / 69 kB gzip  |
 | `charts-*.js`        |     350 kB |      105 kB | about 334 kB raw / 100 kB gzip |
+| `validation-*.js`    |      65 kB |       16 kB | about 56 kB raw / 13 kB gzip   |
 | `ServiceDialog-*.js` |     100 kB |       28 kB | about 87 kB raw / 23 kB gzip   |
 | `drag-drop-*.js`     |      55 kB |       18 kB | about 45 kB raw / 15 kB gzip   |
 
@@ -22,7 +23,8 @@ npm run bundle:check
 ```
 
 The check reads the built files in `dist/assets`, calculates raw and gzip sizes, and fails if any
-tracked chunk crosses its budget.
+tracked chunk crosses its budget. The validation chunk keeps Zod-based runtime parsing out of the
+main entry bundle while preserving a dedicated ceiling for schema-related growth.
 
 ## When To Update Budgets
 

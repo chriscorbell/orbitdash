@@ -15,6 +15,10 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes("/shared/schemas.ts") || id.includes("/node_modules/zod/")) {
+            return "validation";
+          }
+
           if (!id.includes("node_modules")) {
             return;
           }
