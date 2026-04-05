@@ -87,11 +87,31 @@ The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` i
 
 Outside Docker, orbitdash stores data in `./data` by default. You can override the storage path in any environment with `ORBITDASH_DATA_DIR=/path/to/data`.
 
+The backend listens on port `3001` by default outside the container. Override it with `PORT=<port>`.
+
+The disk metric uses `/` by default. Override it with `ORBITDASH_DISK_PATH=/path/to/mount` when you
+need to track a different mount.
+
 ## Health Checks
 
 - `GET /healthz` returns liveness for process-level checks.
 - `GET /readyz` returns readiness for deployment and CI probes, including a SQLite connectivity check.
 - `GET /api/health` returns the same readiness payload as `readyz` for API-oriented clients.
+
+## Deployment Verification
+
+After deploying or upgrading the container, verify the service with:
+
+```bash
+curl --fail http://127.0.0.1:7770/healthz
+curl --fail http://127.0.0.1:7770/readyz
+```
+
+Also confirm that:
+
+- the host directory or volume mapped to `/data` is intact
+- the expected host port is mapped to container port `3000`
+- persisted services and icons still load after the restart
 
 ## Testing
 
@@ -135,3 +155,6 @@ and the service dialog submit path. The current canonical rules are:
 ## Contributing
 
 Issues and PRs are welcomed. Please include description, screenshots and any related logs.
+
+For local workflows and project conventions, see [CONTRIBUTING.md](CONTRIBUTING.md),
+[docs/architecture.md](docs/architecture.md), and [docs/release-checklist.md](docs/release-checklist.md).

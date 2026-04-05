@@ -157,19 +157,19 @@ Acceptance criteria: large chunks are identified, monitored, and reduced if they
 
 ## Priority 7: Improve Developer Experience
 
-- [ ] Add a contributor guide with local setup, test strategy, release workflow, and architecture notes.
+- [x] Add a contributor guide with local setup, test strategy, release workflow, and architecture notes.
 Acceptance criteria: a new contributor can clone, run, test, and understand the project from docs alone.
 
-- [ ] Add `make`, npm, or task aliases for common workflows.
+- [x] Add `make`, npm, or task aliases for common workflows.
 Acceptance criteria: linting, testing, building, and running the full stack are available through obvious commands.
 
 - [ ] Add pre-commit or pre-push hooks for fast local validation.
 Acceptance criteria: basic quality checks run automatically before code leaves a developer machine.
 
-- [ ] Document environment variables and defaults comprehensively.
+- [x] Document environment variables and defaults comprehensively.
 Acceptance criteria: data directory, disk path, ports, and runtime assumptions are described in one place.
 
-- [ ] Add architecture decision notes for major patterns.
+- [x] Add architecture decision notes for major patterns.
 Acceptance criteria: maintainers can understand why Bun, Hono, SQLite, SSE, and shared types were chosen.
 
 ## Priority 8: Production Readiness And Observability
@@ -180,10 +180,10 @@ Acceptance criteria: maintainers can inspect request volume, failures, and healt
 - [ ] Add graceful shutdown tests or documented expectations.
 Acceptance criteria: shutdown closes background loops and the database cleanly under normal stop signals.
 
-- [ ] Add container-level documentation and verification for production deployment.
+- [x] Add container-level documentation and verification for production deployment.
 Acceptance criteria: documented health checks, volumes, ports, and upgrade behavior match the actual image behavior.
 
-- [ ] Add a release checklist.
+- [x] Add a release checklist.
 Acceptance criteria: versioning, changelog updates, smoke tests, and image verification happen before publishing.
 
 - [x] Add dependency maintenance automation.
