@@ -1,18 +1,10 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
+import { DeleteServiceDialog } from "@/components/services/DeleteServiceDialog";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
+import { ServicesSectionFeedback } from "@/components/services/ServicesSectionFeedback";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
-import { SectionStateCard } from "@/components/common/SectionStateCard";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
+import { useServicesSectionState } from "@/components/services/useServicesSectionState";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 
@@ -56,91 +48,43 @@ export function ServicesSection({
   onUpdate,
   onDelete,
 }: ServicesSectionProps) {
-  const [addOpen, setAddOpen] = useState(false);
-  const [editingService, setEditingService] = useState<Service | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const {
+    actionError,
+    addOpen,
+    categoryOptions,
+    categoryOrderError,
+    deleteTarget,
+    deleting,
     draftOrder,
-    error: categoryOrderError,
+    editingService,
+    filteredServices,
+    gridClassName,
+    groupedServices,
+    handleDeleteConfirm,
+    handleReorderOpenChange,
     hasNamedCategories,
+    isCategoryOrderSaving,
     isReorderMode,
-    saving: isCategoryOrderSaving,
-    visibleCategoryOrder,
-    cancelReorder,
     moveCategory,
     reorderCategories,
+    search,
     saveOrder,
-  } = categoryOrder;
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return services;
-    const q = search.toLowerCase();
-    return services.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.description?.toLowerCase().includes(q) ||
-        s.category?.toLowerCase().includes(q) ||
-        s.url.toLowerCase().includes(q)
-    );
-  }, [services, search]);
-
-  const grouped = useMemo(() => {
-    const groups = new Map<string, Service[]>();
-    for (const s of filtered) {
-      const cat = s.category?.trim() || UNCATEGORIZED_CATEGORY;
-      const list = groups.get(cat) || [];
-      list.push(s);
-      groups.set(cat, list);
-    }
-    return visibleCategoryOrder
-      .filter((category) => groups.has(category))
-      .map((category) => [category, groups.get(category) ?? []] as const);
-  }, [filtered, visibleCategoryOrder]);
-
-  const categoryOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const options: string[] = [];
-
-    for (const service of services) {
-      const category = service.category?.trim();
-      if (!category || seen.has(category)) continue;
-      seen.add(category);
-      options.push(category);
-    }
-
-    return options.sort((a, b) => a.localeCompare(b));
-  }, [services]);
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    setActionError(null);
-    try {
-      await onDelete(deleteTarget.id);
-      setDeleteTarget(null);
-    } catch (deleteError) {
-      setActionError(
-        deleteError instanceof Error ? deleteError.message : "Failed to delete service"
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const gridClassName = isFiveColumn
-    ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
-    : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4";
-  const handleReorderOpenChange = (open: boolean) => {
-    if (!open) {
-      cancelReorder();
-    }
-  };
-  const showInitialLoading = loading && services.length === 0;
-  const showInitialError = !loading && error !== null && services.length === 0;
-  const showInlineError = error !== null && services.length > 0;
+    setActionError,
+    setAddOpen,
+    setDeleteTarget,
+    setEditingService,
+    setSearch,
+    showInitialError,
+    showInitialLoading,
+    showInlineError,
+  } = useServicesSectionState({
+    categoryOrder,
+    error,
+    isFiveColumn,
+    loading,
+    onDelete,
+    services,
+  });
 
   return (
     <div className="space-y-4">
@@ -164,64 +108,28 @@ export function ServicesSection({
         />
       </Suspense>
 
-      {showInlineError && (
-        <SectionStateCard
-          tone="error"
-          title="Services may be stale"
-          description={`${error} The last saved list is still visible.`}
-          actionLabel="Retry"
-          onAction={() => {
-            void onRetry();
-          }}
-        />
-      )}
-
-      {categoryOrderError && !isReorderMode && (
-        <SectionStateCard
-          tone="error"
-          title="Category ordering is unavailable"
-          description={categoryOrderError}
-        />
-      )}
-
-      {actionError && (
-        <SectionStateCard
-          tone="error"
-          title="Service action failed"
-          description={actionError}
-          actionLabel="Dismiss"
-          onAction={() => setActionError(null)}
-        />
-      )}
-
-      {showInitialLoading && (
-        <SectionStateCard
-          tone="loading"
-          title="Loading services"
-          description="Fetching your saved services and category layout."
-        />
-      )}
-
-      {showInitialError && (
-        <SectionStateCard
-          tone="error"
-          title="Services are unavailable"
-          description={error}
-          actionLabel="Retry"
-          onAction={() => {
-            void onRetry();
-          }}
-        />
-      )}
+      <ServicesSectionFeedback
+        actionError={actionError}
+        categoryOrderError={categoryOrderError}
+        error={error}
+        isReorderMode={isReorderMode}
+        onClearActionError={() => setActionError(null)}
+        onRetry={() => {
+          void onRetry();
+        }}
+        showInitialError={showInitialError}
+        showInitialLoading={showInitialLoading}
+        showInlineError={showInlineError}
+      />
 
       {!showInitialLoading &&
         !showInitialError &&
-        filtered.length === 0 &&
+        filteredServices.length === 0 &&
         services.length === 0 && (
           <ServicesEmptyState mode="empty" onAddService={() => setAddOpen(true)} />
         )}
 
-      {!showInitialLoading && filtered.length === 0 && services.length > 0 && (
+      {!showInitialLoading && filteredServices.length === 0 && services.length > 0 && (
         <ServicesEmptyState
           mode="search"
           search={search}
@@ -230,12 +138,12 @@ export function ServicesSection({
         />
       )}
 
-      {!showInitialLoading && !showInitialError && filtered.length > 0 && (
+      {!showInitialLoading && !showInitialError && filteredServices.length > 0 && (
         <CategorySectionList
-          grouped={grouped}
+          grouped={groupedServices}
           gridClassName={gridClassName}
           hasNamedCategories={hasNamedCategories}
-          services={filtered}
+          services={filteredServices}
           onDelete={setDeleteTarget}
           onEdit={setEditingService}
         />
@@ -281,35 +189,16 @@ export function ServicesSection({
         />
       </Suspense>
 
-      {/* Delete confirmation dialog */}
-      <Dialog
-        open={!!deleteTarget}
+      <DeleteServiceDialog
+        deleting={deleting}
+        onConfirm={handleDeleteConfirm}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {
+            setDeleteTarget(null);
+          }
         }}
-      >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete service</DialogTitle>
-            <DialogDescription>
-              Confirm service deletion before removing it permanently.
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete{" "}
-            <span className="font-medium text-foreground">{deleteTarget?.name}</span>? This cannot
-            be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleting}>
-              {deleting ? "Deleting…" : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        service={deleteTarget}
+      />
     </div>
   );
 }
