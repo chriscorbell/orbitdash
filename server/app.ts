@@ -6,11 +6,13 @@ import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
 import servicesRouter, { getIconsDir } from "./routes/services";
 import { isDbHealthy } from "./db";
+import { getRequestMetricsSnapshot, logOperationalError, recordRequest } from "./observability";
 
 export const app = new Hono();
 
 function createHealthPayload(status: "ok" | "error") {
   return {
+    observability: getRequestMetricsSnapshot(),
     status,
     service: "orbitdash",
     observedAt: new Date().toISOString(),
@@ -24,7 +26,10 @@ function respondWithHealth(c: Context, statusCode: 200 | 503, payload: Record<st
 }
 
 app.onError((error, c) => {
-  console.error(error);
+  logOperationalError(error, {
+    method: c.req.method,
+    path: c.req.path,
+  });
   return c.json({ error: "internal server error" }, 500);
 });
 
@@ -37,6 +42,18 @@ app.notFound((c) => {
 });
 
 app.use("/api/*", cors());
+
+app.use("*", async (c, next) => {
+  const start = Date.now();
+
+  try {
+    await next();
+    recordRequest(c.req.method, c.req.path, c.res.status, Date.now() - start);
+  } catch (error) {
+    recordRequest(c.req.method, c.req.path, 500, Date.now() - start);
+    throw error;
+  }
+});
 
 app.get("/healthz", (c) => {
   return respondWithHealth(c, 200, createHealthPayload("ok"));

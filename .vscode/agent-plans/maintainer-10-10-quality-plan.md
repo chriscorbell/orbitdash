@@ -112,7 +112,7 @@ Acceptance criteria: timeouts, content-length limits, redirect limits, and host/
 - [x] Review the app for server-side request forgery exposure from remote icon fetching.
 Acceptance criteria: private-network and localhost fetches are either blocked or consciously documented and justified.
 
-- [ ] Add structured logging for operational errors.
+- [x] Add structured logging for operational errors.
 Acceptance criteria: unexpected failures include route context and actionable metadata without leaking secrets.
 
 - [x] Improve user-visible error handling in the frontend.
@@ -174,7 +174,7 @@ Acceptance criteria: maintainers can understand why Bun, Hono, SQLite, SSE, and 
 
 ## Priority 8: Production Readiness And Observability
 
-- [ ] Add request-level logging and basic metrics.
+- [x] Add request-level logging and basic metrics.
 Acceptance criteria: maintainers can inspect request volume, failures, and health trends in production.
 
 - [x] Add graceful shutdown tests or documented expectations.

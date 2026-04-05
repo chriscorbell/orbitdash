@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { app } from "./app";
 import { isDbInitialized } from "./db";
+import { resetObservabilityForTesting } from "./observability";
 import { cleanupTestDatabase, createTestDataDir } from "./test-utils";
 import { initializeServer, shutdown } from "./runtime";
 
@@ -8,6 +9,7 @@ let testDataDir: string | null = null;
 
 beforeEach(() => {
   shutdown();
+  resetObservabilityForTesting();
   testDataDir = null;
 });
 
@@ -80,6 +82,31 @@ describe("health endpoints", () => {
       checks: {
         database: "ok",
       },
+    });
+  });
+
+  it("tracks request totals and failures in health payloads", async () => {
+    testDataDir = createTestDataDir("orbitdash-health-metrics-");
+    initializeServer({
+      dataDir: testDataDir,
+      logStartup: false,
+      registerSignalHandlers: false,
+      startMetrics: false,
+    });
+
+    await app.request("/healthz");
+    await app.request("/api/services");
+    await app.request("/api/missing");
+
+    const apiHealthResponse = await app.request("/api/health");
+
+    expect(apiHealthResponse.status).toBe(200);
+    await expect(apiHealthResponse.json()).resolves.toMatchObject({
+      observability: {
+        failuresTotal: 1,
+        requestsTotal: 3,
+      },
+      status: "ok",
     });
   });
 });
