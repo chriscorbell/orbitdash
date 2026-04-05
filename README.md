@@ -87,6 +87,9 @@ The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` i
 
 Outside Docker, orbitdash stores data in `./data` by default. You can override the storage path in any environment with `ORBITDASH_DATA_DIR=/path/to/data`.
 
+For backup and restore steps, including SQLite WAL files and icon assets, see
+[docs/backup-restore.md](docs/backup-restore.md).
+
 The backend listens on port `3001` by default outside the container. Override it with `PORT=<port>`.
 
 The disk metric uses `/` by default. Override it with `ORBITDASH_DISK_PATH=/path/to/mount` when you

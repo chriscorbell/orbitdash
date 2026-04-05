@@ -22,6 +22,8 @@
 
 1. Back up the mounted data directory before upgrading production.
 2. Confirm the SQLite database file and `icons/` directory are present in the backup.
+3. Follow [backup-restore.md](backup-restore.md) when creating or restoring backups so the WAL files
+   are preserved with the database.
 
 ## Publish
 

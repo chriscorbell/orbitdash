@@ -93,3 +93,5 @@ success, empty, and error-state patterns across the dashboard UI.
 
 See [docs/release-checklist.md](docs/release-checklist.md) for the release procedure, pre-publish
 validation, and container verification steps.
+
+For persistent data handling, see [docs/backup-restore.md](docs/backup-restore.md).

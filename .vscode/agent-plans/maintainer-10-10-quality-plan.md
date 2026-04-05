@@ -135,7 +135,7 @@ Acceptance criteria: important invariants such as required fields and sensible d
 - [ ] Review sorting and indexing strategy for services and metrics queries.
 Acceptance criteria: indexes are justified by real query patterns and documented where non-obvious.
 
-- [ ] Add a backup and restore story for persisted data.
+- [x] Add a backup and restore story for persisted data.
 Acceptance criteria: maintainers can back up the SQLite file and icon assets with documented steps.
 
 ## Priority 6: Strengthen Frontend Quality And Accessibility
