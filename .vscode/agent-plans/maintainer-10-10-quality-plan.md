@@ -40,7 +40,7 @@ Acceptance criteria: a formatter is configured, documented, and run in CI or pre
 
 ## Priority 1: Add Real Test Coverage
 
-- [ ] Add backend tests for `GET /api/services`, `POST /api/services`, `PUT /api/services/:id`, and `DELETE /api/services/:id`.
+- [x] Add backend tests for `GET /api/services`, `POST /api/services`, `PUT /api/services/:id`, and `DELETE /api/services/:id`.
 Acceptance criteria: tests cover happy paths, invalid payloads, missing resources, and icon-related edge cases.
 
 - [x] Add backend tests for `GET /api/settings/category-order` and `PUT /api/settings/category-order`.
