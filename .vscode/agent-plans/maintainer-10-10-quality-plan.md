@@ -46,7 +46,7 @@ Acceptance criteria: tests cover happy paths, invalid payloads, missing resource
 - [x] Add backend tests for `GET /api/settings/category-order` and `PUT /api/settings/category-order`.
 Acceptance criteria: tests cover invalid arrays, duplicate values, whitespace normalization, and forbidden uncategorized ordering.
 
-- [ ] Add backend tests for health endpoints and readiness behavior.
+- [x] Add backend tests for health endpoints and readiness behavior.
 Acceptance criteria: tests verify healthy and degraded database states for `/healthz`, `/readyz`, and `/api/health`.
 
 - [x] Add unit tests for `shared/category-order.ts`.
