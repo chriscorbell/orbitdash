@@ -2,6 +2,7 @@ import { serveStatic } from "hono/bun";
 import fs from "fs";
 import path from "path";
 import { app } from "./app";
+import { jsonNotFound } from "./api-response";
 import { initializeServer } from "./runtime";
 
 // In production, serve built frontend assets
@@ -12,7 +13,7 @@ if (fs.existsSync(distPath)) {
   // SPA fallback — serve index.html for non-API, non-asset routes
   app.get("*", (c) => {
     if (c.req.path.startsWith("/api/")) {
-      return c.json({ error: "not found" }, 404);
+      return jsonNotFound(c);
     }
 
     const indexPath = path.join(distPath, "index.html");

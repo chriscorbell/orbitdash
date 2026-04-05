@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getDb } from "../db";
+import { jsonError } from "../api-response";
 import { parseJsonBody } from "../request-body";
 import { CATEGORY_ORDER_SETTING_KEY, sanitizeCategoryOrder } from "@shared/category-order";
 import { categoryOrderUpdateSchema, getValidationMessage } from "@shared/schemas";
@@ -39,7 +40,7 @@ settingsRouter.get("/category-order", (c) => {
 settingsRouter.put("/category-order", async (c) => {
   const parsedBody = await parseJsonBody(c.req.raw);
   if (!parsedBody.success) {
-    return c.json({ error: parsedBody.error }, parsedBody.status);
+    return jsonError(c, parsedBody.status ?? 400, parsedBody.error ?? "invalid request body");
   }
 
   const result = categoryOrderUpdateSchema.safeParse(parsedBody.data);
@@ -51,16 +52,16 @@ settingsRouter.put("/category-order", async (c) => {
       hasOrderTypeError &&
       result.error.issues[0]?.message !== '"Uncategorized" cannot be manually ordered'
     ) {
-      return c.json({ error: "order must be an array of category names" }, 400);
+      return jsonError(c, 400, "order must be an array of category names");
     }
 
-    return c.json({ error: getValidationMessage(result.error) }, 400);
+    return jsonError(c, 400, getValidationMessage(result.error));
   }
 
   const payload = result.data;
 
   if (!Array.isArray(payload.order) || payload.order.some((value) => typeof value !== "string")) {
-    return c.json({ error: "order must be an array of category names" }, 400);
+    return jsonError(c, 400, "order must be an array of category names");
   }
 
   const sanitizedOrder = sanitizeCategoryOrder(payload.order);

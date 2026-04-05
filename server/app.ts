@@ -5,6 +5,7 @@ import path from "path";
 import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
 import servicesRouter from "./routes/services";
+import { jsonError, jsonNotFound } from "./api-response";
 import { isDbHealthy } from "./db";
 import { getRequestMetricsSnapshot, logOperationalError, recordRequest } from "./observability";
 import { getIconsDir } from "./services/icon-storage";
@@ -31,12 +32,12 @@ app.onError((error, c) => {
     method: c.req.method,
     path: c.req.path,
   });
-  return c.json({ error: "internal server error" }, 500);
+  return jsonError(c, 500, "internal server error");
 });
 
 app.notFound((c) => {
   if (c.req.path.startsWith("/api/")) {
-    return c.json({ error: "not found" }, 404);
+    return jsonNotFound(c);
   }
 
   return c.text("Not found", 404);
@@ -92,7 +93,7 @@ app.get("/api/icons/:filename", (c) => {
   const filePath = path.join(getIconsDir(), safeName);
 
   if (!fs.existsSync(filePath)) {
-    return c.json({ error: "not found" }, 404);
+    return jsonNotFound(c);
   }
 
   const ext = path.extname(safeName).toLowerCase();

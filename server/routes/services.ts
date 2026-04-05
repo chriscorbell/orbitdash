@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { jsonError, respondApiResult } from "../api-response";
 import {
   createService,
   deleteService,
@@ -18,15 +19,10 @@ servicesRouter.get("/", (c) => {
 servicesRouter.post("/", async (c) => {
   const parsedPayload = await parseCreateServiceRequest(c.req.raw);
   if ("error" in parsedPayload) {
-    return c.json({ error: parsedPayload.error }, parsedPayload.status);
+    return jsonError(c, parsedPayload.status, parsedPayload.error);
   }
 
-  const result = await createService(parsedPayload);
-  if (!result.success) {
-    return c.json({ error: result.error }, result.status);
-  }
-
-  return c.json(result.value, 201);
+  return respondApiResult(c, await createService(parsedPayload), 201);
 });
 
 /** PUT /api/services/:id */
@@ -34,26 +30,16 @@ servicesRouter.put("/:id", async (c) => {
   const id = c.req.param("id");
   const parsedPayload = await parseUpdateServiceRequest(c.req.raw);
   if ("error" in parsedPayload) {
-    return c.json({ error: parsedPayload.error }, parsedPayload.status);
+    return jsonError(c, parsedPayload.status, parsedPayload.error);
   }
 
-  const result = await updateService(id, parsedPayload);
-  if (!result.success) {
-    return c.json({ error: result.error }, result.status);
-  }
-
-  return c.json(result.value);
+  return respondApiResult(c, await updateService(id, parsedPayload));
 });
 
 /** DELETE /api/services/:id */
 servicesRouter.delete("/:id", (c) => {
   const id = c.req.param("id");
-  const result = deleteService(id);
-  if (!result.success) {
-    return c.json({ error: result.error }, result.status);
-  }
-
-  return c.json(result.value);
+  return respondApiResult(c, deleteService(id));
 });
 
 export default servicesRouter;

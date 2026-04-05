@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { getValidationMessage, serviceCreateSchema, serviceUpdateSchema } from "@shared/schemas";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import { apiFail, apiOk, getErrorMessage, type ApiResult } from "../api-response";
 import { getDb } from "../db";
 import { persistDownloadedIcon, persistUploadedIcon, removeStoredIcon } from "./icon-storage";
 import type { ParsedServicePayload } from "./service-payloads";
@@ -8,20 +9,6 @@ import type { ParsedServicePayload } from "./service-payloads";
 type ServiceRecord = Omit<Service, "open_in_new_tab"> & {
   open_in_new_tab: boolean | number;
 };
-
-type ServiceOperationFailure = {
-  error: string;
-  status: 400 | 404;
-};
-
-type ServiceOperationResult<TValue> =
-  | {
-      success: true;
-      value: TValue;
-    }
-  | ({
-      success: false;
-    } & ServiceOperationFailure);
 
 interface StoredServiceInput {
   category: string | null;
@@ -43,21 +30,6 @@ interface UpdatedServiceInput {
   openInNewTab: boolean;
   updatedAt: number;
   url: string;
-}
-
-function fail(status: 400 | 404, error: string): ServiceOperationResult<never> {
-  return {
-    error,
-    status,
-    success: false,
-  };
-}
-
-function ok<TValue>(value: TValue): ServiceOperationResult<TValue> {
-  return {
-    success: true,
-    value,
-  };
 }
 
 function normalizeServiceRecord(service: ServiceRecord): Service {
@@ -129,10 +101,10 @@ export function listServices(): Service[] {
 
 export async function createService(
   input: ParsedServicePayload<CreateServicePayload>
-): Promise<ServiceOperationResult<Service>> {
+): Promise<ApiResult<Service>> {
   const validation = serviceCreateSchema.safeParse(input.payload);
   if (!validation.success) {
-    return fail(400, getValidationMessage(validation.error));
+    return apiFail(400, getValidationMessage(validation.error));
   }
 
   const id = uuidv4();
@@ -147,10 +119,10 @@ export async function createService(
       iconFilename = await persistDownloadedIcon(id, validatedPayload.icon_url);
     }
   } catch (error) {
-    return fail(400, error instanceof Error ? error.message : "failed to persist icon");
+    return apiFail(400, getErrorMessage(error, "failed to persist icon"));
   }
 
-  return ok(
+  return apiOk(
     createStoredService({
       category: validatedPayload.category,
       createdAt: now,
@@ -168,15 +140,15 @@ export async function createService(
 export async function updateService(
   id: string,
   input: ParsedServicePayload<UpdateServicePayload>
-): Promise<ServiceOperationResult<Service>> {
+): Promise<ApiResult<Service>> {
   const existing = getServiceRecord(id);
   if (!existing) {
-    return fail(404, "not found");
+    return apiFail(404, "not found");
   }
 
   const validation = serviceUpdateSchema.safeParse(input.payload);
   if (!validation.success) {
-    return fail(400, getValidationMessage(validation.error));
+    return apiFail(400, getValidationMessage(validation.error));
   }
 
   const validatedPayload = validation.data;
@@ -195,10 +167,10 @@ export async function updateService(
       iconFilename = await persistDownloadedIcon(id, validatedPayload.icon_url, existing.icon);
     }
   } catch (error) {
-    return fail(400, error instanceof Error ? error.message : "failed to persist icon");
+    return apiFail(400, getErrorMessage(error, "failed to persist icon"));
   }
 
-  return ok(
+  return apiOk(
     updateStoredService(id, {
       category:
         validatedPayload.category !== undefined ? validatedPayload.category : existing.category,
@@ -218,13 +190,13 @@ export async function updateService(
   );
 }
 
-export function deleteService(id: string): ServiceOperationResult<{ success: true }> {
+export function deleteService(id: string): ApiResult<{ success: true }> {
   const existing = getServiceRecord(id);
   if (!existing) {
-    return fail(404, "not found");
+    return apiFail(404, "not found");
   }
 
   removeStoredIcon(existing.icon);
   deleteStoredService(id);
-  return ok({ success: true });
+  return apiOk({ success: true });
 }

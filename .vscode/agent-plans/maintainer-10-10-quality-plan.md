@@ -92,7 +92,7 @@ Acceptance criteria: the route file becomes mostly HTTP orchestration; validatio
 - [x] Introduce a storage abstraction for icons.
 Acceptance criteria: icon download, file validation, file persistence, and deletion live outside the route handler.
 
-- [ ] Centralize API error translation.
+- [x] Centralize API error translation.
 Acceptance criteria: repeated `try/catch` response shaping logic is replaced with shared helpers or middleware.
 
 - [ ] Audit hooks and components for state density.

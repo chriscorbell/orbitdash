@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { getRecentSamples, subscribe } from "../metrics";
+import { jsonError } from "../api-response";
 import { getValidationMessage, metricsQuerySchema } from "@shared/schemas";
 
 const metricsRouter = new Hono();
@@ -10,7 +11,7 @@ metricsRouter.get("/", (c) => {
   const result = metricsQuerySchema.safeParse(c.req.query());
 
   if (!result.success) {
-    return c.json({ error: getValidationMessage(result.error) }, 400);
+    return jsonError(c, 400, getValidationMessage(result.error));
   }
 
   const samples = getRecentSamples(result.data.window);
