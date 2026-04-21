@@ -133,6 +133,16 @@ describe("ServiceDialog", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("includes a dashboardicons link for finding icon URLs", () => {
+    render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={vi.fn()} />);
+
+    const iconLink = screen.getByRole("link", { name: "dashboardicons.com" });
+
+    expect(iconLink.getAttribute("href")).toBe("https://dashboardicons.com/");
+    expect(iconLink.getAttribute("target")).toBe("_blank");
+    expect(iconLink.getAttribute("rel")).toBe("noreferrer");
+  });
+
   it("supports icon preview removal and delete flow in edit mode", async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     const onOpenChange = vi.fn();

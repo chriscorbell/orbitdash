@@ -85,7 +85,18 @@ export function ServiceIconField({
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Enter a direct `http://` or `https://` URL to a PNG or SVG icon.
+        Upload or enter a URL to a PNG or SVG icon.
+        <br />
+        Browse{" "}
+        <a
+          href="https://dashboardicons.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          dashboardicons.com
+        </a>{" "}
+        to find icons.
       </p>
     </div>
   );
