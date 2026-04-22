@@ -40,7 +40,7 @@ const requiredServiceUrlSchema = z
   .preprocess(
     trimString,
     z.string().refine((value) => normalizeServiceUrl(value) !== null, {
-      message: "service url must be a valid http(s) URL",
+      message: "service url must be a valid URL",
     })
   )
   .transform((value) => normalizeServiceUrl(value)!);
@@ -51,7 +51,7 @@ const optionalServiceUrlSchema = z
     z
       .string()
       .refine((value) => normalizeServiceUrl(value) !== null, {
-        message: "service url must be a valid http(s) URL",
+        message: "service url must be a valid URL",
       })
       .optional()
   )

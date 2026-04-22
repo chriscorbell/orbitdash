@@ -72,7 +72,7 @@ describe("useServices", () => {
     };
     const updatedService: Service = {
       ...existingService,
-      name: "Orbit Updated",
+      name: "Aardvark",
       updated_at: 2,
     };
 
@@ -96,7 +96,7 @@ describe("useServices", () => {
       });
     });
 
-    expect(result.current.services).toEqual([existingService, createdService]);
+    expect(result.current.services).toEqual([createdService, existingService]);
 
     await act(async () => {
       await result.current.update(existingService.id, {

@@ -17,7 +17,7 @@ describe("serviceCreateSchema", () => {
     expect(
       serviceCreateSchema.parse({
         name: " Orbit ",
-        url: " https://example.com/orbit ",
+        url: " example.com/orbit ",
         description: " Dashboard ",
         category: " Infra ",
         icon_url: " https://example.com/icon.svg ",
@@ -55,13 +55,13 @@ describe("serviceCreateSchema", () => {
   it("rejects invalid service and icon URLs", () => {
     const result = serviceCreateSchema.safeParse({
       name: "Orbit",
-      url: "notaurl",
+      url: "not a url",
       icon_url: "file:///tmp/icon.svg",
     });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(getValidationMessage(result.error)).toBe("service url must be a valid http(s) URL");
+      expect(getValidationMessage(result.error)).toBe("service url must be a valid URL");
     }
   });
 
@@ -104,7 +104,7 @@ describe("serviceUpdateSchema", () => {
   it("normalizes optional URLs and nullable fields", () => {
     expect(
       serviceUpdateSchema.parse({
-        url: " https://example.com/updated ",
+        url: " example.com/updated ",
         icon_url: " https://example.com/icon.svg ",
         category: "  ",
       })

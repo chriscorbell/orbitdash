@@ -42,7 +42,7 @@ describe("ServiceDialog", () => {
       target: { value: " Orbit " },
     });
     fireEvent.change(screen.getByLabelText("URL *"), {
-      target: { value: " https://example.com/orbit " },
+      target: { value: " example.com/orbit " },
     });
     fireEvent.change(screen.getByLabelText("Description"), {
       target: { value: " Dashboard " },
@@ -124,12 +124,12 @@ describe("ServiceDialog", () => {
       target: { value: "Orbit" },
     });
     fireEvent.change(screen.getByLabelText("URL *"), {
-      target: { value: "notaurl" },
+      target: { value: "not a url" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Add service" }));
 
-    await screen.findByText("service url must be a valid http(s) URL");
+    await screen.findByText("service url must be a valid URL");
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

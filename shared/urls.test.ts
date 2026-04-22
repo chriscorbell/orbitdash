@@ -6,13 +6,18 @@ describe("normalizeServiceUrl", () => {
     expect(normalizeServiceUrl(" https://example.com/app ")).toBe("https://example.com/app");
   });
 
+  it("adds https to protocol-less service URLs", () => {
+    expect(normalizeServiceUrl("example.com/app")).toBe("https://example.com/app");
+    expect(normalizeServiceUrl("localhost:3000")).toBe("https://localhost:3000/");
+  });
+
   it("rejects unsupported protocols", () => {
     expect(normalizeServiceUrl("ftp://example.com")).toBeNull();
     expect(normalizeServiceUrl("javascript:alert(1)")).toBeNull();
   });
 
   it("rejects invalid URLs", () => {
-    expect(normalizeServiceUrl("not-a-url")).toBeNull();
+    expect(normalizeServiceUrl("not a url")).toBeNull();
   });
 });
 
