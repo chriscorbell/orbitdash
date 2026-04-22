@@ -51,7 +51,7 @@ describe("services routes", () => {
   });
 
   it("creates and lists a service", async () => {
-    const createResponse = await createService();
+    const createResponse = await createService({ url: "example.com/orbit" });
 
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as Service;
@@ -72,10 +72,10 @@ describe("services routes", () => {
       error: "name is required",
     });
 
-    const invalidUrlResponse = await createService({ url: "notaurl" });
+    const invalidUrlResponse = await createService({ url: "not a url" });
     expect(invalidUrlResponse.status).toBe(400);
     await expect(invalidUrlResponse.json()).resolves.toEqual({
-      error: "service url must be a valid http(s) URL",
+      error: "service url must be a valid URL",
     });
   });
 
