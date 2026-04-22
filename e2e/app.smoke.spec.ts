@@ -63,8 +63,9 @@ test("primary dashboard journey works end to end", async ({ page }) => {
   await expect(page.getByText("Orbit Control")).toBeVisible();
   await expect(page.locator("main").getByText("Updated service description").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Layout options" }).click();
-  await page.getByRole("menuitem", { name: "Reorder categories" }).click();
+  await page.getByRole("button", { name: "Open settings" }).click();
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+  await page.getByRole("button", { name: "Reorder" }).click();
   await expect(page.getByRole("dialog", { name: "Reorder categories" })).toBeVisible();
 
   await page.getByRole("button", { name: "Move Media up" }).click();
