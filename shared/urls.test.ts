@@ -17,6 +17,7 @@ describe("normalizeServiceUrl", () => {
   });
 
   it("rejects invalid URLs", () => {
+    expect(normalizeServiceUrl("")).toBeNull();
     expect(normalizeServiceUrl("not a url")).toBeNull();
   });
 });
