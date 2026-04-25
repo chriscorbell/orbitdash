@@ -55,7 +55,7 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
                   {service.name}
                 </p>
                 {hasDescription && (
-                  <p className="line-clamp-1 text-xs leading-tight text-muted-foreground">
+                  <p className="truncate text-xs leading-tight text-muted-foreground">
                     {service.description}
                   </p>
                 )}

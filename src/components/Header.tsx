@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -92,11 +91,7 @@ function ColumnDots({ count }: { count: 3 | 4 | 5 }) {
 }
 
 function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-      {children}
-    </h3>
-  );
+  return <h3 className="text-muted-foreground text-xs font-medium">{children}</h3>;
 }
 
 export function Header({
@@ -175,7 +170,6 @@ export function Header({
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Dashboard settings</DialogTitle>
-                <DialogDescription>Customize layout and visibility</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-6">
