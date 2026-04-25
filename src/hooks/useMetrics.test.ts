@@ -14,19 +14,21 @@ vi.mock("@/lib/api/metrics", () => ({
 const fetchMetricsMock = vi.mocked(metricsApi.fetchMetrics);
 const subscribeMetricsMock = vi.mocked(metricsApi.subscribeMetrics);
 
-let cleanupMock: ReturnType<typeof vi.fn>;
+let cleanupCallCount: number;
 let onSample: ((sample: MetricSample) => void) | undefined;
 let onError: ((error: Event) => void) | undefined;
 
 beforeEach(() => {
-  cleanupMock = vi.fn();
+  cleanupCallCount = 0;
   onSample = undefined;
   onError = undefined;
 
   subscribeMetricsMock.mockImplementation((handleSample, handleError) => {
     onSample = handleSample;
     onError = handleError;
-    return cleanupMock;
+    return () => {
+      cleanupCallCount += 1;
+    };
   });
 });
 
@@ -81,7 +83,7 @@ describe("useMetrics", () => {
     expect(result.current.recoveredAt).toBeTruthy();
 
     unmount();
-    expect(cleanupMock).toHaveBeenCalled();
+    expect(cleanupCallCount).toBe(1);
   });
 
   it("reports load failures", async () => {
