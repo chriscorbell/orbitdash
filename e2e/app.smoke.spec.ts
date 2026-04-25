@@ -64,13 +64,15 @@ test("primary dashboard journey works end to end", async ({ page }) => {
   await expect(page.locator("main").getByText("Updated service description").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Open settings" }).click();
-  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
-  await page.getByRole("button", { name: "Reorder" }).click();
-  await expect(page.getByRole("dialog", { name: "Reorder categories" })).toBeVisible();
+  const settingsDialog = page.getByRole("dialog", { name: "Dashboard settings" });
+  await expect(settingsDialog).toBeVisible();
 
-  await page.getByRole("button", { name: "Move Media up" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("dialog", { name: "Reorder categories" })).toBeHidden();
+  await settingsDialog.getByRole("button", { name: "Move Media up" }).click();
+  await settingsDialog
+    .locator('[data-slot="dialog-footer"]')
+    .getByRole("button", { name: "Close" })
+    .click();
+  await expect(settingsDialog).toBeHidden();
 
   await expect
     .poll(async () => page.locator("main h3").allTextContents())
