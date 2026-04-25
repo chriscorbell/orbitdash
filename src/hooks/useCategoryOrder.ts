@@ -8,6 +8,7 @@ export interface UseCategoryOrderResult {
   draftOrder: string[];
   error: string | null;
   hasNamedCategories: boolean;
+  isDirty: boolean;
   isReorderMode: boolean;
   loading: boolean;
   namedCategories: string[];
@@ -56,6 +57,11 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     () => mergeCategoryOrder(namedCategories, draftOrder),
     [namedCategories, draftOrder]
   );
+  const isDirty = useMemo(() => {
+    if (mergedDraftOrder.length !== mergedSavedOrder.length) return true;
+    return mergedDraftOrder.some((cat, i) => cat !== mergedSavedOrder[i]);
+  }, [mergedDraftOrder, mergedSavedOrder]);
+
   const visibleCategoryOrder = useMemo(() => {
     return hasUncategorized ? [...mergedSavedOrder, UNCATEGORIZED_CATEGORY] : mergedSavedOrder;
   }, [hasUncategorized, mergedSavedOrder]);
@@ -165,6 +171,7 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     draftOrder: mergedDraftOrder,
     error,
     hasNamedCategories,
+    isDirty,
     isReorderMode,
     loading,
     namedCategories,

@@ -69,13 +69,11 @@ function App() {
     "orbitdash.showServicesSection",
     true
   );
-  const [gridColumns, setGridColumns] = useLocalStorageState<"4" | "5">(
+  const [gridColumns, setGridColumns] = useLocalStorageState<"3" | "4" | "5">(
     "orbitdash.servicesGrid",
     "4"
   );
-  const columnCount = gridColumns === "5" ? 5 : 4;
-  const isFiveColumn = columnCount === 5;
-  const canReorderCategories = categoryOrder.namedCategories.length >= 2;
+  const columnCount: 3 | 4 | 5 = gridColumns === "5" ? 5 : gridColumns === "3" ? 3 : 4;
   const showMetricsConnecting =
     metricsStatus === "connecting" && samples.length === 0 && !metricsError;
   const showMetricsError = metricsError !== null && samples.length === 0;
@@ -134,7 +132,7 @@ function App() {
       categoryOrder={categoryOrder}
       loading={servicesLoading}
       error={servicesError}
-      isFiveColumn={isFiveColumn}
+      columnCount={columnCount}
       onRetry={reload}
       onCreate={create}
       onUpdate={update}
@@ -157,22 +155,17 @@ function App() {
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <Header
-        canReorderCategories={canReorderCategories}
+        categoryOrder={categoryOrder}
         columnCount={columnCount}
-        isCategoryOrderBusy={categoryOrder.loading || categoryOrder.saving}
-        isReorderMode={categoryOrder.isReorderMode}
         servicesFirst={servicesFirst}
         showServicesSection={showServicesSection}
         showStatsSection={showStatsSection}
         onColumnCountChange={(nextColumnCount) =>
-          setGridColumns(String(nextColumnCount) as "4" | "5")
+          setGridColumns(String(nextColumnCount) as "3" | "4" | "5")
         }
         onServicesFirstChange={setServicesFirst}
         onShowServicesSectionChange={setShowServicesSection}
         onShowStatsSectionChange={setShowStatsSection}
-        onToggleReorder={
-          categoryOrder.isReorderMode ? categoryOrder.cancelReorder : categoryOrder.beginReorder
-        }
       />
       <main className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6">
         {visibleSections.length === 0 ? (

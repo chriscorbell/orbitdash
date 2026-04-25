@@ -5,8 +5,8 @@ import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 
 interface UseServicesSectionStateOptions {
   categoryOrder: UseCategoryOrderResult;
+  columnCount: 3 | 4 | 5;
   error: string | null;
-  isFiveColumn: boolean;
   loading: boolean;
   onDelete: (id: string) => Promise<void>;
   services: Service[];
@@ -14,8 +14,8 @@ interface UseServicesSectionStateOptions {
 
 export function useServicesSectionState({
   categoryOrder,
+  columnCount,
   error,
-  isFiveColumn,
   loading,
   onDelete,
   services,
@@ -28,16 +28,10 @@ export function useServicesSectionState({
   const [search, setSearch] = useState("");
 
   const {
-    draftOrder,
     error: categoryOrderError,
     hasNamedCategories,
     isReorderMode,
-    saving: isCategoryOrderSaving,
     visibleCategoryOrder,
-    cancelReorder,
-    moveCategory,
-    reorderCategories,
-    saveOrder,
   } = categoryOrder;
 
   const filteredServices = useMemo(() => {
@@ -114,25 +108,18 @@ export function useServicesSectionState({
     categoryOrderError,
     deleteTarget,
     deleting,
-    draftOrder,
     editingService,
     filteredServices,
-    gridClassName: isFiveColumn
-      ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
-      : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
+    gridClassName:
+      columnCount === 5
+        ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+        : columnCount === 3
+          ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
     groupedServices,
     handleDeleteConfirm,
-    handleReorderOpenChange: (open: boolean) => {
-      if (!open) {
-        cancelReorder();
-      }
-    },
     hasNamedCategories,
-    isCategoryOrderSaving,
     isReorderMode,
-    moveCategory,
-    reorderCategories,
-    saveOrder,
     search,
     setActionError,
     setAddOpen,
