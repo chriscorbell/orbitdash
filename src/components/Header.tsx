@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -170,6 +171,9 @@ export function Header({
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Dashboard settings</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Adjust dashboard visibility, layout, and category ordering preferences.
+                </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-6">
