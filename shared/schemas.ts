@@ -172,7 +172,7 @@ export const categoryOrderUpdateSchema = z
 export const metricsQuerySchema = z.object({
   window: z.coerce
     .number({
-      invalid_type_error: "window must be a positive integer",
+      error: "window must be a positive integer",
     })
     .int("window must be a positive integer")
     .positive("window must be a positive integer")
