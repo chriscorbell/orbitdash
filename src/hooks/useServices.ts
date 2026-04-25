@@ -37,8 +37,34 @@ export function useServices() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+
+    const loadOnMount = async () => {
+      try {
+        const data = await api.fetchServices();
+        if (cancelled) {
+          return;
+        }
+        setServices(sortServices(data));
+        setError(null);
+      } catch (e) {
+        if (cancelled) {
+          return;
+        }
+        setError(e instanceof Error ? e.message : "Failed to load services");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadOnMount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const create = useCallback(async (payload: CreateServicePayload, iconFile?: File) => {
     const service = await api.createService(payload, iconFile);

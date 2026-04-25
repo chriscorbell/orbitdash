@@ -174,4 +174,13 @@ describe("service form data helpers", () => {
       removeIcon: false,
     });
   });
+
+  it("preserves an explicit true open-in-new-tab update value", () => {
+    const formData = new FormData();
+    formData.set(SERVICE_FORM_DATA_KEYS.openInNewTab, "true");
+
+    expect(updateServicePayloadFromFormData(formData)).toEqual({
+      open_in_new_tab: true,
+    });
+  });
 });
