@@ -104,6 +104,7 @@ const categoryOrderStub: UseCategoryOrderResult = {
   draftOrder: [],
   error: null,
   hasNamedCategories: false,
+  isDirty: false,
   isReorderMode: false,
   loading: false,
   namedCategories: [],

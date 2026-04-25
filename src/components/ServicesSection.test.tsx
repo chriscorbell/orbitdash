@@ -44,6 +44,7 @@ const categoryOrderStub: UseCategoryOrderResult = {
   draftOrder: [],
   error: null,
   hasNamedCategories: false,
+  isDirty: false,
   isReorderMode: false,
   loading: false,
   namedCategories: [],
@@ -77,7 +78,7 @@ function renderServicesSection(
       categoryOrder={categoryOrderStub}
       loading={false}
       error={null}
-      isFiveColumn={false}
+      columnCount={4}
       onRetry={vi.fn().mockResolvedValue(undefined)}
       onCreate={vi.fn().mockResolvedValue(baseService)}
       onUpdate={vi.fn().mockResolvedValue(baseService)}

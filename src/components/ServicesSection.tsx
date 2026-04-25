@@ -14,18 +14,12 @@ const ServiceDialog = lazy(() =>
   }))
 );
 
-const CategoryReorderDialog = lazy(() =>
-  import("@/components/services/CategoryReorderDialog").then((module) => ({
-    default: module.CategoryReorderDialog,
-  }))
-);
-
 interface ServicesSectionProps {
   services: Service[];
   categoryOrder: UseCategoryOrderResult;
   loading: boolean;
   error: string | null;
-  isFiveColumn: boolean;
+  columnCount: 3 | 4 | 5;
   onRetry: () => Promise<void>;
   onCreate: (payload: CreateServicePayload, iconFile?: File) => Promise<Service>;
   onUpdate: (
@@ -42,7 +36,7 @@ export function ServicesSection({
   categoryOrder,
   loading,
   error,
-  isFiveColumn,
+  columnCount,
   onRetry,
   onCreate,
   onUpdate,
@@ -55,20 +49,14 @@ export function ServicesSection({
     categoryOrderError,
     deleteTarget,
     deleting,
-    draftOrder,
     editingService,
     filteredServices,
     gridClassName,
     groupedServices,
     handleDeleteConfirm,
-    handleReorderOpenChange,
     hasNamedCategories,
-    isCategoryOrderSaving,
     isReorderMode,
-    moveCategory,
-    reorderCategories,
     search,
-    saveOrder,
     setActionError,
     setAddOpen,
     setDeleteTarget,
@@ -79,8 +67,8 @@ export function ServicesSection({
     showInlineError,
   } = useServicesSectionState({
     categoryOrder,
+    columnCount,
     error,
-    isFiveColumn,
     loading,
     onDelete,
     services,
@@ -94,19 +82,6 @@ export function ServicesSection({
         onAddService={() => setAddOpen(true)}
         onSearchChange={setSearch}
       />
-
-      <Suspense fallback={null}>
-        <CategoryReorderDialog
-          draftOrder={draftOrder}
-          error={categoryOrderError}
-          open={isReorderMode}
-          saving={isCategoryOrderSaving}
-          onMoveCategory={moveCategory}
-          onOpenChange={handleReorderOpenChange}
-          onReorder={reorderCategories}
-          onSave={() => void saveOrder()}
-        />
-      </Suspense>
 
       <ServicesSectionFeedback
         actionError={actionError}
