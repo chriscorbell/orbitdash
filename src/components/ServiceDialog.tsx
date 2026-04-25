@@ -18,7 +18,7 @@ import {
   isServiceDialogSubmittable,
   useServiceDialogState,
 } from "@/components/services/useServiceDialogState";
-import { getValidationMessage, serviceCreateSchema } from "@shared/schemas";
+import { getValidationMessage, serviceCreateSchema } from "@shared/service-schemas";
 import type { Service, CreateServicePayload } from "@shared/types";
 
 interface ServiceDialogProps {

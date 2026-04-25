@@ -3,7 +3,7 @@ import { getDb } from "../db";
 import { jsonError } from "../api-response";
 import { parseJsonBody } from "../request-body";
 import { CATEGORY_ORDER_SETTING_KEY, sanitizeCategoryOrder } from "@shared/category-order";
-import { categoryOrderUpdateSchema, getValidationMessage } from "@shared/schemas";
+import { categoryOrderUpdateSchema, getValidationMessage } from "@shared/server-schemas";
 import type { CategoryOrderResponse } from "@shared/types";
 
 const settingsRouter = new Hono();

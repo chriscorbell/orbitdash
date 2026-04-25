@@ -1,5 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
-import { getValidationMessage, serviceCreateSchema, serviceUpdateSchema } from "@shared/schemas";
+import {
+  getValidationMessage,
+  serviceCreateSchema,
+  serviceUpdateSchema,
+} from "@shared/service-schemas";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 import { apiFail, apiOk, getErrorMessage, type ApiResult } from "../api-response";
 import { getDb } from "../db";

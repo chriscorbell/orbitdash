@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { getRecentSamples, subscribe } from "../metrics";
 import { jsonError } from "../api-response";
-import { getValidationMessage, metricsQuerySchema } from "@shared/schemas";
+import { getValidationMessage, metricsQuerySchema } from "@shared/server-schemas";
 
 const metricsRouter = new Hono();
 

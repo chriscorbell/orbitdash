@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   categoryOrderResponseSchema,
-  categoryOrderUpdateSchema,
-  getValidationMessage,
   metricsResponseSchema,
-  metricsQuerySchema,
   metricSampleSchema,
-  serviceCreateSchema,
   serviceSchema,
-  serviceUpdateSchema,
   servicesResponseSchema,
 } from "@shared/schemas";
+import { categoryOrderUpdateSchema, metricsQuerySchema } from "@shared/server-schemas";
+import {
+  getValidationMessage,
+  serviceCreateSchema,
+  serviceUpdateSchema,
+} from "@shared/service-schemas";
 
 describe("serviceCreateSchema", () => {
   it("normalizes required and optional fields", () => {
