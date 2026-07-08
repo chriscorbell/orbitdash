@@ -1,5 +1,4 @@
 import { Hono, type Context } from "hono";
-import fs from "fs";
 import path from "path";
 import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
@@ -84,12 +83,11 @@ app.get("/api/health", (c) => {
   });
 });
 
-app.get("/api/icons/:filename", (c) => {
-  const filename = c.req.param("filename");
-  const safeName = path.basename(filename);
-  const filePath = path.join(getIconsDir(), safeName);
+app.get("/api/icons/:filename", async (c) => {
+  const safeName = path.basename(c.req.param("filename"));
+  const file = Bun.file(path.join(getIconsDir(), safeName));
 
-  if (!fs.existsSync(filePath)) {
+  if (!(await file.exists())) {
     return jsonNotFound(c);
   }
 
@@ -104,13 +102,12 @@ app.get("/api/icons/:filename", (c) => {
     ".ico": "image/x-icon",
   };
 
-  const contentType = mimeTypes[ext] || "application/octet-stream";
-  const data = fs.readFileSync(filePath);
-
-  return new Response(data, {
+  return new Response(file, {
     headers: {
-      "Content-Type": contentType,
+      "Content-Type": mimeTypes[ext] || "application/octet-stream",
       "Cache-Control": "public, max-age=3600",
+      // Neutralizes scripts in user-supplied SVGs opened directly
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
     },
   });
 });
