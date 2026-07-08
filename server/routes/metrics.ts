@@ -21,40 +21,29 @@ metricsRouter.get("/", (c) => {
 /** GET /api/metrics/stream — SSE endpoint */
 metricsRouter.get("/stream", (c) => {
   return streamSSE(c, async (stream) => {
-    let alive = true;
+    let finish = () => {};
+    const closed = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
 
     const unsubscribe = subscribe((sample) => {
-      if (!alive) return;
       stream
         .writeSSE({
           event: "sample",
           data: JSON.stringify(sample),
         })
-        .catch(() => {
-          alive = false;
-        });
+        .catch(finish);
     });
 
     // Keep alive with comment pings every 15s
     const keepAlive = setInterval(() => {
-      if (!alive) return;
-      stream.writeSSE({ event: "ping", data: "" }).catch(() => {
-        alive = false;
-      });
+      stream.writeSSE({ event: "ping", data: "" }).catch(finish);
     }, 15000);
 
-    // Wait until connection closes
-    stream.onAbort(() => {
-      alive = false;
-      clearInterval(keepAlive);
-      unsubscribe();
-    });
+    stream.onAbort(finish);
 
-    // Keep the stream open
-    while (alive) {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-
+    // Hold the stream open until the client disconnects or a write fails
+    await closed;
     clearInterval(keepAlive);
     unsubscribe();
   });
