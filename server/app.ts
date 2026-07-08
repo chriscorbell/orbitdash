@@ -1,5 +1,4 @@
 import { Hono, type Context } from "hono";
-import { cors } from "hono/cors";
 import fs from "fs";
 import path from "path";
 import metricsRouter from "./routes/metrics";
@@ -42,8 +41,6 @@ app.notFound((c) => {
 
   return c.text("Not found", 404);
 });
-
-app.use("/api/*", cors());
 
 app.use("*", async (c, next) => {
   const start = Date.now();
