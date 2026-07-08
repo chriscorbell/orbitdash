@@ -23,9 +23,9 @@ export function useServices() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // No sync setLoading(true) here: loading starts true, and effects may not set state synchronously
   const load = useCallback(async () => {
     try {
-      setLoading(true);
       const data = await api.fetchServices();
       setServices(sortServices(data));
       setError(null);
@@ -36,35 +36,16 @@ export function useServices() {
     }
   }, []);
 
+  const reload = useCallback(async () => {
+    setLoading(true);
+    await load();
+  }, [load]);
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadOnMount = async () => {
-      try {
-        const data = await api.fetchServices();
-        if (cancelled) {
-          return;
-        }
-        setServices(sortServices(data));
-        setError(null);
-      } catch (e) {
-        if (cancelled) {
-          return;
-        }
-        setError(e instanceof Error ? e.message : "Failed to load services");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadOnMount();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    // load only sets state after awaiting the fetch; the rule can't see through the callback
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
 
   const create = useCallback(async (payload: CreateServicePayload, iconFile?: File) => {
     const service = await api.createService(payload, iconFile);
@@ -86,5 +67,5 @@ export function useServices() {
     setServices((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  return { services, loading, error, create, update, remove, reload: load };
+  return { services, loading, error, create, update, remove, reload };
 }
