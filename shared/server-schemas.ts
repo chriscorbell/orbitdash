@@ -2,9 +2,11 @@ import { z } from "zod";
 import { getValidationMessage } from "./service-schemas";
 import { sanitizeCategoryOrder, UNCATEGORIZED_CATEGORY } from "./category-order";
 
+const ORDER_TYPE_ERROR = "order must be an array of category names";
+
 export const categoryOrderUpdateSchema = z
   .object({
-    order: z.array(z.string()),
+    order: z.array(z.string({ error: ORDER_TYPE_ERROR }), { error: ORDER_TYPE_ERROR }),
   })
   .superRefine(({ order }, ctx) => {
     if (order.some((value) => value.trim() === UNCATEGORIZED_CATEGORY)) {

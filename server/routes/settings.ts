@@ -46,25 +46,11 @@ settingsRouter.put("/category-order", async (c) => {
   const result = categoryOrderUpdateSchema.safeParse(parsedBody.data);
 
   if (!result.success) {
-    const hasOrderTypeError = result.error.issues.some((issue) => issue.path[0] === "order");
-
-    if (
-      hasOrderTypeError &&
-      result.error.issues[0]?.message !== '"Uncategorized" cannot be manually ordered'
-    ) {
-      return jsonError(c, 400, "order must be an array of category names");
-    }
-
     return jsonError(c, 400, getValidationMessage(result.error));
   }
 
-  const payload = result.data;
-
-  if (!Array.isArray(payload.order) || payload.order.some((value) => typeof value !== "string")) {
-    return jsonError(c, 400, "order must be an array of category names");
-  }
-
-  const sanitizedOrder = sanitizeCategoryOrder(payload.order);
+  // The schema's transform already ran sanitizeCategoryOrder
+  const sanitizedOrder = result.data.order;
   const db = getDb();
   db.prepare(
     `INSERT INTO settings (key, value)
