@@ -1,3 +1,4 @@
+import dns from "dns/promises";
 import fs from "fs";
 import net from "net";
 import path from "path";
@@ -14,34 +15,28 @@ export function getIconsDir(): string {
   return dir;
 }
 
-function isPrivateIpv4(hostname: string): boolean {
-  const [first, second] = hostname.split(".").map(Number);
+const blockedRanges = new net.BlockList();
+blockedRanges.addSubnet("0.0.0.0", 8);
+blockedRanges.addSubnet("10.0.0.0", 8);
+blockedRanges.addSubnet("100.64.0.0", 10);
+blockedRanges.addSubnet("127.0.0.0", 8);
+blockedRanges.addSubnet("169.254.0.0", 16);
+blockedRanges.addSubnet("172.16.0.0", 12);
+blockedRanges.addSubnet("192.168.0.0", 16);
+blockedRanges.addSubnet("::1", 128, "ipv6");
+blockedRanges.addSubnet("fc00::", 7, "ipv6");
+blockedRanges.addSubnet("fe80::", 10, "ipv6");
 
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168)
-  );
+function isBlockedAddress(address: string): boolean {
+  const ipVersion = net.isIP(address);
+  if (ipVersion === 0) {
+    return true;
+  }
+
+  return blockedRanges.check(address, ipVersion === 6 ? "ipv6" : "ipv4");
 }
 
-function isPrivateIpv6(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-
-  return (
-    normalized === "::1" ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    normalized.startsWith("fe80:") ||
-    normalized.startsWith("::ffff:127.") ||
-    normalized.startsWith("::ffff:10.") ||
-    normalized.startsWith("::ffff:192.168.")
-  );
-}
-
-function isBlockedRemoteHost(hostname: string): boolean {
+async function isBlockedRemoteHost(hostname: string): Promise<boolean> {
   const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
   if (
     normalized === "localhost" ||
@@ -51,21 +46,24 @@ function isBlockedRemoteHost(hostname: string): boolean {
     return true;
   }
 
-  const ipVersion = net.isIP(normalized);
-  if (ipVersion === 4) {
-    return isPrivateIpv4(normalized);
+  // WHATWG URLs keep brackets around IPv6 hostnames
+  const bareHost = normalized.replace(/^\[|\]$/g, "");
+  if (net.isIP(bareHost)) {
+    return isBlockedAddress(bareHost);
   }
 
-  if (ipVersion === 6) {
-    return isPrivateIpv6(normalized);
+  // ponytail: lookup-then-fetch leaves a DNS-rebinding window; pin the resolved IP if that ever matters
+  try {
+    const { address } = await dns.lookup(bareHost);
+    return isBlockedAddress(address);
+  } catch {
+    return true;
   }
-
-  return false;
 }
 
-function assertSafeRemoteIconUrl(iconUrl: string): URL {
+async function assertSafeRemoteIconUrl(iconUrl: string): Promise<URL> {
   const parsed = new URL(iconUrl);
-  if (isBlockedRemoteHost(parsed.hostname)) {
+  if (await isBlockedRemoteHost(parsed.hostname)) {
     throw new Error("Remote icon host is not allowed");
   }
 
@@ -73,7 +71,7 @@ function assertSafeRemoteIconUrl(iconUrl: string): URL {
 }
 
 async function fetchIconResponse(iconUrl: string, signal: AbortSignal): Promise<Response> {
-  let currentUrl = assertSafeRemoteIconUrl(iconUrl).toString();
+  let currentUrl = (await assertSafeRemoteIconUrl(iconUrl)).toString();
 
   for (let redirectCount = 0; redirectCount <= MAX_ICON_REDIRECTS; redirectCount += 1) {
     const response = await fetch(currentUrl, {
@@ -94,7 +92,9 @@ async function fetchIconResponse(iconUrl: string, signal: AbortSignal): Promise<
       throw new Error("Failed to download icon");
     }
 
-    currentUrl = assertSafeRemoteIconUrl(new URL(location, currentUrl).toString()).toString();
+    currentUrl = (
+      await assertSafeRemoteIconUrl(new URL(location, currentUrl).toString())
+    ).toString();
   }
 
   throw new Error("Failed to download icon");
@@ -202,7 +202,7 @@ export async function persistDownloadedIcon(
     throw new Error("Icon URL must be a valid http(s) URL");
   }
 
-  assertSafeRemoteIconUrl(normalizedIconUrl);
+  await assertSafeRemoteIconUrl(normalizedIconUrl);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
