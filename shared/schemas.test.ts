@@ -201,12 +201,12 @@ describe("metricsQuerySchema", () => {
     }
   });
 
-  it("rejects values above the maximum window", () => {
-    const result = metricsQuerySchema.safeParse({ window: "7200" });
+  it("rejects windows beyond the sample retention period", () => {
+    const result = metricsQuerySchema.safeParse({ window: "61" });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(getValidationMessage(result.error)).toBe("window must be 3600 seconds or less");
+      expect(getValidationMessage(result.error)).toBe("window must be 60 seconds or less");
     }
   });
 });

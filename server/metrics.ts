@@ -2,6 +2,7 @@ import os from "os";
 import fs from "fs";
 import { execFileSync } from "child_process";
 import { getDb } from "./db";
+import { METRICS_RETENTION_SECONDS } from "@shared/server-schemas";
 import type { MetricSample } from "@shared/types";
 
 /** Collect current system metrics */
@@ -138,7 +139,7 @@ export function storeSample(sample: MetricSample): void {
     "INSERT OR REPLACE INTO metrics_samples (ts, cpu, ram, disk) VALUES (?, ?, ?, ?)"
   );
   const prune = db.prepare("DELETE FROM metrics_samples WHERE ts < ?");
-  const cutoff = Date.now() - 60_000;
+  const cutoff = Date.now() - METRICS_RETENTION_SECONDS * 1000;
 
   const transaction = db.transaction(() => {
     insert.run(sample.ts, sample.cpu, sample.ram, sample.disk);

@@ -19,6 +19,9 @@ export const categoryOrderUpdateSchema = z
     order: sanitizeCategoryOrder(order),
   }));
 
+/** Samples older than this are pruned, so larger query windows would return nothing extra. */
+export const METRICS_RETENTION_SECONDS = 60;
+
 export const metricsQuerySchema = z.object({
   window: z.coerce
     .number({
@@ -26,7 +29,7 @@ export const metricsQuerySchema = z.object({
     })
     .int("window must be a positive integer")
     .positive("window must be a positive integer")
-    .max(3600, "window must be 3600 seconds or less")
+    .max(METRICS_RETENTION_SECONDS, `window must be ${METRICS_RETENTION_SECONDS} seconds or less`)
     .default(30),
 });
 
