@@ -9,6 +9,11 @@ updates:
       - "dependencies"
     commit-message:
       prefix: "deps"
+    groups:
+      routine:
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -20,3 +25,23 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "ci"
+    groups:
+      routine:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+    groups:
+      routine:
+        update-types:
+          - "minor"
+          - "patch"

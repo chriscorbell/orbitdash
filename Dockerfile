@@ -1,5 +1,5 @@
 # Install all dependencies needed to build the app.
-FROM oven/bun:1 AS deps
+FROM oven/bun:1.3.14 AS deps
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ COPY scripts/prepare-git-hooks.mjs ./scripts/prepare-git-hooks.mjs
 RUN bun install --frozen-lockfile
 
 # Install only production dependencies for the runtime image.
-FROM oven/bun:1 AS prod-deps
+FROM oven/bun:1.3.14 AS prod-deps
 
 WORKDIR /app
 
@@ -34,7 +34,7 @@ COPY src/ ./src/
 RUN bun run build
 
 # Production stage
-FROM oven/bun:1-slim
+FROM oven/bun:1.3.14-slim
 
 WORKDIR /app
 
