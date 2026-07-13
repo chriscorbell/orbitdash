@@ -26,6 +26,12 @@
   <a href="https://github.com/chriscorbell/orbitdash/pkgs/container/orbitdash" target="_blank">Container Image (GHCR)</a>
 </p>
 
+Container tags follow three channels:
+
+- `latest` and `main` update from every validated push to `main`, except documentation-only changes.
+- `sha-<commit>` identifies an immutable build for rollback or testing.
+- `vX.Y.Z` identifies a stable release whose tag matches the version in `package.json`.
+
 ## Preview
 
 <img src=".github/images/preview.png" alt="Screenshot of the app" />
@@ -115,6 +121,10 @@ Also confirm that:
 - the host directory or volume mapped to `/data` is intact
 - the expected host port is mapped to container port `3000`
 - persisted services and icons still load after the restart
+
+To roll back, pin the previous `vX.Y.Z` or `sha-<commit>` image, pull it, restart the container,
+and repeat the health checks. Image rollback does not reverse database changes; keep a data backup
+from before each upgrade.
 
 ## Testing
 
