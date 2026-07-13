@@ -28,9 +28,17 @@
 
 Container tags follow three channels:
 
-- `latest` and `main` update from every validated push to `main`, except documentation-only changes.
-- `sha-<commit>` identifies an immutable build for rollback or testing.
+- `latest` and `main` are rolling tags updated from every validated push to `main`, except
+  documentation-only changes.
+- `sha-<commit>` identifies the build produced from one Git commit.
 - `vX.Y.Z` identifies a stable release whose tag matches the version in `package.json`.
+
+For an immutable deployment or rollback, pin the manifest digest as
+`ghcr.io/chriscorbell/orbitdash@sha256:<digest>`; registry tags can be republished.
+
+`package.json` is the single source for stable release versions. Its initial `0.0.0` value means
+that no stable release has been cut yet; the first release PR replaces it with the chosen semantic
+version before creating the matching tag.
 
 ## Preview
 
@@ -122,9 +130,10 @@ Also confirm that:
 - the expected host port is mapped to container port `3000`
 - persisted services and icons still load after the restart
 
-To roll back, pin the previous `vX.Y.Z` or `sha-<commit>` image, pull it, restart the container,
-and repeat the health checks. Image rollback does not reverse database changes; keep a data backup
-from before each upgrade.
+To roll back, resolve the previous `vX.Y.Z` or `sha-<commit>` image to its manifest digest, pin
+`ghcr.io/chriscorbell/orbitdash@sha256:<digest>`, restart the container, and repeat the health
+checks. Image rollback does not reverse database changes; keep a data backup from before each
+upgrade.
 
 ## Testing
 
