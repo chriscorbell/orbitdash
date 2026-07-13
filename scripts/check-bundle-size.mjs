@@ -20,7 +20,7 @@ const budgets = [
     maxRawKb: 230,
     maxGzipKb: 75,
   },
-  { label: "charts", prefix: "charts-", extension: ".js", maxRawKb: 350, maxGzipKb: 105 },
+  { label: "charts", prefix: "charts-", extension: ".js", maxRawKb: 180, maxGzipKb: 65 },
   {
     label: "validation",
     prefix: "validation-",
