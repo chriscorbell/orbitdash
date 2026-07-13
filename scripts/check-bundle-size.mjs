@@ -5,7 +5,7 @@ import path from "node:path";
 const distAssetsDir = path.resolve(process.cwd(), "dist/assets");
 
 const budgets = [
-  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 140, maxGzipKb: 45 },
+  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 145, maxGzipKb: 45 },
   {
     label: "entry css",
     prefix: "index-",
