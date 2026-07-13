@@ -3,8 +3,16 @@
 ## Release Model
 
 - Every push to `main` runs the full quality suite. Changes that affect the shipped project then
-  publish `main`, `latest`, and an immutable `sha-<commit>` container tag.
-- Stable releases use `vX.Y.Z`. The tag must equal `v` plus the version in `package.json`.
+  publish `main`, `latest`, and a commit-addressed `sha-<commit>` container tag.
+- `main` and `latest` are rolling aliases for the newest validated `main` image. They are convenient
+  for automatic updates but are not immutable rollback targets.
+- `sha-<commit>` identifies one Git commit. Record the published manifest digest and use
+  `ghcr.io/chriscorbell/orbitdash@sha256:<digest>` when an immutable deployment or rollback
+  reference is required; registry tags can be republished.
+- Stable releases use `vX.Y.Z`. `package.json` is the single version source, and the tag must equal
+  `v` plus that exact version.
+- `0.0.0` means that no stable release exists yet. Replace it with the chosen semantic version in
+  the first release PR; do not create a `v0.0.0` release.
 - Manual publishing is limited to `main` or an existing `v*` tag.
 - A successful stable release creates a GitHub Release with generated notes.
 
@@ -37,12 +45,15 @@
 
 ## Publish
 
-1. Choose the next semantic version and update `version` in `package.json`.
-2. Merge the version change through a pull request after `Quality` passes.
-3. Tag that merge commit as `vX.Y.Z` using the exact package version and push the tag.
-4. Monitor the `Deploy to GHCR` workflow until validation, both architecture smoke tests, manifest
+1. Choose the next semantic version from the changes since the previous stable tag. For the first
+   stable release, replace the `0.0.0` placeholder.
+2. Update `version` in `package.json`; this is the only release-version source.
+3. Merge the version change through a pull request after `Quality` passes.
+4. Tag that merge commit as `vX.Y.Z` using the exact package version and push the tag.
+5. Monitor the `Deploy to GHCR` workflow until validation, both architecture smoke tests, manifest
    creation, and GitHub Release creation succeed.
-5. Verify the versioned container image starts and reaches `/readyz` successfully.
+6. Record the published manifest digest, then verify the versioned container image starts and
+   reaches `/readyz` successfully.
 
 ## After Release
 
@@ -52,10 +63,12 @@
 
 ## Rollback And Yank
 
-1. Pin the deployment to the previous `vX.Y.Z` or `sha-<commit>` tag.
-2. Pull the selected image, restart the container, and verify `/healthz` and `/readyz`.
-3. Restore the pre-upgrade data backup only when a database or persisted-data change requires it;
+1. Select the previous `vX.Y.Z` or `sha-<commit>` image and resolve its manifest digest.
+2. Pin the deployment to `ghcr.io/chriscorbell/orbitdash@sha256:<digest>` so the rollback target
+   cannot move.
+3. Pull the selected image, restart the container, and verify `/healthz` and `/readyz`.
+4. Restore the pre-upgrade data backup only when a database or persisted-data change requires it;
    changing the image alone does not reverse data changes.
-4. Prefer publishing a fixed patch release over deleting an image. If a dangerous image must be
+5. Prefer publishing a fixed patch release over deleting an image. If a dangerous image must be
    yanked, first record the reason, then delete its GHCR package version and matching GitHub Release
    through their package/release settings.

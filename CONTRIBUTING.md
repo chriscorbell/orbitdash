@@ -102,4 +102,7 @@ success, empty, and error-state patterns across the dashboard UI.
 See [docs/release-checklist.md](docs/release-checklist.md) for the release procedure, pre-publish
 validation, and container verification steps.
 
+`package.json` owns the stable release version. The current `0.0.0` value is an intentional
+pre-release placeholder and must be replaced in the release PR before the first `vX.Y.Z` tag.
+
 For persistent data handling, see [docs/backup-restore.md](docs/backup-restore.md).

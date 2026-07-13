@@ -33,14 +33,20 @@ form validation.
 
 ## Current Boundaries
 
-- `server/` contains runtime, routes, metrics collection, and data access.
-- `shared/` contains ordering logic, URL normalization, type contracts, and runtime schemas.
-- `src/` contains the React UI, hooks, and API client modules.
-
-## Current Known Hotspots
-
-- `server/routes/services.ts` still carries a lot of business logic and icon handling.
-- `src/components/ServiceDialog.tsx` still mixes form state, preview handling, and submit/delete
-  flows.
-
-These are the main refactor targets for the remaining quality roadmap.
+- `server/app.ts` assembles the Hono application. Files under `server/routes/` translate HTTP
+  requests and responses but delegate service behavior to `server/services/`.
+- `server/services/service-payloads.ts` parses service request bodies,
+  `service-operations.ts` owns service CRUD behavior, and `icon-storage.ts` owns icon validation,
+  download, and persistence.
+- `server/db.ts` and `server/migrations.ts` own SQLite access and schema evolution. Runtime startup,
+  health, metrics collection, and observability stay in their dedicated `server/` modules.
+- `shared/` owns client/server contracts, runtime schemas, URL normalization, service form-data
+  handling, and category-order rules.
+- Frontend hooks under `src/hooks/` own API-backed services, metrics, saved category order, and local
+  preferences.
+- `ServicesSection` composes service-management UI. Its filtering and dialog-selection state lives
+  in `services/useServicesSectionState.ts`, while category, empty, feedback, toolbar, and delete UI
+  live in focused components under `src/components/services/`.
+- `ServiceDialog` coordinates submission and validation. Form and icon-preview state lives in
+  `services/useServiceDialogState.ts`, with category, icon, and action controls split into focused
+  components.
