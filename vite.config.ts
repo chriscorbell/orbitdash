@@ -23,7 +23,11 @@ export default defineConfig({
             return;
           }
 
-          if (id.includes("recharts")) {
+          if (
+            id.includes("/node_modules/chart.js/") ||
+            id.includes("/node_modules/react-chartjs-2/") ||
+            id.includes("/node_modules/@kurkle/color/")
+          ) {
             return "charts";
           }
 

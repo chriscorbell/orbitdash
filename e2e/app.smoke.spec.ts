@@ -36,6 +36,10 @@ test("primary dashboard journey works end to end", async ({ page }) => {
   await expect(page.getByRole("tab", { name: "CPU", selected: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: "RAM" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Disk" })).toBeVisible();
+  await expect(page.getByRole("img", { name: /CPU usage over the last 30 seconds/ })).toBeVisible();
+
+  await page.getByRole("tab", { name: "RAM" }).click();
+  await expect(page.getByRole("img", { name: /RAM usage over the last 30 seconds/ })).toBeVisible();
 
   await createService(page, {
     category: "Infrastructure",

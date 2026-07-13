@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
+  Chart as ChartJS,
+  Filler,
+  LineElement,
+  LinearScale,
+  PointElement,
   Tooltip,
-} from "recharts";
+  type ChartData,
+  type ChartOptions,
+  type ScriptableContext,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { MetricSample } from "@shared/types";
@@ -19,80 +22,130 @@ interface MetricChartsProps {
 
 type MetricKey = "cpu" | "ram" | "disk";
 
+ChartJS.register(Filler, LineElement, LinearScale, PointElement, Tooltip);
+
 function isMetricKey(value: string): value is MetricKey {
   return value === "cpu" || value === "ram" || value === "disk";
 }
 
 const chartConfig = {
-  cpu: { label: "CPU", color: "#ffffff" },
-  ram: { label: "RAM", color: "#ffffff" },
-  disk: { label: "Disk", color: "#ffffff" },
+  cpu: { label: "CPU", color: "#fafafa" },
+  ram: { label: "RAM", color: "#fafafa" },
+  disk: { label: "Disk", color: "#fafafa" },
 } satisfies Record<MetricKey, { color: string; label: string }>;
+
+function createAreaFill(context: ScriptableContext<"line">) {
+  const { chart } = context;
+  const { chartArea, ctx } = chart;
+
+  if (!chartArea) {
+    return "rgba(250, 250, 250, 0.12)";
+  }
+
+  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  gradient.addColorStop(0, "rgba(250, 250, 250, 0.3)");
+  gradient.addColorStop(1, "rgba(250, 250, 250, 0)");
+  return gradient;
+}
 
 function MetricLineChart({
   data,
   color,
   label,
   nowTs,
-  gradientId,
 }: {
   data: Array<{ ts: number; value: number }>;
   color: string;
   label: string;
   nowTs: number;
-  gradientId: string;
 }) {
   const domainStart = data.length > 0 ? data[0].ts : nowTs - 30_000;
-  const domain = [domainStart, nowTs];
+  const latestValue = data.at(-1)?.value;
+  const chartData = useMemo<ChartData<"line", Array<{ x: number; y: number }>>>(
+    () => ({
+      datasets: [
+        {
+          label,
+          data: data.map((point) => ({ x: point.ts, y: point.value })),
+          borderColor: color,
+          backgroundColor: createAreaFill,
+          borderWidth: 3,
+          cubicInterpolationMode: "monotone",
+          fill: true,
+          pointRadius: 0,
+          pointHoverBackgroundColor: color,
+          pointHoverBorderWidth: 0,
+          pointHoverRadius: 3,
+        },
+      ],
+    }),
+    [color, data, label]
+  );
+  const options = useMemo<ChartOptions<"line">>(
+    () => ({
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      parsing: false,
+      interaction: { axis: "x", intersect: false, mode: "nearest" },
+      layout: { padding: { top: 8, right: 8, bottom: 8 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#18181b",
+          borderColor: "rgba(255, 255, 255, 0.1)",
+          borderWidth: 1,
+          bodyColor: "#fafafa",
+          cornerRadius: 8,
+          displayColors: false,
+          padding: 8,
+          titleColor: "#a1a1aa",
+          callbacks: {
+            title: ([item]) => {
+              if (!item) return "";
+              return `${Math.max(0, Math.round((nowTs - Number(item.parsed.x)) / 1000))}s ago`;
+            },
+            label: (item) => `${label}: ${Number(item.parsed.y).toFixed(1)}%`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "linear",
+          display: false,
+          min: domainStart,
+          max: nowTs,
+        },
+        y: {
+          min: 0,
+          max: 100,
+          border: { display: false },
+          grid: {
+            color: "rgba(255, 255, 255, 0.1)",
+            drawTicks: false,
+          },
+          ticks: {
+            color: "#a1a1aa",
+            font: { size: 11 },
+            padding: 8,
+            stepSize: 25,
+            callback: (value) => `${value}%`,
+          },
+        },
+      },
+    }),
+    [domainStart, label, nowTs]
+  );
+
   return (
-    <div className="min-h-45">
-      <ResponsiveContainer width="100%" height={180} minWidth={0}>
-        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="ts" type="number" domain={domain} allowDataOverflow={true} hide />
-          <YAxis
-            domain={[0, 100]}
-            ticks={[0, 25, 50, 75, 100]}
-            interval={0}
-            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-            tickLine={false}
-            axisLine={false}
-            width={40}
-            tickFormatter={(v: number) => `${v}%`}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "var(--popover)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              color: "var(--popover-foreground)",
-              fontSize: 12,
-            }}
-            labelStyle={{ color: "var(--muted-foreground)" }}
-            labelFormatter={(ts) => {
-              const ago = Math.round((nowTs - Number(ts)) / 1000);
-              return `${ago}s ago`;
-            }}
-            formatter={(value) => [`${Number(value).toFixed(1)}%`, label]}
-          />
-          <Area
-            type="monotone"
-            dataKey="value"
-            stroke={color}
-            strokeWidth={3}
-            fill={`url(#${gradientId})`}
-            dot={false}
-            activeDot={{ r: 3, strokeWidth: 0, fill: color }}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+    <div className="relative min-h-45 h-45 w-full">
+      <Line
+        aria-label={`${label} usage over the last 30 seconds${latestValue === undefined ? "" : `, latest ${latestValue.toFixed(1)}%`}`}
+        data={chartData}
+        fallbackContent={`${label} usage chart`}
+        options={options}
+        role="img"
+      />
     </div>
   );
 }
@@ -159,7 +212,6 @@ export function MetricCharts({ samples }: MetricChartsProps) {
               nowTs={nowTs}
               color={activeChart.color}
               label={activeChart.label}
-              gradientId={`gradient-${activeMetric}`}
             />
           </TabsContent>
         </CardContent>

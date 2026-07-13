@@ -14,7 +14,6 @@ updates:
         dependency-type: "production"
         exclude-patterns:
           - "radix-ui"
-          - "recharts"
         update-types:
           - "minor"
           - "patch"

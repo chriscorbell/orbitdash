@@ -5,7 +5,7 @@ Use this file as a practical handoff for future agents working in this repositor
 ## Project Snapshot
 
 - Orbitdash is a home-server dashboard for live system metrics and curated service links.
-- Frontend stack: React 19, TypeScript, Vite 7, Tailwind CSS 4, Radix-based UI primitives, Recharts, dnd-kit.
+- Frontend stack: React 19, TypeScript, Vite 7, Tailwind CSS 4, Radix-based UI primitives, Chart.js, dnd-kit.
 - Backend stack: Bun runtime, Hono router, SQLite via `bun:sqlite`, SSE for live metrics.
 - Shared runtime layer: `shared/` holds types, runtime schemas, URL normalization, category ordering, and service form-data helpers.
 - Container target: GHCR image with multi-arch publish and readiness smoke tests.
