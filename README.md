@@ -51,7 +51,7 @@ version before creating the matching tag.
 - Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
 - Inline search and filtering
 - UI-native service management (no config file needed)
-- Toggle between 3-column and 4-column grid for service links
+- Toggle between 3, 4 and 5 column grids for service links
 - Reorder category sections with a shared saved layout
 - Collapse category sections with saved per-browser state
 
@@ -175,7 +175,7 @@ and the service dialog submit path. The current canonical rules are:
   bytes match a supported image format
 - category and description fields are trimmed and normalized to `null` when empty
 - the `Uncategorized` section cannot be manually included in saved category ordering
-- metrics `window` must be a positive integer and is bounded to 3600 seconds
+- metrics `window` must be a positive integer and is bounded to 60 seconds (the sample retention period)
 
 ## Contributing
 
