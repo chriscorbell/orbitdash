@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
 import {
   getValidationMessage,
   serviceCreateSchema,
@@ -111,7 +110,7 @@ export async function createService(
     return apiFail(400, getValidationMessage(validation.error));
   }
 
-  const id = uuidv4();
+  const id = crypto.randomUUID();
   const now = Date.now();
   const validatedPayload = validation.data;
 
