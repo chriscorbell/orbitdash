@@ -60,6 +60,12 @@ const migrations: Migration[] = [
        ON services (category, name)`,
     ],
   },
+  {
+    id: 3,
+    name: "drop-metrics-samples",
+    // Metric samples moved to an in-memory buffer; see server/metrics.ts.
+    statements: [`DROP TABLE IF EXISTS metrics_samples`],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {
