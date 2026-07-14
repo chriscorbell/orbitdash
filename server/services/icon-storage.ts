@@ -1,103 +1,15 @@
-import dns from "dns/promises";
 import fs from "fs";
-import net from "net";
 import path from "path";
 import { getDataDir } from "../db";
 import { normalizeIconUrl } from "@shared/urls";
 
 const ICONS_DIR_NAME = "icons";
 export const MAX_ICON_BYTES = 2 * 1024 * 1024;
-const MAX_ICON_REDIRECTS = 3;
 
 export function getIconsDir(): string {
   const dir = path.join(getDataDir(), ICONS_DIR_NAME);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
-}
-
-const blockedRanges = new net.BlockList();
-blockedRanges.addSubnet("0.0.0.0", 8);
-blockedRanges.addSubnet("10.0.0.0", 8);
-blockedRanges.addSubnet("100.64.0.0", 10);
-blockedRanges.addSubnet("127.0.0.0", 8);
-blockedRanges.addSubnet("169.254.0.0", 16);
-blockedRanges.addSubnet("172.16.0.0", 12);
-blockedRanges.addSubnet("192.168.0.0", 16);
-blockedRanges.addSubnet("::1", 128, "ipv6");
-blockedRanges.addSubnet("fc00::", 7, "ipv6");
-blockedRanges.addSubnet("fe80::", 10, "ipv6");
-
-function isBlockedAddress(address: string): boolean {
-  const ipVersion = net.isIP(address);
-  if (ipVersion === 0) {
-    return true;
-  }
-
-  return blockedRanges.check(address, ipVersion === 6 ? "ipv6" : "ipv4");
-}
-
-async function isBlockedRemoteHost(hostname: string): Promise<boolean> {
-  const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
-  if (
-    normalized === "localhost" ||
-    normalized.endsWith(".localhost") ||
-    normalized.endsWith(".local")
-  ) {
-    return true;
-  }
-
-  // WHATWG URLs keep brackets around IPv6 hostnames
-  const bareHost = normalized.replace(/^\[|\]$/g, "");
-  if (net.isIP(bareHost)) {
-    return isBlockedAddress(bareHost);
-  }
-
-  // ponytail: lookup-then-fetch leaves a DNS-rebinding window; pin the resolved IP if that ever matters
-  try {
-    const { address } = await dns.lookup(bareHost);
-    return isBlockedAddress(address);
-  } catch {
-    return true;
-  }
-}
-
-async function assertSafeRemoteIconUrl(iconUrl: string): Promise<URL> {
-  const parsed = new URL(iconUrl);
-  if (await isBlockedRemoteHost(parsed.hostname)) {
-    throw new Error("Remote icon host is not allowed");
-  }
-
-  return parsed;
-}
-
-async function fetchIconResponse(iconUrl: string, signal: AbortSignal): Promise<Response> {
-  let currentUrl = (await assertSafeRemoteIconUrl(iconUrl)).toString();
-
-  for (let redirectCount = 0; redirectCount <= MAX_ICON_REDIRECTS; redirectCount += 1) {
-    const response = await fetch(currentUrl, {
-      redirect: "manual",
-      signal,
-    });
-
-    if (![301, 302, 303, 307, 308].includes(response.status)) {
-      return response;
-    }
-
-    if (redirectCount === MAX_ICON_REDIRECTS) {
-      throw new Error("Too many redirects while downloading icon");
-    }
-
-    const location = response.headers.get("location");
-    if (!location) {
-      throw new Error("Failed to download icon");
-    }
-
-    currentUrl = (
-      await assertSafeRemoteIconUrl(new URL(location, currentUrl).toString())
-    ).toString();
-  }
-
-  throw new Error("Failed to download icon");
 }
 
 function detectIconExt(buffer: Buffer): string | null {
@@ -202,13 +114,13 @@ export async function persistDownloadedIcon(
     throw new Error("Icon URL must be a valid http(s) URL");
   }
 
-  await assertSafeRemoteIconUrl(normalizedIconUrl);
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const response = await fetchIconResponse(normalizedIconUrl, controller.signal);
+    // fetch follows redirects natively (capped by the runtime); intentionally no
+    // host restrictions here — LAN-hosted icons are a primary home-lab use case.
+    const response = await fetch(normalizedIconUrl, { signal: controller.signal });
     if (!response.ok) {
       throw new Error("Failed to download icon");
     }

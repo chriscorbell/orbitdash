@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn, type Mock } from "bun:test";
-import dns from "dns/promises";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "fs";
 import path from "path";
 import { app } from "../app";
@@ -8,7 +7,6 @@ import { cleanupTestDatabase, createTestDataDir } from "../test-utils";
 import { initializeServer, shutdown } from "../runtime";
 
 let testDataDir: string;
-let lookupSpy: Mock<typeof dns.lookup>;
 const originalFetch = globalThis.fetch;
 
 async function createService(overrides: Record<string, unknown> = {}): Promise<Response> {
@@ -29,11 +27,6 @@ async function createService(overrides: Record<string, unknown> = {}): Promise<R
 }
 
 beforeEach(() => {
-  // Keep icon SSRF checks hermetic: resolve test hostnames to a public address
-  lookupSpy = spyOn(dns, "lookup").mockResolvedValue({
-    address: "203.0.113.10",
-    family: 4,
-  } as never) as Mock<typeof dns.lookup>;
   testDataDir = createTestDataDir("orbitdash-services-");
   initializeServer({
     dataDir: testDataDir,
@@ -44,7 +37,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  lookupSpy.mockRestore();
   globalThis.fetch = originalFetch;
   shutdown();
   cleanupTestDatabase(testDataDir);
@@ -231,66 +223,24 @@ describe("services routes", () => {
     });
   });
 
-  it("rejects remote icon downloads from blocked local hosts", async () => {
-    let called = false;
+  it("downloads icons from local hosts", async () => {
     globalThis.fetch = (async (..._args: Parameters<typeof fetch>) => {
-      called = true;
-      return new Response(null, { status: 200 });
-    }) as unknown as typeof fetch;
-
-    const response = await createService({
-      icon_url: "http://127.0.0.1/icon.svg",
-    });
-
-    expect(called).toBe(false);
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "Remote icon host is not allowed",
-    });
-  });
-
-  it("rejects remote icons whose hostname resolves to a private address", async () => {
-    lookupSpy.mockResolvedValue({ address: "10.0.0.5", family: 4 } as never);
-
-    let called = false;
-    globalThis.fetch = (async (..._args: Parameters<typeof fetch>) => {
-      called = true;
-      return new Response(null, { status: 200 });
-    }) as unknown as typeof fetch;
-
-    const response = await createService({
-      icon_url: "https://rebinding.example.com/icon.svg",
-    });
-
-    expect(called).toBe(false);
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "Remote icon host is not allowed",
-    });
-  });
-
-  it("rejects remote icon downloads that exceed the redirect limit", async () => {
-    globalThis.fetch = (async (input: string | URL | Request) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const match = url.match(/redirect-(\d+)/);
-      const nextStep = match ? Number(match[1]) + 1 : 1;
-
-      return new Response(null, {
-        status: 302,
+      return new Response('<svg xmlns="http://www.w3.org/2000/svg"></svg>', {
+        status: 200,
         headers: {
-          location: `https://example.com/redirect-${nextStep}`,
+          "content-length": "46",
+          "content-type": "image/svg+xml",
         },
       });
     }) as unknown as typeof fetch;
 
     const response = await createService({
-      icon_url: "https://example.com/redirect-0",
+      icon_url: "http://192.168.1.10/icon.svg",
     });
 
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "Too many redirects while downloading icon",
-    });
+    expect(response.status).toBe(201);
+    const created = (await response.json()) as Service;
+    expect(created.icon).toMatch(/\.svg$/);
   });
 
   it("returns a structured error for malformed JSON payloads", async () => {
