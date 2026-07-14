@@ -53,6 +53,38 @@ app.use("*", async (c, next) => {
   }
 });
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+// The API is unauthenticated, and browsers can submit multipart forms
+// cross-origin without CORS — so reject browser-issued mutations coming from
+// another site. Requests without browser headers (curl, scripts) pass.
+app.use("/api/*", async (c, next) => {
+  if (SAFE_METHODS.has(c.req.method)) {
+    return next();
+  }
+
+  const secFetchSite = c.req.header("sec-fetch-site");
+  if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
+    return jsonError(c, 403, "cross-site requests are not allowed");
+  }
+
+  const origin = c.req.header("origin");
+  if (origin) {
+    let originHost: string | null;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      originHost = null;
+    }
+
+    if (originHost === null || originHost !== c.req.header("host")) {
+      return jsonError(c, 403, "cross-site requests are not allowed");
+    }
+  }
+
+  return next();
+});
+
 app.get("/healthz", (c) => {
   return respondWithHealth(c, 200, createHealthPayload("ok"));
 });
