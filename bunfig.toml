@@ -1,0 +1,5 @@
+[test]
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["shared/**", "server/test-utils.ts"]
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage/server"
