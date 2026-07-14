@@ -53,6 +53,7 @@ version before creating the matching tag.
 - UI-native service management (no config file needed)
 - Toggle between 3-column and 4-column grid for service links
 - Reorder category sections with a shared saved layout
+- Collapse category sections with saved per-browser state
 
 ## Platform Support
 

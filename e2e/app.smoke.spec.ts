@@ -79,6 +79,10 @@ test("primary dashboard journey works end to end", async ({ page }) => {
   await expect(settingsDialog).toBeHidden();
 
   await expect
-    .poll(async () => page.locator("main h3").allTextContents())
-    .toEqual(["Media", "Infrastructure"]);
+    .poll(async () =>
+      page
+        .locator("main h3 button")
+        .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")))
+    )
+    .toEqual(["Collapse Media category", "Collapse Infrastructure category"]);
 });
