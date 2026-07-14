@@ -66,7 +66,17 @@ npm run prepare
 - `test:integration` covers backend route and runtime integration tests through Bun's native test
   runner.
 - `test:e2e` runs the Playwright browser smoke suite against the real frontend and backend.
-- `test:coverage` currently enforces shared runtime coverage and should expand as more suites land.
+- `test:coverage` runs three named gates so reports stay honest and readable:
+  - shared runtime modules, excluding type-only `shared/types.ts`, require 100% statements,
+    branches, functions, and lines
+  - frontend coverage includes `App`, tested service-management components, API-backed hooks, and
+    the API client; it requires 75% statements, 55% branches, 70% functions, and 75% lines
+  - server coverage includes production modules loaded by Bun integration tests, excluding shared
+    modules and `server/test-utils.ts`; it requires 80% functions and 75% lines
+
+Low-value UI primitives, entry-point wiring, and purely presentational components stay outside the
+coverage gate. Unit, integration, and E2E suites remain authoritative for their intended layers;
+do not add implementation-coupled tests only to increase percentages.
 
 Run `npm run test:e2e:install` once per machine before using the browser suite so Chromium is
 installed locally.

@@ -157,9 +157,10 @@ available locally.
 Formatting is enforced with Prettier. Use `npm run format` locally to normalize files and
 `npm run format:check` to run the same check that CI uses.
 
-The enforced coverage gate currently applies to shared runtime modules under `shared/` excluding
-type-only definitions in `shared/types.ts`. Expand that coverage scope as backend, hook, component,
-and end-to-end suites are added.
+The coverage gate reports shared, frontend, and server scopes separately. Shared runtime modules
+remain at 100%; focused frontend application code and loaded server production modules use
+baseline thresholds derived from their existing behavior tests. See [CONTRIBUTING.md](CONTRIBUTING.md#test-strategy)
+for exact scope and thresholds.
 
 ## Validation Rules
 
