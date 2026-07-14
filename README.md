@@ -100,6 +100,10 @@ All data is stored under `/data` inside the container:
 
 The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.
 
+The container runs as the unprivileged `bun` user (uid 1000). A bind-mounted data directory must be
+writable by that uid — if Docker created it as root, fix it once with `chown -R 1000:1000 ./orbitdash-data`.
+Named volumes inherit the correct ownership automatically.
+
 Outside Docker, orbitdash stores data in `./data` by default. You can override the storage path in any environment with `ORBITDASH_DATA_DIR=/path/to/data`.
 
 For backup and restore steps, including SQLite WAL files and icon assets, see
