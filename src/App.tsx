@@ -11,9 +11,12 @@ import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useServices } from "@/hooks/useServices";
 
+// One-time migration from the pre-rename "orbitdash.sectionOrder" key; the
+// migrated value is persisted under "orbitdash.servicesFirst" immediately.
 function getInitialServicesFirst() {
   try {
     const legacySectionOrder = window.localStorage.getItem("orbitdash.sectionOrder");
+    window.localStorage.removeItem("orbitdash.sectionOrder");
 
     if (legacySectionOrder === "services-first") {
       return true;
