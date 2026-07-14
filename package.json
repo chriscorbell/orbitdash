@@ -28,7 +28,7 @@
     "test:coverage": "npm run test:coverage:shared && npm run test:coverage:frontend && npm run test:coverage:server",
     "test:coverage:shared": "vitest --run shared --coverage --coverage.reporter=text",
     "test:coverage:frontend": "vitest --run src --coverage --coverage.reporter=text --coverage.include='src/{App.tsx,components/{Header,ServiceCard,ServiceDialog,ServicesSection}.tsx,hooks/{useCategoryOrder,useMetrics,useServices}.ts,lib/api/client.ts}' --coverage.thresholds.statements=75 --coverage.thresholds.branches=55 --coverage.thresholds.functions=70 --coverage.thresholds.lines=75",
-    "test:coverage:server": "bun test server --coverage --coverage-reporter=text"
+    "test:coverage:server": "bun test server --coverage && node scripts/check-lcov-coverage.mjs coverage/server/lcov.info 75 80"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
