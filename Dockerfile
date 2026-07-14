@@ -46,18 +46,20 @@ COPY server/ ./server/
 COPY shared/ ./shared/
 COPY tsconfig.json ./tsconfig.json
 
-# Copy built frontend assets
+# Copy built frontend assets (Vite copies public/ into dist/ during the build)
 COPY --from=builder /app/dist ./dist
 
-# Copy public assets (logo etc.)
-COPY public/ ./dist/
-
-# Create data directory
-RUN mkdir -p /data
+# Create the data directory writable by the unprivileged bun user (uid 1000)
+RUN mkdir -p /data && chown bun:bun /data
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
+
+USER bun
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+  CMD ["bun", "-e", "const res = await fetch(`http://127.0.0.1:${process.env.PORT || 3000}/healthz`); process.exit(res.ok ? 0 : 1)"]
 
 CMD ["bun", "server/index.ts"]
