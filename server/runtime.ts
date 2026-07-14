@@ -19,13 +19,21 @@ export function shutdown() {
   runtimeInitialized = false;
 }
 
+// Registering a signal handler suppresses the runtime's default terminate
+// behavior, so the handler must exit explicitly or the process hangs until
+// SIGKILL (e.g. after docker stop's grace period).
+function handleTerminationSignal() {
+  shutdown();
+  process.exit(0);
+}
+
 function registerSignalHandlers() {
   if (signalHandlersRegistered) {
     return;
   }
 
-  process.once("SIGINT", shutdown);
-  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", handleTerminationSignal);
+  process.once("SIGTERM", handleTerminationSignal);
   signalHandlersRegistered = true;
 }
 

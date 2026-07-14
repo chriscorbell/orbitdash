@@ -8,7 +8,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      "/api": "http://localhost:3001",
+      // Object form keeps changeOrigin off, so the backend sees the browser's
+      // Host header; the API's cross-site guard compares it against Origin.
+      "/api": { target: "http://localhost:3001" },
     },
   },
   build: {

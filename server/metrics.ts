@@ -1,7 +1,6 @@
 import os from "os";
 import fs from "fs";
 import { execFileSync } from "child_process";
-import { getDb } from "./db";
 import { METRICS_RETENTION_SECONDS } from "@shared/server-schemas";
 import type { MetricSample } from "@shared/types";
 
@@ -132,30 +131,24 @@ function getDiskUsage(): number {
   }
 }
 
-/** Insert a sample and prune old ones */
-export function storeSample(sample: MetricSample): void {
-  const db = getDb();
-  const insert = db.prepare(
-    "INSERT OR REPLACE INTO metrics_samples (ts, cpu, ram, disk) VALUES (?, ?, ?, ?)"
-  );
-  const prune = db.prepare("DELETE FROM metrics_samples WHERE ts < ?");
-  const cutoff = Date.now() - METRICS_RETENTION_SECONDS * 1000;
+// Samples live in memory only: retention is a minute, so persisting them
+// bought nothing across restarts while writing to disk once per second.
+const sampleBuffer: MetricSample[] = [];
 
-  const transaction = db.transaction(() => {
-    insert.run(sample.ts, sample.cpu, sample.ram, sample.disk);
-    prune.run(cutoff);
-  });
-  transaction();
+/** Append a sample and prune ones older than the retention period */
+export function storeSample(sample: MetricSample): void {
+  sampleBuffer.push(sample);
+
+  const cutoff = Date.now() - METRICS_RETENTION_SECONDS * 1000;
+  while (sampleBuffer.length > 0 && sampleBuffer[0].ts < cutoff) {
+    sampleBuffer.shift();
+  }
 }
 
 /** Get recent samples within a time window (in seconds) */
 export function getRecentSamples(windowSec: number = 30): MetricSample[] {
-  const db = getDb();
   const cutoff = Date.now() - windowSec * 1000;
-  const stmt = db.prepare(
-    "SELECT ts, cpu, ram, disk FROM metrics_samples WHERE ts > ? ORDER BY ts ASC"
-  );
-  return stmt.all(cutoff) as MetricSample[];
+  return sampleBuffer.filter((sample) => sample.ts > cutoff);
 }
 
 // SSE subscribers

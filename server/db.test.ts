@@ -39,7 +39,6 @@ describe("database integration", () => {
       .all() as Array<{ name: string }>;
 
     expect(tables.map((table) => table.name)).toEqual([
-      "metrics_samples",
       "schema_migrations",
       "services",
       "settings",
@@ -53,6 +52,10 @@ describe("database integration", () => {
       {
         id: 2,
         name: "services-constraints",
+      },
+      {
+        id: 3,
+        name: "drop-metrics-samples",
       },
     ]);
   });
