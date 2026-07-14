@@ -11,7 +11,10 @@ export function useMetrics() {
   const [status, setStatus] = useState<"connecting" | "connected" | "offline">("connecting");
   const [error, setError] = useState<string | null>(null);
   const [recoveredAt, setRecoveredAt] = useState<number | null>(null);
-  const lastSampleRef = useRef<number | null>(null);
+  // Client-clock time we last heard from the server. Never compare the
+  // server-generated sample.ts against the client clock — skew between the
+  // two would fake a permanent offline state.
+  const lastHeardAtRef = useRef<number | null>(null);
   const statusRef = useRef<"connecting" | "connected" | "offline">("connecting");
   const awaitingRecoveryRef = useRef(false);
 
@@ -24,11 +27,6 @@ export function useMetrics() {
     let isActive = true;
     let cleanup = () => {};
 
-    const applyLatestTimestamp = (nextSamples: MetricSample[]) => {
-      lastSampleRef.current =
-        nextSamples.length > 0 ? nextSamples[nextSamples.length - 1].ts : null;
-    };
-
     const loadAndSubscribe = async () => {
       try {
         const initial = await fetchMetrics(MAX_POINTS);
@@ -38,7 +36,7 @@ export function useMetrics() {
 
         const trimmed = initial.slice(-MAX_POINTS);
         setSamples(trimmed);
-        applyLatestTimestamp(trimmed);
+        lastHeardAtRef.current = trimmed.length > 0 ? Date.now() : null;
         setError(null);
       } catch (loadError) {
         if (!isActive) {
@@ -60,11 +58,8 @@ export function useMetrics() {
           }
           setConnectionStatus("connected");
           setError(null);
-          setSamples((current) => {
-            const next = [...current, sample].slice(-MAX_POINTS);
-            applyLatestTimestamp(next);
-            return next;
-          });
+          lastHeardAtRef.current = Date.now();
+          setSamples((current) => [...current, sample].slice(-MAX_POINTS));
         },
         () => {
           if (isActive) {
@@ -78,11 +73,11 @@ export function useMetrics() {
     void loadAndSubscribe();
 
     const checkOffline = setInterval(() => {
-      const lastSampleTs = lastSampleRef.current;
-      if (lastSampleTs === null) {
+      const lastHeardAt = lastHeardAtRef.current;
+      if (lastHeardAt === null) {
         return;
       }
-      if (Date.now() - lastSampleTs > OFFLINE_TIMEOUT_MS) {
+      if (Date.now() - lastHeardAt > OFFLINE_TIMEOUT_MS) {
         awaitingRecoveryRef.current = true;
         setConnectionStatus("offline");
       }

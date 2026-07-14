@@ -128,4 +128,37 @@ describe("useMetrics", () => {
     expect(result.current.status).toBe("offline");
     expect(result.current.recoveredAt).toBeNull();
   });
+
+  it("stays connected when server timestamps are skewed from the client clock", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-05T00:00:00.000Z"));
+
+    // Server clock is a minute behind the client clock.
+    const skewedSample: MetricSample = {
+      ts: Date.now() - 60_000,
+      cpu: 10,
+      ram: 20,
+      disk: 30,
+    };
+
+    fetchMetricsMock.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useMetrics());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      onSample?.(skewedSample);
+    });
+
+    expect(result.current.status).toBe("connected");
+
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(result.current.status).toBe("connected");
+  });
 });
