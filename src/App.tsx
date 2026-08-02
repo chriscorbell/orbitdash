@@ -57,6 +57,7 @@ function App() {
     create,
     update,
     remove,
+    renameCategory,
     reload,
   } = useServices();
   const categoryOrder = useCategoryOrder(services);
@@ -140,6 +141,7 @@ function App() {
       onCreate={create}
       onUpdate={update}
       onDelete={remove}
+      onRenameCategory={renameCategory}
     />
   );
 

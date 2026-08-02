@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import path from "path";
+import categoriesRouter from "./routes/categories";
 import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
 import servicesRouter from "./routes/services";
@@ -100,6 +101,7 @@ app.get("/readyz", (c) => {
   });
 });
 
+app.route("/api/categories", categoriesRouter);
 app.route("/api/metrics", metricsRouter);
 app.route("/api/settings", settingsRouter);
 app.route("/api/services", servicesRouter);

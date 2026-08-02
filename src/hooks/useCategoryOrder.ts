@@ -14,6 +14,7 @@ export interface UseCategoryOrderResult {
   namedCategories: string[];
   saving: boolean;
   visibleCategoryOrder: string[];
+  applyOrder: (order: string[]) => void;
   beginReorder: () => void;
   cancelReorder: () => void;
   moveCategory: (category: string, direction: "up" | "down") => void;
@@ -99,6 +100,11 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     };
   }, []);
 
+  const applyOrder = useCallback((order: string[]) => {
+    setSavedOrder(order);
+    setDraftOrder(order);
+  }, []);
+
   const beginReorder = useCallback(() => {
     setDraftOrder(mergedSavedOrder);
     setError(null);
@@ -177,6 +183,7 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     namedCategories,
     saving,
     visibleCategoryOrder,
+    applyOrder,
     beginReorder,
     cancelReorder,
     moveCategory,

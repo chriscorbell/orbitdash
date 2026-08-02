@@ -6,11 +6,22 @@ import { ServicesSectionFeedback } from "@/components/services/ServicesSectionFe
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
 import { useServicesSectionState } from "@/components/services/useServicesSectionState";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
-import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import type {
+  Service,
+  CreateServicePayload,
+  RenameCategoryResponse,
+  UpdateServicePayload,
+} from "@shared/types";
 
 const ServiceDialog = lazy(() =>
   import("@/components/ServiceDialog").then((module) => ({
     default: module.ServiceDialog,
+  }))
+);
+
+const RenameCategoryDialog = lazy(() =>
+  import("@/components/services/RenameCategoryDialog").then((module) => ({
+    default: module.RenameCategoryDialog,
   }))
 );
 
@@ -29,6 +40,7 @@ interface ServicesSectionProps {
     removeIcon?: boolean
   ) => Promise<Service>;
   onDelete: (id: string) => Promise<void>;
+  onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
 }
 
 export function ServicesSection({
@@ -41,6 +53,7 @@ export function ServicesSection({
   onCreate,
   onUpdate,
   onDelete,
+  onRenameCategory,
 }: ServicesSectionProps) {
   const {
     actionError,
@@ -54,13 +67,16 @@ export function ServicesSection({
     gridClassName,
     groupedServices,
     handleDeleteConfirm,
+    handleRenameCategoryConfirm,
     hasNamedCategories,
     isReorderMode,
+    renameCategoryTarget,
     search,
     setActionError,
     setAddOpen,
     setDeleteTarget,
     setEditingService,
+    setRenameCategoryTarget,
     setSearch,
     showInitialError,
     showInitialLoading,
@@ -71,6 +87,7 @@ export function ServicesSection({
     error,
     loading,
     onDelete,
+    onRenameCategory,
     services,
   });
 
@@ -121,6 +138,7 @@ export function ServicesSection({
           services={filteredServices}
           onDelete={setDeleteTarget}
           onEdit={setEditingService}
+          onRenameCategory={setRenameCategoryTarget}
         />
       )}
 
@@ -174,6 +192,18 @@ export function ServicesSection({
         }}
         service={deleteTarget}
       />
+
+      <Suspense fallback={null}>
+        <RenameCategoryDialog
+          category={renameCategoryTarget}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRenameCategoryTarget(null);
+            }
+          }}
+          onRename={handleRenameCategoryConfirm}
+        />
+      </Suspense>
     </div>
   );
 }
