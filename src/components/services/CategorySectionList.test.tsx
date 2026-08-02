@@ -36,6 +36,7 @@ function renderCategoryList() {
       hasNamedCategories
       services={[monitoringService, storageService]}
       onDelete={vi.fn()}
+      onDuplicate={vi.fn()}
       onEdit={vi.fn()}
       onRenameCategory={vi.fn()}
     />
@@ -88,6 +89,7 @@ describe("CategorySectionList", () => {
         hasNamedCategories={false}
         services={[{ ...monitoringService, category: null }]}
         onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
         onEdit={vi.fn()}
         onRenameCategory={vi.fn()}
       />

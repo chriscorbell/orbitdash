@@ -141,6 +141,53 @@ describe("services routes", () => {
     await expect(listResponse.json()).resolves.toEqual([]);
   });
 
+  it("duplicates a service and copies its icon file", async () => {
+    globalThis.fetch = (async (..._args: Parameters<typeof fetch>) => {
+      return new Response('<svg xmlns="http://www.w3.org/2000/svg"></svg>', {
+        status: 200,
+        headers: {
+          "content-length": "46",
+          "content-type": "image/svg+xml",
+        },
+      });
+    }) as unknown as typeof fetch;
+
+    const createResponse = await createService({ icon_url: "https://example.com/icon" });
+    const created = (await createResponse.json()) as Service;
+
+    const duplicateResponse = await app.request(`/api/services/${created.id}/duplicate`, {
+      method: "POST",
+    });
+
+    expect(duplicateResponse.status).toBe(201);
+    const duplicated = (await duplicateResponse.json()) as Service;
+
+    expect(duplicated.id).not.toBe(created.id);
+    expect(duplicated).toMatchObject({
+      name: "Orbit (copy)",
+      url: created.url,
+      description: created.description,
+      category: created.category,
+      open_in_new_tab: created.open_in_new_tab,
+    });
+    expect(duplicated.icon).toBe(`${duplicated.id}.svg`);
+    expect(fs.existsSync(path.join(testDataDir, "icons", created.icon as string))).toBe(true);
+    expect(fs.existsSync(path.join(testDataDir, "icons", duplicated.icon as string))).toBe(true);
+
+    const listResponse = await app.request("/api/services");
+    const services = (await listResponse.json()) as Service[];
+    expect(services).toHaveLength(2);
+  });
+
+  it("returns not found when duplicating a missing service", async () => {
+    const response = await app.request("/api/services/missing/duplicate", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "not found" });
+  });
+
   it("downloads and persists an icon from icon_url", async () => {
     globalThis.fetch = (async (..._args: Parameters<typeof fetch>) => {
       return new Response('<svg xmlns="http://www.w3.org/2000/svg"></svg>', {

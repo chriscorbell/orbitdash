@@ -10,15 +10,16 @@ import {
 import { getIconUrl } from "@/lib/api/services";
 import type { Service } from "@shared/types";
 import { normalizeServiceUrl } from "@shared/urls";
-import { EllipsisVertical, Globe, Pencil, Trash2 } from "lucide-react";
+import { Copy, EllipsisVertical, Globe, Pencil, Trash2 } from "lucide-react";
 
 interface ServiceCardProps {
   service: Service;
   onEdit: (service: Service) => void;
   onDelete: (service: Service) => void;
+  onDuplicate: (service: Service) => void;
 }
 
-export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
+export function ServiceCard({ service, onEdit, onDelete, onDuplicate }: ServiceCardProps) {
   const hasDescription = Boolean(service.description?.trim());
   const safeUrl = normalizeServiceUrl(service.url);
 
@@ -87,6 +88,14 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
           >
             <Pencil className="h-3.5 w-3.5" />
             Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              onDuplicate(service);
+            }}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Duplicate
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

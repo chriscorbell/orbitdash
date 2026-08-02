@@ -84,6 +84,7 @@ function renderServicesSection(
       onCreate={vi.fn().mockResolvedValue(baseService)}
       onUpdate={vi.fn().mockResolvedValue(baseService)}
       onDelete={vi.fn().mockResolvedValue(undefined)}
+      onDuplicate={vi.fn().mockResolvedValue(baseService)}
       onRenameCategory={vi.fn().mockResolvedValue({ services: [], order: [] })}
       {...overrides}
     />

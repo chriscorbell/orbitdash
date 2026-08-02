@@ -6,7 +6,12 @@ import {
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 import { apiFail, apiOk, getErrorMessage, type ApiResult } from "../api-response";
 import { getDb } from "../db";
-import { persistDownloadedIcon, persistUploadedIcon, removeStoredIcon } from "./icon-storage";
+import {
+  copyStoredIcon,
+  persistDownloadedIcon,
+  persistUploadedIcon,
+  removeStoredIcon,
+} from "./icon-storage";
 import type { ParsedServicePayload } from "./service-payloads";
 
 type ServiceRecord = Omit<Service, "open_in_new_tab"> & {
@@ -189,6 +194,30 @@ export async function updateService(
           : Boolean(existing.open_in_new_tab),
       updatedAt: Date.now(),
       url: validatedPayload.url !== undefined ? validatedPayload.url : existing.url,
+    })
+  );
+}
+
+export function duplicateService(id: string): ApiResult<Service> {
+  const existing = getServiceRecord(id);
+  if (!existing) {
+    return apiFail(404, "not found");
+  }
+
+  const newId = crypto.randomUUID();
+  const now = Date.now();
+
+  return apiOk(
+    createStoredService({
+      category: existing.category,
+      createdAt: now,
+      description: existing.description,
+      icon: copyStoredIcon(existing.icon, newId),
+      id: newId,
+      name: `${existing.name} (copy)`,
+      openInNewTab: Boolean(existing.open_in_new_tab),
+      updatedAt: now,
+      url: existing.url,
     })
   );
 }

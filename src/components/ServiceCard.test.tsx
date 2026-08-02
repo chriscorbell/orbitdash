@@ -23,7 +23,14 @@ const baseService: Service = {
 
 describe("ServiceCard", () => {
   it("uses character-based truncation for descriptions", () => {
-    render(<ServiceCard service={baseService} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    render(
+      <ServiceCard
+        service={baseService}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+      />
+    );
 
     const description = screen.getByText(baseService.description as string);
 

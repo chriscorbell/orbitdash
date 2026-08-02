@@ -56,6 +56,7 @@ function App() {
     error: servicesError,
     create,
     update,
+    duplicate,
     remove,
     renameCategory,
     reload,
@@ -141,6 +142,7 @@ function App() {
       onCreate={create}
       onUpdate={update}
       onDelete={remove}
+      onDuplicate={duplicate}
       onRenameCategory={renameCategory}
     />
   );
