@@ -44,14 +44,14 @@ function CategorySection({
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center gap-1">
-        <h3 className="min-w-0 flex-1">
+      <div className="group/header flex w-fit max-w-full items-center gap-1">
+        <h3 className="min-w-0">
           <button
             type="button"
             aria-controls={contentId}
             aria-expanded={!collapsed}
             aria-label={`${collapsed ? "Expand" : "Collapse"} ${category} category`}
-            className="flex min-h-8 w-full items-center gap-1.5 rounded-md text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="flex min-h-8 items-center gap-1.5 rounded-md text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             onClick={() => onToggle(category)}
           >
             <ChevronDown
@@ -65,7 +65,7 @@ function CategorySection({
           <IconButton
             variant="ghost"
             size="icon-sm"
-            className="text-muted-foreground/60 hover:text-foreground"
+            className="shrink-0 text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/header:opacity-100 pointer-coarse:opacity-100"
             tooltip="Rename category"
             aria-label={`Rename ${category} category`}
             onClick={() => onRenameCategory(category)}
