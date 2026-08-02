@@ -41,7 +41,6 @@ function CategorySection({
   onToggle,
 }: CategorySectionProps) {
   const contentId = useId();
-  const serviceCountLabel = `${services.length} ${services.length === 1 ? "service" : "services"}`;
 
   return (
     <section className="space-y-3">
@@ -60,9 +59,6 @@ function CategorySection({
               className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? "-rotate-90" : ""}`}
             />
             <span className="truncate">{category}</span>
-            <span className="text-xs font-normal tabular-nums text-muted-foreground/80">
-              {serviceCountLabel}
-            </span>
           </button>
         </h3>
         {category !== UNCATEGORIZED_CATEGORY && (
