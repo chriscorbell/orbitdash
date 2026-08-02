@@ -147,6 +147,7 @@ beforeEach(() => {
     error: null,
     create: vi.fn().mockResolvedValue(serviceStub),
     update: vi.fn().mockResolvedValue(serviceStub),
+    duplicate: vi.fn().mockResolvedValue(serviceStub),
     remove: vi.fn().mockResolvedValue(undefined),
     renameCategory: vi.fn().mockResolvedValue({ services: [], order: [] }),
     reload: vi.fn().mockResolvedValue(undefined),

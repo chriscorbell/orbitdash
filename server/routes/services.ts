@@ -3,6 +3,7 @@ import { jsonError, respondApiResult } from "../api-response";
 import {
   createService,
   deleteService,
+  duplicateService,
   listServices,
   updateService,
 } from "../services/service-operations";
@@ -23,6 +24,12 @@ servicesRouter.post("/", async (c) => {
   }
 
   return respondApiResult(c, await createService(parsedPayload), 201);
+});
+
+/** POST /api/services/:id/duplicate */
+servicesRouter.post("/:id/duplicate", (c) => {
+  const id = c.req.param("id");
+  return respondApiResult(c, duplicateService(id), 201);
 });
 
 /** PUT /api/services/:id */

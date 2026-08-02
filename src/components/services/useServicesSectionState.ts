@@ -9,6 +9,7 @@ interface UseServicesSectionStateOptions {
   error: string | null;
   loading: boolean;
   onDelete: (id: string) => Promise<void>;
+  onDuplicate: (id: string) => Promise<Service>;
   onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
   services: Service[];
 }
@@ -19,6 +20,7 @@ export function useServicesSectionState({
   error,
   loading,
   onDelete,
+  onDuplicate,
   onRenameCategory,
   services,
 }: UseServicesSectionStateOptions) {
@@ -104,6 +106,17 @@ export function useServicesSectionState({
     }
   };
 
+  const handleDuplicate = async (service: Service) => {
+    setActionError(null);
+    try {
+      await onDuplicate(service.id);
+    } catch (duplicateError) {
+      setActionError(
+        duplicateError instanceof Error ? duplicateError.message : "Failed to duplicate service"
+      );
+    }
+  };
+
   const handleRenameCategoryConfirm = async (to: string) => {
     if (!renameCategoryTarget) {
       return;
@@ -131,6 +144,7 @@ export function useServicesSectionState({
           : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
     groupedServices,
     handleDeleteConfirm,
+    handleDuplicate,
     handleRenameCategoryConfirm,
     hasNamedCategories,
     isReorderMode,

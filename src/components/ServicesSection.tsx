@@ -40,6 +40,7 @@ interface ServicesSectionProps {
     removeIcon?: boolean
   ) => Promise<Service>;
   onDelete: (id: string) => Promise<void>;
+  onDuplicate: (id: string) => Promise<Service>;
   onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
 }
 
@@ -53,6 +54,7 @@ export function ServicesSection({
   onCreate,
   onUpdate,
   onDelete,
+  onDuplicate,
   onRenameCategory,
 }: ServicesSectionProps) {
   const {
@@ -67,6 +69,7 @@ export function ServicesSection({
     gridClassName,
     groupedServices,
     handleDeleteConfirm,
+    handleDuplicate,
     handleRenameCategoryConfirm,
     hasNamedCategories,
     isReorderMode,
@@ -87,6 +90,7 @@ export function ServicesSection({
     error,
     loading,
     onDelete,
+    onDuplicate,
     onRenameCategory,
     services,
   });
@@ -137,6 +141,9 @@ export function ServicesSection({
           hasNamedCategories={hasNamedCategories}
           services={filteredServices}
           onDelete={setDeleteTarget}
+          onDuplicate={(service) => {
+            void handleDuplicate(service);
+          }}
           onEdit={setEditingService}
           onRenameCategory={setRenameCategoryTarget}
         />

@@ -65,6 +65,21 @@ export async function updateService(
   return service;
 }
 
+/** Duplicate a service */
+export async function duplicateService(id: string): Promise<Service> {
+  const service = await requestJson<Service>(
+    `/api/services/${id}/duplicate`,
+    {
+      method: "POST",
+    },
+    "Failed to duplicate service",
+    serviceSchema
+  );
+
+  invalidateRequestCache("/api/services");
+  return service;
+}
+
 /** Delete a service */
 export async function deleteService(id: string): Promise<void> {
   await request(

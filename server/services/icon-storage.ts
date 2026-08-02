@@ -69,6 +69,24 @@ function validateUploadedIconBuffer(buffer: Buffer): string {
   return ext;
 }
 
+export function copyStoredIcon(
+  iconFilename: string | null | undefined,
+  newServiceId: string
+): string | null {
+  if (!iconFilename) {
+    return null;
+  }
+
+  const sourcePath = path.join(getIconsDir(), iconFilename);
+  if (!fs.existsSync(sourcePath)) {
+    return null;
+  }
+
+  const newFilename = `${newServiceId}${path.extname(iconFilename)}`;
+  fs.copyFileSync(sourcePath, path.join(getIconsDir(), newFilename));
+  return newFilename;
+}
+
 export function removeStoredIcon(iconFilename: string | null | undefined): void {
   if (!iconFilename) {
     return;

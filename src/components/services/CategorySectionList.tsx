@@ -12,6 +12,7 @@ interface CategorySectionListProps {
   hasNamedCategories: boolean;
   services: Service[];
   onDelete: (service: Service) => void;
+  onDuplicate: (service: Service) => void;
   onEdit: (service: Service) => void;
   onRenameCategory: (category: string) => void;
 }
@@ -22,6 +23,7 @@ interface CategorySectionProps {
   gridClassName: string;
   services: Service[];
   onDelete: (service: Service) => void;
+  onDuplicate: (service: Service) => void;
   onEdit: (service: Service) => void;
   onRenameCategory: (category: string) => void;
   onToggle: (category: string) => void;
@@ -33,6 +35,7 @@ function CategorySection({
   gridClassName,
   services,
   onDelete,
+  onDuplicate,
   onEdit,
   onRenameCategory,
   onToggle,
@@ -77,7 +80,13 @@ function CategorySection({
       </div>
       <div id={contentId} hidden={collapsed} className={collapsed ? "hidden" : gridClassName}>
         {services.map((service) => (
-          <ServiceCard key={service.id} service={service} onDelete={onDelete} onEdit={onEdit} />
+          <ServiceCard
+            key={service.id}
+            service={service}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onEdit={onEdit}
+          />
         ))}
       </div>
     </section>
@@ -88,6 +97,7 @@ function CategorizedSectionList({
   grouped,
   gridClassName,
   onDelete,
+  onDuplicate,
   onEdit,
   onRenameCategory,
 }: Omit<CategorySectionListProps, "hasNamedCategories" | "services">) {
@@ -112,6 +122,7 @@ function CategorizedSectionList({
       gridClassName={gridClassName}
       services={categoryServices}
       onDelete={onDelete}
+      onDuplicate={onDuplicate}
       onEdit={onEdit}
       onRenameCategory={onRenameCategory}
       onToggle={toggleCategory}
@@ -125,6 +136,7 @@ export function CategorySectionList({
   hasNamedCategories,
   services,
   onDelete,
+  onDuplicate,
   onEdit,
   onRenameCategory,
 }: CategorySectionListProps) {
@@ -134,6 +146,7 @@ export function CategorySectionList({
         grouped={grouped}
         gridClassName={gridClassName}
         onDelete={onDelete}
+        onDuplicate={onDuplicate}
         onEdit={onEdit}
         onRenameCategory={onRenameCategory}
       />
@@ -143,7 +156,13 @@ export function CategorySectionList({
   return (
     <div className={gridClassName}>
       {services.map((service) => (
-        <ServiceCard key={service.id} service={service} onDelete={onDelete} onEdit={onEdit} />
+        <ServiceCard
+          key={service.id}
+          service={service}
+          onDelete={onDelete}
+          onDuplicate={onDuplicate}
+          onEdit={onEdit}
+        />
       ))}
     </div>
   );

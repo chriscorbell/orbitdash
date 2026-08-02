@@ -9,6 +9,7 @@ import type { Service } from "@shared/types";
 vi.mock("@/lib/api/services", () => ({
   createService: vi.fn(),
   deleteService: vi.fn(),
+  duplicateService: vi.fn(),
   fetchServices: vi.fn(),
   updateService: vi.fn(),
 }));
@@ -17,6 +18,7 @@ const fetchServicesMock = vi.mocked(servicesApi.fetchServices);
 const createServiceMock = vi.mocked(servicesApi.createService);
 const updateServiceMock = vi.mocked(servicesApi.updateService);
 const deleteServiceMock = vi.mocked(servicesApi.deleteService);
+const duplicateServiceMock = vi.mocked(servicesApi.duplicateService);
 
 const existingService: Service = {
   id: "svc-1",
@@ -61,6 +63,30 @@ describe("useServices", () => {
 
     expect(result.current.services).toEqual([]);
     expect(result.current.error).toBe("load failed");
+  });
+
+  it("adds a duplicated service to local state", async () => {
+    const duplicatedService: Service = {
+      ...existingService,
+      id: "svc-copy",
+      name: "Orbit (copy)",
+    };
+
+    fetchServicesMock.mockResolvedValue([existingService]);
+    duplicateServiceMock.mockResolvedValue(duplicatedService);
+
+    const { result } = renderHook(() => useServices());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.duplicate(existingService.id);
+    });
+
+    expect(duplicateServiceMock).toHaveBeenCalledWith(existingService.id);
+    expect(result.current.services).toEqual([existingService, duplicatedService]);
   });
 
   it("updates local state for create, update, delete, and reload", async () => {

@@ -63,6 +63,12 @@ export function useServices() {
     []
   );
 
+  const duplicate = useCallback(async (id: string) => {
+    const service = await api.duplicateService(id);
+    setServices((prev) => sortServices([...prev, service]));
+    return service;
+  }, []);
+
   const remove = useCallback(async (id: string) => {
     await api.deleteService(id);
     setServices((prev) => prev.filter((s) => s.id !== id));
@@ -74,5 +80,5 @@ export function useServices() {
     return response;
   }, []);
 
-  return { services, loading, error, create, update, remove, renameCategory, reload };
+  return { services, loading, error, create, update, duplicate, remove, renameCategory, reload };
 }
