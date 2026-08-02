@@ -6,7 +6,11 @@ import {
   serviceSchema,
   servicesResponseSchema,
 } from "@shared/schemas";
-import { categoryOrderUpdateSchema, metricsQuerySchema } from "@shared/server-schemas";
+import {
+  categoryOrderUpdateSchema,
+  categoryRenameSchema,
+  metricsQuerySchema,
+} from "@shared/server-schemas";
 import {
   getValidationMessage,
   serviceCreateSchema,
@@ -145,6 +149,55 @@ describe("categoryOrderUpdateSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(getValidationMessage(result.error)).toBe('"Uncategorized" cannot be manually ordered');
+    }
+  });
+});
+
+describe("categoryRenameSchema", () => {
+  it("trims both names", () => {
+    expect(categoryRenameSchema.parse({ from: " Media ", to: " Streaming " })).toEqual({
+      from: "Media",
+      to: "Streaming",
+    });
+  });
+
+  it("requires non-empty names", () => {
+    const result = categoryRenameSchema.safeParse({ from: "Media", to: "   " });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(getValidationMessage(result.error)).toBe("to is required");
+    }
+  });
+
+  it("rejects renaming the uncategorized group", () => {
+    const result = categoryRenameSchema.safeParse({ from: "Uncategorized", to: "Misc" });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(getValidationMessage(result.error)).toBe("the Uncategorized group cannot be renamed");
+    }
+  });
+
+  it("rejects the reserved uncategorized name as a target", () => {
+    const result = categoryRenameSchema.safeParse({ from: "Media", to: "Uncategorized" });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(getValidationMessage(result.error)).toBe(
+        '"Uncategorized" is a reserved category name'
+      );
+    }
+  });
+
+  it("rejects renaming a category to its current name", () => {
+    const result = categoryRenameSchema.safeParse({ from: "Media", to: " Media " });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(getValidationMessage(result.error)).toBe(
+        "the new name must be different from the current name"
+      );
     }
   });
 });

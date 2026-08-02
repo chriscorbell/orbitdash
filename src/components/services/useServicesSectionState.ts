@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
-import type { Service } from "@shared/types";
+import type { RenameCategoryResponse, Service } from "@shared/types";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 
 interface UseServicesSectionStateOptions {
@@ -9,6 +9,7 @@ interface UseServicesSectionStateOptions {
   error: string | null;
   loading: boolean;
   onDelete: (id: string) => Promise<void>;
+  onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
   services: Service[];
 }
 
@@ -18,12 +19,14 @@ export function useServicesSectionState({
   error,
   loading,
   onDelete,
+  onRenameCategory,
   services,
 }: UseServicesSectionStateOptions) {
   const [addOpen, setAddOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [renameCategoryTarget, setRenameCategoryTarget] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -101,6 +104,16 @@ export function useServicesSectionState({
     }
   };
 
+  const handleRenameCategoryConfirm = async (to: string) => {
+    if (!renameCategoryTarget) {
+      return;
+    }
+
+    const response = await onRenameCategory(renameCategoryTarget, to);
+    categoryOrder.applyOrder(response.order);
+    setRenameCategoryTarget(null);
+  };
+
   return {
     actionError,
     addOpen,
@@ -118,13 +131,16 @@ export function useServicesSectionState({
           : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
     groupedServices,
     handleDeleteConfirm,
+    handleRenameCategoryConfirm,
     hasNamedCategories,
     isReorderMode,
+    renameCategoryTarget,
     search,
     setActionError,
     setAddOpen,
     setDeleteTarget,
     setEditingService,
+    setRenameCategoryTarget,
     setSearch,
     showInitialError: !loading && error !== null && services.length === 0,
     showInitialLoading: loading && services.length === 0,

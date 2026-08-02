@@ -50,6 +50,7 @@ const categoryOrderStub: UseCategoryOrderResult = {
   namedCategories: [],
   saving: false,
   visibleCategoryOrder: [],
+  applyOrder: vi.fn(),
   beginReorder: vi.fn(),
   cancelReorder: vi.fn(),
   moveCategory: vi.fn(),
@@ -83,6 +84,7 @@ function renderServicesSection(
       onCreate={vi.fn().mockResolvedValue(baseService)}
       onUpdate={vi.fn().mockResolvedValue(baseService)}
       onDelete={vi.fn().mockResolvedValue(undefined)}
+      onRenameCategory={vi.fn().mockResolvedValue({ services: [], order: [] })}
       {...overrides}
     />
   );

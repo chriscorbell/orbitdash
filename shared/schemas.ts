@@ -29,5 +29,10 @@ export const categoryOrderResponseSchema = z.object({
   order: z.array(z.string()),
 });
 
+export const renameCategoryResponseSchema = z.object({
+  services: servicesResponseSchema,
+  order: z.array(z.string()),
+});
+
 export type MetricSampleInput = z.infer<typeof metricSampleSchema>;
 export type ServiceInput = z.infer<typeof serviceSchema>;

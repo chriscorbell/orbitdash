@@ -110,6 +110,7 @@ const categoryOrderStub: UseCategoryOrderResult = {
   namedCategories: [],
   saving: false,
   visibleCategoryOrder: [],
+  applyOrder: vi.fn(),
   beginReorder: vi.fn(),
   cancelReorder: vi.fn(),
   moveCategory: vi.fn(),
@@ -147,6 +148,7 @@ beforeEach(() => {
     create: vi.fn().mockResolvedValue(serviceStub),
     update: vi.fn().mockResolvedValue(serviceStub),
     remove: vi.fn().mockResolvedValue(undefined),
+    renameCategory: vi.fn().mockResolvedValue({ services: [], order: [] }),
     reload: vi.fn().mockResolvedValue(undefined),
   });
 

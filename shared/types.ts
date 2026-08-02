@@ -56,5 +56,17 @@ export interface UpdateCategoryOrderPayload {
   order: string[];
 }
 
+/** Payload for renaming a category */
+export interface RenameCategoryPayload {
+  from: string;
+  to: string;
+}
+
+/** Response shape for POST /api/categories/rename */
+export interface RenameCategoryResponse {
+  services: Service[];
+  order: string[];
+}
+
 /** Response shape for GET /api/services */
 export type ServicesResponse = Service[];

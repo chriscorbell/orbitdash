@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
 import * as api from "@/lib/api/services";
+import { renameCategory as renameCategoryRequest } from "@/lib/api/categories";
 
 function compareServices(left: Service, right: Service) {
   const leftCategory = left.category ?? "";
@@ -67,5 +68,11 @@ export function useServices() {
     setServices((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  return { services, loading, error, create, update, remove, reload };
+  const renameCategory = useCallback(async (from: string, to: string) => {
+    const response = await renameCategoryRequest({ from, to });
+    setServices(sortServices(response.services));
+    return response;
+  }, []);
+
+  return { services, loading, error, create, update, remove, renameCategory, reload };
 }

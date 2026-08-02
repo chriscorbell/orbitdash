@@ -20,6 +20,7 @@ const categoryOrderStub: UseCategoryOrderResult = {
   namedCategories: [],
   saving: false,
   visibleCategoryOrder: [],
+  applyOrder: vi.fn(),
   beginReorder: vi.fn(),
   cancelReorder: vi.fn(),
   moveCategory: vi.fn(),
