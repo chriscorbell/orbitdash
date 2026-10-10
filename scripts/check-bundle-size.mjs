@@ -1,11 +1,12 @@
 import { gzipSync } from "node:zlib";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-const distAssetsDir = path.resolve(process.cwd(), "dist/assets");
+const distDir = path.resolve(process.cwd(), "dist");
+const distAssetsDir = path.join(distDir, "assets");
 
 const budgets = [
-  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 145, maxGzipKb: 45 },
+  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 55, maxGzipKb: 16 },
   {
     label: "entry css",
     prefix: "index-",
@@ -17,10 +18,11 @@ const budgets = [
     label: "react vendor",
     prefix: "react-vendor-",
     extension: ".js",
-    maxRawKb: 230,
-    maxGzipKb: 75,
+    maxRawKb: 200,
+    maxGzipKb: 63,
   },
-  { label: "charts", prefix: "charts-", extension: ".js", maxRawKb: 180, maxGzipKb: 65 },
+  { label: "vendor", prefix: "vendor-", extension: ".js", maxRawKb: 135, maxGzipKb: 43 },
+  { label: "charts", prefix: "charts-", extension: ".js", maxRawKb: 170, maxGzipKb: 60 },
   {
     label: "validation",
     prefix: "validation-",
@@ -39,10 +41,14 @@ const budgets = [
     label: "drag and drop",
     prefix: "drag-drop-",
     extension: ".js",
-    maxRawKb: 55,
-    maxGzipKb: 18,
+    maxRawKb: 48,
+    maxGzipKb: 16,
   },
 ];
+
+// Chunks that must only load on demand. If index.html references one, the
+// entry imports it statically and its lazy() boundary has been defeated.
+const lazyOnlyPrefixes = ["charts-", "drag-drop-"];
 
 function formatKb(bytes) {
   return `${(bytes / 1024).toFixed(2)} kB`;
@@ -62,8 +68,21 @@ function findAsset(prefix, extension) {
 function measureAsset(assetPath) {
   const rawBytes = statSync(assetPath).size;
   const gzipBytes = gzipSync(readFileSync(assetPath)).byteLength;
+  const brotliPath = `${assetPath}.br`;
+  const brotliBytes = existsSync(brotliPath) ? statSync(brotliPath).size : null;
 
-  return { rawBytes, gzipBytes };
+  return { rawBytes, gzipBytes, brotliBytes };
+}
+
+function findEagerLazyChunks() {
+  const html = readFileSync(path.join(distDir, "index.html"), "utf8");
+  const referencedAssets = [...html.matchAll(/(?:href|src)="\/assets\/([^"]+)"/g)].map(
+    (match) => match[1]
+  );
+
+  return referencedAssets.filter((asset) =>
+    lazyOnlyPrefixes.some((prefix) => asset.startsWith(prefix))
+  );
 }
 
 function main() {
@@ -73,12 +92,13 @@ function main() {
 
   for (const budget of budgets) {
     const assetPath = findAsset(budget.prefix, budget.extension);
-    const { rawBytes, gzipBytes } = measureAsset(assetPath);
+    const { rawBytes, gzipBytes, brotliBytes } = measureAsset(assetPath);
     const rawLimitBytes = budget.maxRawKb * 1024;
     const gzipLimitBytes = budget.maxGzipKb * 1024;
+    const brotliLabel = brotliBytes === null ? "missing" : formatKb(brotliBytes);
 
     console.log(
-      `- ${budget.label}: ${path.basename(assetPath)} raw ${formatKb(rawBytes)} / gzip ${formatKb(gzipBytes)} (budget ${budget.maxRawKb} kB raw, ${budget.maxGzipKb} kB gzip)`
+      `- ${budget.label}: ${path.basename(assetPath)} raw ${formatKb(rawBytes)} / gzip ${formatKb(gzipBytes)} / br ${brotliLabel} (budget ${budget.maxRawKb} kB raw, ${budget.maxGzipKb} kB gzip)`
     );
 
     if (rawBytes > rawLimitBytes || gzipBytes > gzipLimitBytes) {
@@ -86,6 +106,20 @@ function main() {
         `${budget.label} exceeded budget: raw ${formatKb(rawBytes)} / gzip ${formatKb(gzipBytes)}`
       );
     }
+
+    for (const extension of [".br", ".gz"]) {
+      if (!existsSync(`${assetPath}${extension}`)) {
+        failures.push(
+          `${path.basename(assetPath)} has no precompressed ${extension} file; did the build run scripts/compress-assets.mjs?`
+        );
+      }
+    }
+  }
+
+  for (const asset of findEagerLazyChunks()) {
+    failures.push(
+      `index.html loads ${asset} up front; it should only load through its lazy import`
+    );
   }
 
   if (failures.length > 0) {
