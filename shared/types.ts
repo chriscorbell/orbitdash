@@ -515,6 +515,48 @@ export interface ServiceTestResult {
   error: string | null;
 }
 
+/** One input an integration needs, for the form in the service dialog. */
+export interface IntegrationField {
+  key: string;
+  label: string;
+  kind: "url" | "text" | "secret" | "toggle";
+  required: boolean;
+  placeholder?: string;
+  help?: string;
+}
+
+/** An app orbitdash can read figures from, from GET /api/integrations/types. */
+export interface IntegrationType {
+  id: string;
+  name: string;
+  /** dashboard-icons/selfh.st slug, for the picker. */
+  icon: string;
+  fields: IntegrationField[];
+}
+
+/** A service's integration as the browser sees it: secrets are only marked as set. */
+export interface ServiceIntegration {
+  type: string;
+  values: Record<string, string | boolean>;
+  /** Secret fields that have a stored value. */
+  secretsSet: string[];
+}
+
+export interface IntegrationStat {
+  label: string;
+  /** Already formatted, e.g. "3", "12.4 MB/s" or "18%". */
+  value: string;
+  tone?: "good" | "warning" | "bad";
+}
+
+/** What an integration reported last, from GET /api/integrations/data. */
+export interface IntegrationReading {
+  type: string;
+  stats: IntegrationStat[];
+  error: string | null;
+  updatedAt: number;
+}
+
 /** A running container that could become a service, from GET /api/discovery. */
 export interface DiscoverySuggestion {
   /** The container's name, which stays the same when compose recreates it. */

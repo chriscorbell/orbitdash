@@ -3,6 +3,7 @@ import { apiFail, apiOk, type ApiResult } from "../api-response";
 import { getDb } from "../db";
 import { getCategory } from "./category-store";
 import { listReferencedIcons, removeStoredIcon } from "./icon-storage";
+import { deleteIntegrationsOf } from "../integrations/store";
 
 /** How long a deleted service can be restored before the purge job removes it for good. */
 export const TRASH_TTL_MS = 30 * 60 * 1000;
@@ -94,6 +95,8 @@ export function purgeTrash(now: number = Date.now()): number {
   db.transaction(() => {
     const remove = db.prepare("DELETE FROM service_trash WHERE id = ?");
     for (const entry of expired) remove.run(entry.id);
+    // Integration settings outlive the trash so an undo keeps them; now they can go.
+    deleteIntegrationsOf(expired.map((entry) => entry.id));
   })();
 
   const stillUsed = listReferencedIcons();
