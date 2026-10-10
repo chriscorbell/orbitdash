@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { RenameCategoryResponse, Service } from "@shared/types";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
@@ -106,16 +106,19 @@ export function useServicesSectionState({
     }
   };
 
-  const handleDuplicate = async (service: Service) => {
-    setActionError(null);
-    try {
-      await onDuplicate(service.id);
-    } catch (duplicateError) {
-      setActionError(
-        duplicateError instanceof Error ? duplicateError.message : "Failed to duplicate service"
-      );
-    }
-  };
+  const handleDuplicate = useCallback(
+    async (service: Service) => {
+      setActionError(null);
+      try {
+        await onDuplicate(service.id);
+      } catch (duplicateError) {
+        setActionError(
+          duplicateError instanceof Error ? duplicateError.message : "Failed to duplicate service"
+        );
+      }
+    },
+    [onDuplicate]
+  );
 
   const handleRenameCategoryConfirm = async (to: string) => {
     if (!renameCategoryTarget) {
