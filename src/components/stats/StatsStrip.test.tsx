@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render as rtlRender, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sparkline } from "@/components/stats/Sparkline";
 import { StatsStrip } from "@/components/stats/StatsStrip";
 import { sparklineCeiling } from "@/lib/sparkline";
 import type { MetricsState } from "@/lib/live/metrics-store";
 import type { MetricAlert } from "@shared/types";
+import { createQueryWrapper } from "@/test/query";
 
 const metrics = vi.hoisted(() => ({
   state: null as unknown as MetricsState,
@@ -14,6 +15,37 @@ const metrics = vi.hoisted(() => ({
 }));
 vi.mock("@/hooks/useMetrics", () => ({ useMetrics: () => metrics.state }));
 vi.mock("@/hooks/useAlerts", () => ({ useAlerts: () => ({ active: metrics.alerts }) }));
+
+const system = vi.hoisted(() => ({ docker: false }));
+vi.mock("@/lib/api/system", () => ({
+  fetchSystemInfo: async () => ({
+    cpuCount: 4,
+    cpuModel: null,
+    hostname: "nas",
+    kernel: null,
+    osName: null,
+    platform: "linux",
+    uptimeSeconds: 1,
+    docker: system.docker,
+  }),
+}));
+vi.mock("@/lib/api/docker", () => ({
+  fetchDocker: async () => ({
+    configured: true,
+    available: true,
+    error: null,
+    containers: [],
+    updatedAt: 1,
+  }),
+  subscribeContainers: () => () => {},
+}));
+
+/** The strip reads system info for the Docker tile, so it needs a query client. */
+function render(ui: React.ReactElement) {
+  const { wrapper } = createQueryWrapper();
+  const result = rtlRender(ui, { wrapper });
+  return { ...result, rerender: (next: React.ReactElement) => result.rerender(next) };
+}
 
 function setMetrics(patch: Partial<MetricsState>) {
   metrics.state = {
@@ -26,9 +58,19 @@ function setMetrics(patch: Partial<MetricsState>) {
   };
 }
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  system.docker = false;
+});
 
 describe("StatsStrip", () => {
+  it("adds a containers tile when Docker is set up", async () => {
+    setMetrics({});
+    system.docker = true;
+    render(<StatsStrip linkToStats />);
+    expect(await screen.findByRole("link", { name: /0 of 0 containers running/ })).toBeTruthy();
+  });
+
   it("shows each metric with a tone that reflects how busy it is", () => {
     const samples = [
       { ts: 1, cpu: 5, ram: 72.4, disk: 91 },

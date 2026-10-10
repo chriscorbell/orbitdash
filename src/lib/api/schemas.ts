@@ -144,6 +144,8 @@ export const systemInfoSchema = z.object({
   osName: z.nullable(z.string()),
   platform: z.string(),
   uptimeSeconds: z.number(),
+  // Answers cached by the offline worker before Docker support read as no Docker.
+  docker: z._default(z.boolean(), false),
 });
 
 export type SystemInfo = z.infer<typeof systemInfoSchema>;

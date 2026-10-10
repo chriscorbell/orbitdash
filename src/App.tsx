@@ -156,7 +156,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     onThemeChange: (theme) => updateAppearance({ theme }),
   };
 
-  const stats = showStats ? <StatsStrip /> : null;
+  const stats = showStats ? <StatsStrip linkToStats={showStatsPage} /> : null;
 
   return (
     <div className={cn("flex min-h-svh flex-col", !appearance.wallpaper && "bg-background")}>

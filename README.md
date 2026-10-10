@@ -50,6 +50,7 @@ version before creating the matching tag.
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
 - Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
+- Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
@@ -382,6 +383,45 @@ drives you mount after the container starts should show up too.
 If you only need the host's network interfaces, `network_mode: host` works without the mount.
 Docker then ignores `ports:`, and the dashboard listens on the host's port `3000` (change it with
 `PORT`).
+
+## Docker Containers
+
+With access to Docker, orbitdash shows a Containers tile in the stats strip (running out of total,
+plus anything unhealthy, restarting or stopped) and a Containers list on the Stats page with each
+container's state, health, CPU (as a share of the whole host), memory and published ports. Ports
+link to the same host the dashboard was opened on. Updates arrive within a second of Docker
+reporting a change; CPU and memory refresh every 15 seconds. orbitdash only ever reads from
+Docker.
+
+The safest setup is a [docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy)
+that only allows reading containers, so orbitdash never touches the socket itself:
+
+```yaml
+services:
+  orbitdash:
+    image: ghcr.io/chriscorbell/orbitdash:latest
+    environment:
+      - ORBITDASH_DOCKER_HOST=tcp://dockerproxy:2375
+    # ...ports and volumes as above
+
+  dockerproxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1 # list and inspect containers
+      - EVENTS=1 # live updates (on by default)
+      - POST=0 # nothing can be changed
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+Mounting the socket straight into orbitdash also works (`- /var/run/docker.sock:/var/run/docker.sock`),
+but it gives the container full control of Docker: `:ro` on a socket doesn't stop writes. The
+container runs as uid 1000, which also needs to be in the socket's group (`group_add:` with the
+group id from `stat -c %g /var/run/docker.sock`). orbitdash finds a socket at
+`/var/run/docker.sock` on its own; `ORBITDASH_DOCKER_HOST` (or `DOCKER_HOST`) takes
+`tcp://host:port` or `unix:///path/to/socket`, and `ORBITDASH_DOCKER_HOST=off` turns Docker
+support off.
 
 ## Status Checks
 
