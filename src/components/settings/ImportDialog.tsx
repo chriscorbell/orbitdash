@@ -236,41 +236,40 @@ function ImportGroup({ disabled, groupIndex, preview, selection, onChange }: Imp
 }
 
 function ImportFinished({ result, onClose }: { result: ImportResult; onClose: () => void }) {
+  const problems = result.iconFailures > 0 || result.failed.length > 0;
   return (
     <>
-      <DialogHeader className="p-6 pb-4">
+      <DialogHeader className={cn("p-6", problems && "pb-4")}>
         <DialogTitle>
           {result.created > 0 ? `Added ${plural(result.created, "service")}` : "Nothing was added"}
         </DialogTitle>
-        <DialogDescription>
-          {result.snapshot ? "A snapshot of your dashboard was saved first." : null}
-        </DialogDescription>
+        {result.snapshot && (
+          <DialogDescription>A snapshot of your dashboard was saved first.</DialogDescription>
+        )}
       </DialogHeader>
-      <div className="animate-in fade-in-0 space-y-3 overflow-y-auto border-y px-6 py-4 text-sm duration-300">
-        {result.iconFailures > 0 && (
-          <p className="text-muted-foreground">
-            {plural(result.iconFailures, "icon")} couldn't be downloaded. Those services were added
-            without one; edit them to pick an icon.
-          </p>
-        )}
-        {result.failed.length > 0 ? (
-          <div className="space-y-1.5">
-            <p className="font-medium">These couldn't be added:</p>
-            <ul className="text-muted-foreground space-y-1">
-              {result.failed.map((failure, index) => (
-                <li key={index}>
-                  {failure.name}: {failure.error}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          result.iconFailures === 0 && (
-            <p className="text-muted-foreground">Everything came across with its icon.</p>
-          )
-        )}
-      </div>
-      <DialogFooter className="p-4">
+      {problems && (
+        <div className="animate-in fade-in-0 space-y-3 overflow-y-auto border-y px-6 py-4 text-sm duration-300">
+          {result.iconFailures > 0 && (
+            <p className="text-muted-foreground">
+              {plural(result.iconFailures, "icon")} couldn't be downloaded. Those services were
+              added without one; edit them to pick an icon.
+            </p>
+          )}
+          {result.failed.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="font-medium">These couldn't be added:</p>
+              <ul className="text-muted-foreground space-y-1">
+                {result.failed.map((failure, index) => (
+                  <li key={index}>
+                    {failure.name}: {failure.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      <DialogFooter className={cn("p-4", !problems && "pt-0")}>
         <Button type="button" onClick={onClose}>
           Done
         </Button>

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import * as iconLibraryMini from "@/lib/api/icon-library";
+import * as importMini from "@/lib/api/imports";
 import * as metricMini from "@/lib/api/metric-schemas";
 import * as mini from "@/lib/api/schemas";
 import * as full from "@shared/schemas";
 import { dashboardSettingsResponseSchema as fullSettings } from "@shared/dashboard-settings-schemas";
 import * as fullHost from "@shared/host-schemas";
+import * as fullImport from "@shared/import-schemas";
 
 const hostSnapshot = {
   version: 1,
@@ -144,6 +146,40 @@ const pairs = [
     invalid: [
       { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
     ],
+  },
+  {
+    name: "import preview",
+    mini: importMini.importPreviewSchema,
+    full: fullImport.importPreviewSchema,
+    valid: {
+      format: "homepage",
+      groups: [
+        {
+          name: "Media",
+          services: [
+            {
+              name: "Jellyfin",
+              url: "http://10.0.0.20:8096",
+              description: "Movies",
+              iconUrl: null,
+              duplicate: false,
+            },
+          ],
+        },
+      ],
+      warnings: [],
+    },
+    invalid: [
+      { format: "heimdall", groups: [], warnings: [] },
+      { format: "homer", groups: [{ name: "A", services: [{ name: "x" }] }], warnings: [] },
+    ],
+  },
+  {
+    name: "import result",
+    mini: importMini.importResultSchema,
+    full: fullImport.importResultSchema,
+    valid: { created: 2, failed: [{ name: "A", error: "nope" }], iconFailures: 1, snapshot: "s" },
+    invalid: [{ created: 2, failed: [], iconFailures: "1", snapshot: null }],
   },
   {
     name: "categories",

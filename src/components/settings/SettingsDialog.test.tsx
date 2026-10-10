@@ -30,6 +30,10 @@ vi.mock("@/components/settings/BackupSettingsSection", () => ({
   BackupSettingsSection: () => <div data-testid="backup-settings" />,
 }));
 
+vi.mock("@/components/settings/DashboardImportSettings", () => ({
+  DashboardImportSettings: () => <div data-testid="dashboard-import-settings" />,
+}));
+
 afterEach(() => {
   cleanup();
 });
