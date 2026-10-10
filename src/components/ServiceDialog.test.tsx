@@ -179,7 +179,7 @@ describe("ServiceDialog", () => {
     });
   });
 
-  it("asks for confirmation before deleting from the edit dialog", async () => {
+  it("deletes right away from the edit dialog and closes it", async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     const onOpenChange = vi.fn();
 
@@ -196,28 +196,13 @@ describe("ServiceDialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(screen.getByRole("group", { name: "Delete this service?" })).toBeTruthy();
-    expect(onDelete).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancel" }));
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.queryByRole("group", { name: "Delete this service?" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Save changes" })).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete" }));
-    expect(onOpenChange).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledTimes(1);
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("keeps the confirmation open and shows the error when deleting fails", async () => {
+  it("stays open and shows the error when deleting fails", async () => {
     const onDelete = vi.fn().mockRejectedValue(new Error("Delete failed upstream"));
     const onOpenChange = vi.fn();
 
@@ -233,10 +218,8 @@ describe("ServiceDialog", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await screen.findByText("Delete failed upstream");
-    expect(screen.getByRole("group", { name: "Delete this service?" })).toBeTruthy();
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 

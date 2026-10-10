@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/ServiceDialog", () => ({
@@ -90,6 +90,7 @@ function renderServicesSection(
       onCreate={vi.fn().mockResolvedValue(baseService)}
       onUpdate={vi.fn().mockResolvedValue(baseService)}
       onDelete={vi.fn().mockResolvedValue(undefined)}
+      onRestore={vi.fn().mockResolvedValue(baseService)}
       onDuplicate={vi.fn().mockResolvedValue(baseService)}
       onRenameCategory={vi.fn().mockResolvedValue({ services: [], order: [] })}
       {...overrides}
@@ -140,13 +141,42 @@ describe("ServicesSection", () => {
     renderServicesSection({ services: [baseService], onDelete });
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Orbit" }));
-    fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
 
     await waitFor(() => {
       expect(screen.getByText("Couldn't delete the service")).toBeTruthy();
     });
 
     expect(screen.getByText("Delete failed")).toBeTruthy();
-    resetToastsForTesting();
+    act(() => resetToastsForTesting());
+  });
+
+  it("deletes right away and restores on Undo", async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onRestore = vi.fn().mockResolvedValue(baseService);
+
+    render(<Toaster />);
+    renderServicesSection({ services: [baseService], onDelete, onRestore });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Orbit" }));
+    expect(onDelete).toHaveBeenCalledWith(baseService.id);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+    expect(onRestore).toHaveBeenCalledWith(baseService.id);
+    expect(await screen.findByText("Restored Orbit")).toBeTruthy();
+    act(() => resetToastsForTesting());
+  });
+
+  it("reports a failed restore", async () => {
+    const onRestore = vi.fn().mockRejectedValue(new Error("Too late"));
+
+    render(<Toaster />);
+    renderServicesSection({ services: [baseService], onRestore });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Orbit" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
+
+    expect(await screen.findByText("Couldn't restore the service")).toBeTruthy();
+    expect(screen.getByText("Too late")).toBeTruthy();
+    act(() => resetToastsForTesting());
   });
 });

@@ -21,6 +21,7 @@ function App() {
     update,
     duplicate,
     remove,
+    restore,
     renameCategory,
     reload,
   } = useServices();
@@ -51,6 +52,7 @@ function App() {
       onCreate={create}
       onUpdate={update}
       onDelete={remove}
+      onRestore={restore}
       onDuplicate={duplicate}
       onRenameCategory={renameCategory}
     />

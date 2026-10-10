@@ -102,17 +102,29 @@ export function removeStoredIcon(iconFilename: string | null | undefined): void 
 }
 
 /**
+ * Icon filenames still in use: by live services, and by services waiting in the trash (so undoing a
+ * delete brings the icon back).
+ */
+export function listReferencedIcons(): Set<string> {
+  const db = getDb();
+  const live = db.prepare("SELECT icon FROM services WHERE icon IS NOT NULL").all() as Array<{
+    icon: string;
+  }>;
+  const trashed = db
+    .prepare(
+      `SELECT json_extract(data, '$.icon') AS icon FROM service_trash
+       WHERE json_extract(data, '$.icon') IS NOT NULL`
+    )
+    .all() as Array<{ icon: string }>;
+  return new Set([...live, ...trashed].map((row) => row.icon));
+}
+
+/**
  * Deletes files in the icons directory that no service references, such as icons left behind by a
  * crash between writing the file and saving the service. Returns the number of files removed.
  */
 export function cleanupOrphanIcons(): number {
-  const referenced = new Set(
-    (
-      getDb().prepare("SELECT icon FROM services WHERE icon IS NOT NULL").all() as Array<{
-        icon: string;
-      }>
-    ).map((row) => row.icon)
-  );
+  const referenced = listReferencedIcons();
 
   const iconsDir = getIconsDir();
   let removed = 0;

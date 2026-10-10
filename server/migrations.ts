@@ -148,6 +148,19 @@ const migrations: Migration[] = [
     ],
     up: migrateToCategoriesTable,
   },
+  {
+    id: 6,
+    name: "service-trash",
+    // Deleted services wait here (as JSON) so a delete can be undone; a job purges old entries.
+    statements: [
+      `CREATE TABLE service_trash (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        deleted_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX service_trash_deleted_at_idx ON service_trash (deleted_at)`,
+    ],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {

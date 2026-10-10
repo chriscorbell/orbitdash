@@ -88,6 +88,15 @@ export function useServices() {
     },
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => api.restoreService(id),
+    onSuccess: async (service) => {
+      setServices((current) => [...current.filter((entry) => entry.id !== service.id), service]);
+      // Restoring can shift its neighbours' positions.
+      await refetchServices();
+    },
+  });
+
   const renameMutation = useMutation({
     mutationFn: ({ from, to }: { from: string; to: string }) => renameCategoryRequest({ from, to }),
     onSuccess: (response: RenameCategoryResponse) => {
@@ -101,6 +110,7 @@ export function useServices() {
   const { mutateAsync: duplicateAsync } = duplicateMutation;
   const { mutateAsync: removeAsync } = removeMutation;
   const { mutateAsync: renameAsync } = renameMutation;
+  const { mutateAsync: restoreAsync } = restoreMutation;
 
   const create = useCallback(
     (payload: CreateServicePayload, iconFile?: File) => createAsync({ payload, iconFile }),
@@ -113,6 +123,7 @@ export function useServices() {
   );
   const duplicate = useCallback((id: string) => duplicateAsync(id), [duplicateAsync]);
   const remove = useCallback((id: string) => removeAsync(id), [removeAsync]);
+  const restore = useCallback((id: string) => restoreAsync(id), [restoreAsync]);
   const renameCategory = useCallback(
     (from: string, to: string) => renameAsync({ from, to }),
     [renameAsync]
@@ -129,6 +140,7 @@ export function useServices() {
     update,
     duplicate,
     remove,
+    restore,
     renameCategory,
     reload,
   };

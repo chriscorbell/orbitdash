@@ -56,6 +56,7 @@ version before creating the matching tag.
 - Reorder category sections with a shared saved layout
 - Collapse category sections with saved per-browser state
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
+- Deleting a service can be undone for 30 minutes
 
 ## Platform Support
 

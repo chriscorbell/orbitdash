@@ -53,6 +53,7 @@ vi.mock("@/hooks/useServices", () => ({
     update: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
+    restore: vi.fn(),
     renameCategory: vi.fn(),
     reload: vi.fn(),
   }),

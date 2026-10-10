@@ -13,6 +13,7 @@ import type {
 import { apiFail, apiOk, getErrorMessage, type ApiResult } from "../api-response";
 import { getDb } from "../db";
 import { getCategory, nextServicePosition, resolveCategoryId } from "./category-store";
+import { restoreService, trashService } from "./service-trash";
 import {
   copyStoredIcon,
   persistDownloadedIcon,
@@ -109,11 +110,6 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
   );
 
   return normalizeServiceRecord(getServiceRecord(id)!);
-}
-
-function deleteStoredService(id: string): void {
-  const db = getDb();
-  db.prepare("DELETE FROM services WHERE id = ?").run(id);
 }
 
 /** Runs a database write, deleting a freshly written icon if the write throws. */
@@ -301,15 +297,17 @@ export function duplicateService(id: string): ApiResult<Service> {
   return apiOk(withIconRollback(icon, duplicate));
 }
 
-export function deleteService(id: string): ApiResult<{ success: true }> {
-  const existing = getServiceRecord(id);
-  if (!existing) {
-    return apiFail(404, "not found");
-  }
+/** Deletes a service into the trash, so it can be restored for a while (see service-trash.ts). */
+export function deleteService(id: string): ApiResult<{ restorableUntil: number; success: true }> {
+  const trashed = trashService(id);
+  return trashed.success ? apiOk({ success: true, ...trashed.value }) : trashed;
+}
 
-  deleteStoredService(id);
-  removeStoredIcon(existing.icon);
-  return apiOk({ success: true });
+export function restoreDeletedService(id: string): ApiResult<Service> {
+  return restoreService(id, (serviceId) => {
+    const record = getServiceRecord(serviceId);
+    return record ? normalizeServiceRecord(record) : null;
+  });
 }
 
 function listServiceIdsInCategory(categoryId: string | null, excludeId?: string): string[] {
