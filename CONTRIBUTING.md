@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Bun 1.3+
+- Bun 1.4+
 - Node.js 22+
 
 ### Install
