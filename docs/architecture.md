@@ -187,11 +187,12 @@ read-only view for anyone without a session.
   `server/auth/ip.ts` parses and matches IPv4 and IPv6 CIDRs; IPv4-mapped IPv6 addresses count as
   IPv4.
 - Password sessions (`server/auth/sessions.ts`) are random 32-byte tokens in an `HttpOnly`,
-  `SameSite=Lax` cookie. The `sessions` table stores a SHA-256 of each token, its expiry, and a
-  fingerprint of the password hash it was created under, so a new password ends older sessions.
-  Expiry slides with use, written at most once an hour. A plain `ORBITDASH_PASSWORD` is hashed into
-  `auth_state` and that hash is reused while the password still matches, so sessions survive
-  restarts; neither table is part of backup exports. Logout deletes the session, and an open event
+  `SameSite=Lax` cookie. The `sessions` table stores a SHA-256 of each token, its expiry, and the
+  credential id it was created under. `auth_state` holds the argon2 hash in force (a plain
+  `ORBITDASH_PASSWORD` is hashed into it) and a random credential id, both reused while the
+  configured password still matches, so sessions survive restarts. A new password gets a new id,
+  which ends older sessions. Expiry slides with use, written at most once an hour. Neither table is
+  part of backup exports. Logout deletes the session, and an open event
   stream checks its session on each keep-alive and closes once it is gone.
 - Login is rate limited per client address in memory (`server/auth/rate-limit.ts`, 5 failures per
   15 minutes). Each attempt counts before the argon2 check runs, so parallel guesses can't slip

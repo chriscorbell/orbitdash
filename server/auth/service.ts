@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { createHash } from "crypto";
+import { randomBytes } from "crypto";
 import type { AuthSession } from "@shared/auth";
 import { getDb } from "../db";
 import { DEFAULT_PROXY_HEADER, DEFAULT_SESSION_DAYS, type AuthConfig } from "./config";
@@ -10,6 +10,7 @@ import { createSession, deleteSession, purgeSessions, verifySession } from "./se
 /** Password mode has one shared password, so every session belongs to this user. */
 export const PASSWORD_USER = "admin";
 const STORED_HASH_KEY = "password_hash";
+const CREDENTIAL_ID_KEY = "credential_id";
 const MAX_PROXY_USER_LENGTH = 256;
 // Stands in for an empty password so it costs a full argon2 check too.
 const EMPTY_PASSWORD_STAND_IN = "\u0000orbitdash-empty-password";
@@ -25,7 +26,10 @@ export const OPEN_AUTH_CONFIG: AuthConfig = {
 };
 
 interface PasswordCredential {
-  /** Stored with each session; a different password gives a different fingerprint. */
+  /**
+   * Stored with each session. A random id minted whenever the password hash changes, so a new
+   * password ends older sessions without anything derived from the password leaving auth_state.
+   */
   fingerprint: string;
   hash: string;
 }
@@ -42,10 +46,6 @@ function createState(config: AuthConfig, credential: PasswordCredential | null):
 
 let state = createState(OPEN_AUTH_CONFIG, null);
 
-function toCredential(hash: string): PasswordCredential {
-  return { fingerprint: createHash("sha256").update(hash).digest("base64url"), hash };
-}
-
 function verifiesSync(password: string, hash: string): boolean {
   try {
     return Bun.password.verifySync(password, hash);
@@ -54,33 +54,48 @@ function verifiesSync(password: string, hash: string): boolean {
   }
 }
 
+function readStoredCredential(db: Database): PasswordCredential | null {
+  const rows = db
+    .prepare("SELECT key, value FROM auth_state WHERE key IN (?, ?)")
+    .all(STORED_HASH_KEY, CREDENTIAL_ID_KEY) as Array<{ key: string; value: string }>;
+  const value = (key: string) => rows.find((row) => row.key === key)?.value;
+  const hash = value(STORED_HASH_KEY);
+  const fingerprint = value(CREDENTIAL_ID_KEY);
+  return hash && fingerprint ? { fingerprint, hash } : null;
+}
+
+function storeCredential(db: Database, hash: string): PasswordCredential {
+  const credential = { fingerprint: randomBytes(16).toString("base64url"), hash };
+  const upsert = db.prepare(
+    `INSERT INTO auth_state (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  );
+  db.transaction(() => {
+    upsert.run(STORED_HASH_KEY, credential.hash);
+    upsert.run(CREDENTIAL_ID_KEY, credential.fingerprint);
+  })();
+  return credential;
+}
+
 /**
- * The hash sign-ins are checked against. A plain ORBITDASH_PASSWORD is hashed with argon2id and
- * the hash kept in auth_state; while the password still matches it, the same hash (and so the
- * same fingerprint) is reused, which keeps sessions alive across restarts. A new password gets a
- * new hash, which ends every older session.
+ * The hash sign-ins are checked against, kept in auth_state with its credential id. While the
+ * configured password still matches (the same ORBITDASH_PASSWORD_HASH, or an ORBITDASH_PASSWORD the
+ * stored argon2id hash verifies), both are reused, so sessions survive restarts. Anything else is
+ * a new password: a new hash and id, which ends every older session.
  */
 export function resolvePasswordCredential(
   config: AuthConfig,
   db: Database
 ): PasswordCredential | null {
   if (config.mode !== "password") return null;
-  if (config.passwordHash !== null) return toCredential(config.passwordHash);
-  if (config.password === null) return null;
+  const stored = readStoredCredential(db);
 
-  const stored = db.prepare("SELECT value FROM auth_state WHERE key = ?").get(STORED_HASH_KEY) as {
-    value: string;
-  } | null;
-  if (stored && verifiesSync(config.password, stored.value)) {
-    return toCredential(stored.value);
+  if (config.passwordHash !== null) {
+    return stored?.hash === config.passwordHash ? stored : storeCredential(db, config.passwordHash);
   }
-
-  const hash = Bun.password.hashSync(config.password, { algorithm: "argon2id" });
-  db.prepare(
-    `INSERT INTO auth_state (key, value) VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).run(STORED_HASH_KEY, hash);
-  return toCredential(hash);
+  if (config.password === null) return null;
+  if (stored && verifiesSync(config.password, stored.hash)) return stored;
+  return storeCredential(db, Bun.password.hashSync(config.password, { algorithm: "argon2id" }));
 }
 
 /** Applies a parsed config. The plain password is dropped once it has been hashed. */

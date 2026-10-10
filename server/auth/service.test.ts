@@ -61,12 +61,32 @@ describe("password credential", () => {
     expect(Bun.password.verifySync("hunter23", changed!.hash)).toBe(true);
   });
 
-  it("uses a configured hash as is", () => {
+  it("uses a configured hash as is, keeping its id until the hash changes", () => {
     const hash = Bun.password.hashSync("from-env", { algorithm: "argon2id" });
     const config = parseAuthConfig({ ORBITDASH_AUTH: "password", ORBITDASH_PASSWORD_HASH: hash });
 
-    expect(resolvePasswordCredential(config, getDb())?.hash).toBe(hash);
+    const first = resolvePasswordCredential(config, getDb());
+    expect(first?.hash).toBe(hash);
+    expect(resolvePasswordCredential(config, getDb())).toEqual(first);
+
+    const rehashed = Bun.password.hashSync("from-env", { algorithm: "argon2id" });
+    const changed = resolvePasswordCredential(
+      parseAuthConfig({ ORBITDASH_AUTH: "password", ORBITDASH_PASSWORD_HASH: rehashed }),
+      getDb()
+    );
+    expect(changed?.fingerprint).not.toBe(first?.fingerprint);
     expect(resolvePasswordCredential(parseAuthConfig({}), getDb())).toBeNull();
+  });
+
+  it("stores only the argon2 hash and a random id, nothing else derived from the password", () => {
+    const credential = resolvePasswordCredential(passwordConfig("hunter22"), getDb());
+    const rows = getDb().prepare("SELECT key, value FROM auth_state ORDER BY key").all();
+
+    expect(rows).toEqual([
+      { key: "credential_id", value: credential!.fingerprint },
+      { key: "password_hash", value: credential!.hash },
+    ]);
+    expect(credential!.fingerprint).toMatch(/^[A-Za-z0-9_-]{22}$/);
   });
 
   it("drops the plain password from the applied config", () => {
