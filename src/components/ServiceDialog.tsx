@@ -57,6 +57,7 @@ function ServiceDialogBody({
     setOpenInNewTab,
     setSelectedCategory,
     setUrl,
+    storedIconSourceUrl,
   } = useServiceDialogState({
     categoryOptions,
     service,
@@ -202,6 +203,7 @@ function ServiceDialogBody({
           fileInputId={fieldIds.iconFileInputId}
           fileInputRef={fileInputRef}
           iconPreview={iconPreview}
+          iconSourceUrl={storedIconSourceUrl}
           iconUrl={iconUrl}
           iconUrlInputId={fieldIds.iconUrlInputId}
           onIconChange={handleIconChange}

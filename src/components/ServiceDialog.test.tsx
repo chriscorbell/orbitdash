@@ -175,12 +175,118 @@ describe("ServiceDialog", () => {
     await waitFor(() => {
       expect(screen.queryByAltText("Icon preview")).toBeNull();
     });
+  });
 
+  it("asks for confirmation before deleting from the edit dialog", async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onOpenChange = vi.fn();
+
+    render(
+      <ServiceDialog
+        open
+        onOpenChange={onOpenChange}
+        service={baseService}
+        categoryOptions={["Infra"]}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+        onDelete={onDelete}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(screen.getByRole("group", { name: "Delete this service?" })).toBeTruthy();
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("group", { name: "Delete this service?" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete" }));
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledTimes(1);
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps the confirmation open and shows the error when deleting fails", async () => {
+    const onDelete = vi.fn().mockRejectedValue(new Error("Delete failed upstream"));
+    const onOpenChange = vi.fn();
+
+    render(
+      <ServiceDialog
+        open
+        onOpenChange={onOpenChange}
+        service={baseService}
+        categoryOptions={["Infra"]}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+        onDelete={onDelete}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await screen.findByText("Delete failed upstream");
+    expect(screen.getByRole("group", { name: "Delete this service?" })).toBeTruthy();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("offers no delete action when adding a service", () => {
+    render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add service" })).toBeTruthy();
+  });
+
+  it("accepts every icon format the server supports", () => {
+    render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={vi.fn()} />);
+
+    const accept = screen.getByLabelText("Upload icon file").getAttribute("accept") ?? "";
+    for (const type of [
+      "image/png",
+      "image/svg+xml",
+      "image/jpeg",
+      "image/gif",
+      "image/webp",
+      ".ico",
+    ]) {
+      expect(accept.split(",")).toContain(type);
+    }
+    expect(screen.getByText("Icon")).toBeTruthy();
+  });
+
+  it("shows where a downloaded icon came from until the icon is changed", () => {
+    render(
+      <ServiceDialog
+        open
+        onOpenChange={vi.fn()}
+        service={{ ...baseService, icon_source_url: "https://cdn.example.com/orbit.svg" }}
+        categoryOptions={["Infra"]}
+        onSubmit={vi.fn()}
+      />
+    );
+
+    const sourceLink = screen.getByRole("link", { name: "https://cdn.example.com/orbit.svg" });
+    expect(sourceLink.getAttribute("href")).toBe("https://cdn.example.com/orbit.svg");
+    expect(screen.getByText(/Downloaded from/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Icon URL"), {
+      target: { value: "https://example.com/new.svg" },
+    });
+    expect(screen.queryByText(/Downloaded from/)).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Icon URL"), { target: { value: "" } });
+    expect(screen.getByText(/Downloaded from/)).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("Remove icon"));
+    expect(screen.queryByText(/Downloaded from/)).toBeNull();
   });
 });
