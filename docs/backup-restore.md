@@ -7,8 +7,38 @@ Orbitdash persists everything under one data directory:
 - `orbitdash.db-wal`
 - `icons/`
 
-Because SQLite runs in WAL mode, the safe default is to stop orbitdash and back up the entire data
-directory together instead of copying only `orbitdash.db`.
+Because SQLite runs in WAL mode, the safe default for a manual copy is to stop orbitdash and back
+up the entire data directory together instead of copying only `orbitdash.db`.
+
+## Built-In Backups
+
+orbitdash also backs itself up while it runs, without stopping:
+
+- **Automatic snapshots** land in `backups/` inside the data directory: one nightly, one before any
+  schema migration runs, and one before every import. Each snapshot is a folder holding a
+  consistent copy of the database (taken with SQLite `VACUUM INTO`) plus the `icons/` directory.
+  The newest 7 are kept; set `ORBITDASH_BACKUP_KEEP` to change that.
+- **Export** (Settings, then Data, then Export, or `GET /api/backup/export`) downloads one JSON file
+  with every service, setting and icon.
+- **Import** (Settings, then Data, then Import, or `POST /api/backup/import` with the exported JSON)
+  validates the file, takes a `pre-import` snapshot, and then replaces all services, settings and
+  icons in one step.
+- **Manual snapshot** (Settings, then Data, then Snapshot, or `POST /api/backup/snapshots`).
+
+### Restore From A Snapshot
+
+Snapshots are complete data directories without the WAL files, so restoring one is a copy:
+
+```bash
+docker compose stop orbitdash
+cp -a ./data/backups/2026-10-10T03-00-00-000Z-nightly ./restore
+mv ./data ./data-before-restore
+mv ./restore ./data
+docker compose start orbitdash
+```
+
+Keep `./data-before-restore` until you have confirmed the restored dashboard looks right; it also
+still holds the other snapshots.
 
 ## Locate The Data Directory
 

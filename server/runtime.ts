@@ -1,11 +1,14 @@
 import { closeDb, getDataDir, initializeDb } from "./db";
+import { cancelAllJobs, scheduleJob } from "./jobs";
 import { startCollection, stopCollection } from "./metrics";
+import { runNightlySnapshotIfDue } from "./services/backup-schedule";
 
 export interface InitializeServerOptions {
   dataDir?: string;
   dbPath?: string;
   logStartup?: boolean;
   registerSignalHandlers?: boolean;
+  startJobs?: boolean;
   startMetrics?: boolean;
   port?: number;
 }
@@ -13,7 +16,18 @@ export interface InitializeServerOptions {
 let runtimeInitialized = false;
 let signalHandlersRegistered = false;
 
+const HOUR_MS = 60 * 60 * 1000;
+
+function startBackgroundJobs() {
+  // Checked hourly so a server that restarts often still gets one snapshot a day.
+  scheduleJob("nightly-snapshot", () => void runNightlySnapshotIfDue(), {
+    initialDelayMs: 60_000,
+    intervalMs: HOUR_MS,
+  });
+}
+
 export function shutdown() {
+  cancelAllJobs();
   stopCollection();
   closeDb();
   runtimeInitialized = false;
@@ -49,6 +63,10 @@ export function initializeServer(options: InitializeServerOptions = {}) {
 
   if (options.startMetrics !== false) {
     startCollection();
+  }
+
+  if (options.startJobs !== false) {
+    startBackgroundJobs();
   }
 
   if (options.registerSignalHandlers !== false) {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   categoryOrderResponseSchema,
+  importSummarySchema,
+  snapshotsResponseSchema,
   metricsResponseSchema,
   metricSampleSchema,
   serviceSchema,
@@ -267,5 +269,33 @@ describe("metricsQuerySchema", () => {
 describe("getValidationMessage", () => {
   it("falls back to a generic message when no issues are present", () => {
     expect(getValidationMessage({ issues: [] } as never)).toBe("invalid request");
+  });
+});
+
+describe("backup response schemas", () => {
+  it("accepts snapshot lists and import summaries", () => {
+    const snapshot = {
+      createdAt: "2026-10-10T03:00:00.000Z",
+      name: "2026-10-10T03-00-00-000Z-nightly",
+      reason: "nightly",
+      sizeBytes: 4096,
+    };
+
+    expect(snapshotsResponseSchema.parse({ snapshots: [snapshot] })).toEqual({
+      snapshots: [snapshot],
+    });
+    expect(importSummarySchema.parse({ icons: 2, services: 3, snapshot: snapshot.name })).toEqual({
+      icons: 2,
+      services: 3,
+      snapshot: snapshot.name,
+    });
+  });
+
+  it("rejects unknown snapshot reasons", () => {
+    expect(
+      snapshotsResponseSchema.safeParse({
+        snapshots: [{ createdAt: "x", name: "y", reason: "weekly", sizeBytes: 1 }],
+      }).success
+    ).toBe(false);
   });
 });

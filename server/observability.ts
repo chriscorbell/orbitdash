@@ -57,6 +57,13 @@ export function logOperationalError(
   });
 }
 
+export function logJobFailure(job: string, error: unknown): void {
+  writeLog("error", "job.failed", {
+    job,
+    message: error instanceof Error ? error.message : "unknown error",
+  });
+}
+
 export function getRequestMetricsSnapshot(): RequestMetricsSnapshot {
   return { ...requestMetrics };
 }
