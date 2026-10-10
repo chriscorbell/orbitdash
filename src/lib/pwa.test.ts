@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { registerServiceWorker, reloadOnStaleChunks, unregisterServiceWorker } from "@/lib/pwa";
+import {
+  clearCachedData,
+  registerServiceWorker,
+  reloadOnStaleChunks,
+  unregisterServiceWorker,
+} from "@/lib/pwa";
 
 function fakeRegistration(scriptURL: string | null) {
   return {
@@ -156,5 +161,25 @@ describe("reloadOnStaleChunks", () => {
     target.dispatchEvent(new Event("vite:preloadError"));
 
     expect(target.location.reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("clearCachedData", () => {
+  it("deletes the offline data, icon and wallpaper caches but keeps the app shell", async () => {
+    const storage = { delete: vi.fn(async (_name: string) => true) };
+    await clearCachedData(storage);
+
+    expect(storage.delete.mock.calls.map(([name]) => name).sort()).toEqual([
+      "orbitdash-data-v1",
+      "orbitdash-icons-v1",
+      "orbitdash-wallpapers-v1",
+    ]);
+  });
+
+  it("does nothing without Cache Storage, and shrugs off failures", async () => {
+    await expect(clearCachedData(undefined)).resolves.toBeUndefined();
+    await expect(
+      clearCachedData({ delete: vi.fn(async () => Promise.reject(new Error("blocked"))) })
+    ).resolves.toBeUndefined();
   });
 });

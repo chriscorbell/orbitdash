@@ -7,19 +7,20 @@ import type {
   UpdateServicePayload,
 } from "@shared/types";
 
+// Only saving from the service dialog builds this form, so it loads with the first save instead of
+// with the page (the offline worker has it precached in production).
+const loadServiceFormData = () => import("@shared/service-form-data");
+
 export function fetchServices(): Promise<Service[]> {
   return requestJson("/api/services", {}, "Failed to fetch services", servicesResponseSchema);
 }
-
-// Building the multipart body only matters once something is saved, so it loads then.
-const loadFormData = () => import("@shared/service-form-data");
 
 /** Create a new service (with optional icon file upload) */
 export async function createService(
   payload: CreateServicePayload,
   iconFile?: File
 ): Promise<Service> {
-  const { buildServiceFormData } = await loadFormData();
+  const { buildServiceFormData } = await loadServiceFormData();
   const formData = buildServiceFormData(payload, {
     iconFile,
     includeDefaultOpenInNewTab: true,
@@ -39,7 +40,7 @@ export async function updateService(
   iconFile?: File,
   removeIcon?: boolean
 ): Promise<Service> {
-  const { buildServiceFormData } = await loadFormData();
+  const { buildServiceFormData } = await loadServiceFormData();
   const formData = buildServiceFormData(payload, {
     allowEmptyFields: true,
     iconFile,

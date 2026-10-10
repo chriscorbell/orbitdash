@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { app } from "./app";
+import { AuthConfigError } from "./auth/config";
+import { writeLog } from "./observability";
 import { initializeServer } from "./runtime";
 import { createStaticAssetHandler } from "./static-assets";
 
@@ -14,7 +16,16 @@ if (fs.existsSync(distPath)) {
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
 if (import.meta.main) {
-  initializeServer({ port: PORT });
+  try {
+    initializeServer({ port: PORT });
+  } catch (error) {
+    // A broken auth setup must not start an open dashboard; say what to fix and stop.
+    if (error instanceof AuthConfigError) {
+      writeLog("error", "auth.config_invalid", { message: error.message });
+      process.exit(1);
+    }
+    throw error;
+  }
 }
 
 export default {

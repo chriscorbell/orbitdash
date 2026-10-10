@@ -1,6 +1,8 @@
 import { Hono, type Context } from "hono";
 import path from "path";
+import { requireAuth } from "./auth/http";
 import alertsRouter from "./routes/alerts";
+import authRouter from "./routes/auth";
 import backupRouter from "./routes/backup";
 import categoriesRouter from "./routes/categories";
 import eventsRouter from "./routes/events";
@@ -66,9 +68,9 @@ app.use("*", async (c, next) => {
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-// The API is unauthenticated, and browsers can submit multipart forms
-// cross-origin without CORS — so reject browser-issued mutations coming from
-// another site. Requests without browser headers (curl, scripts) pass.
+// Browsers can submit multipart forms cross-origin without CORS, and with auth off the API is
+// open, so reject browser-issued mutations coming from another site (sign-in included).
+// Requests without browser headers (curl, scripts) pass.
 app.use("/api/*", async (c, next) => {
   if (SAFE_METHODS.has(c.req.method)) {
     return next();
@@ -95,6 +97,10 @@ app.use("/api/*", async (c, next) => {
 
   return next();
 });
+
+// With ORBITDASH_AUTH set, every /api route except health and auth needs a session or proxy user
+// (or, for reads with guest access, nothing). See server/auth/http.ts.
+app.use("/api/*", requireAuth);
 
 // Tell every connected client when shared data changes, so other devices refresh without a
 // reload. Runs after the handler, and only for successful mutations.
@@ -127,6 +133,7 @@ app.get("/readyz", (c) => {
 });
 
 app.route("/api/alerts", alertsRouter);
+app.route("/api/auth", authRouter);
 app.route("/api/backup", backupRouter);
 app.route("/api/categories", categoriesRouter);
 app.route("/api/events", eventsRouter);

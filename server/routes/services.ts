@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { serviceMoveSchema, serviceReorderSchema } from "@shared/server-schemas";
 import { jsonError, respondApiResult } from "../api-response";
+import { canEdit } from "../auth/http";
 import { readValidatedJson } from "../request-body";
 import {
   createService,
@@ -16,9 +17,15 @@ import { parseCreateServiceRequest, parseUpdateServiceRequest } from "../service
 
 const servicesRouter = new Hono();
 
-/** GET /api/services */
+/**
+ * GET /api/services. Guests get no status check targets: a target can hold credentials, and only
+ * the service form, which guests never see, uses it.
+ */
 servicesRouter.get("/", (c) => {
-  return c.json(listServices());
+  const services = listServices();
+  return c.json(
+    canEdit(c) ? services : services.map((service) => ({ ...service, check_target: null }))
+  );
 });
 
 /** POST /api/services */

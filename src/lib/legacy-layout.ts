@@ -50,13 +50,18 @@ export async function importLegacyLayout(
   if (!legacy) return view;
 
   let next = view;
-  if (!view.stored) {
-    next = await updateSharedSettings(legacy, deviceId);
-  } else {
-    const differences = diffDashboardSettings(view.settings, legacy);
-    if (!isEmptySettingsPatch(differences)) {
-      next = await updateDeviceSettings(deviceId, { overrides: differences });
+  try {
+    if (!view.stored) {
+      next = await updateSharedSettings(legacy, deviceId);
+    } else {
+      const differences = diffDashboardSettings(view.settings, legacy);
+      if (!isEmptySettingsPatch(differences)) {
+        next = await updateDeviceSettings(deviceId, { overrides: differences });
+      }
     }
+  } catch {
+    // A guest can't save settings. Show the server's and keep the old layout for a later visit.
+    return view;
   }
   clearLegacyLayout();
   return next;

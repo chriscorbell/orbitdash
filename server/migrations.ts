@@ -253,6 +253,29 @@ const migrations: Migration[] = [
       ) WITHOUT ROWID`,
     ],
   },
+  {
+    id: 10,
+    name: "auth-sessions",
+    // Password sign-ins (server/auth/). Only a SHA-256 of each session token is stored, never the
+    // token. auth_state holds the argon2 hash in force and a random credential id minted whenever
+    // that hash changes; each session keeps the id it was created under, so a new password ends
+    // older sessions while restarts keep them. Neither table is in backup exports, unlike `settings`.
+    statements: [
+      `CREATE TABLE sessions (
+        token_hash TEXT PRIMARY KEY,
+        user TEXT NOT NULL,
+        credential TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        refreshed_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX sessions_expires_at_idx ON sessions (expires_at)`,
+      `CREATE TABLE auth_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {

@@ -11,7 +11,7 @@ const budgets = [
     label: "entry css",
     prefix: "index-",
     extension: ".css",
-    maxRawKb: 90,
+    maxRawKb: 92,
     maxGzipKb: 15,
   },
   {
@@ -21,7 +21,7 @@ const budgets = [
     maxRawKb: 230,
     maxGzipKb: 72,
   },
-  { label: "vendor", prefix: "vendor-", extension: ".js", maxRawKb: 110, maxGzipKb: 34 },
+  { label: "vendor", prefix: "vendor-", extension: ".js", maxRawKb: 75, maxGzipKb: 23 },
   {
     label: "validation",
     prefix: "validation-",
@@ -99,6 +99,20 @@ const budgets = [
     maxRawKb: 10,
     maxGzipKb: 4,
   },
+  {
+    label: "sign-in screen",
+    prefix: "SignInScreen-",
+    extension: ".js",
+    maxRawKb: 6,
+    maxGzipKb: 3,
+  },
+  {
+    label: "toaster",
+    prefix: "toaster-",
+    extension: ".js",
+    maxRawKb: 16,
+    maxGzipKb: 6,
+  },
   // Not part of the page; the browser fetches it on its own and checks it for updates.
   { label: "service worker", file: "sw.js", maxRawKb: 8, maxGzipKb: 3 },
 ];
@@ -117,6 +131,10 @@ const lazyOnlyPrefixes = [
   "WidgetSettings-",
   // Status dots and details, loaded by the first card with checks on.
   "ServiceStatus-",
+  // Only shown when auth is on and this browser isn't signed in.
+  "SignInScreen-",
+  // Loads with the first toast, or once the page is idle.
+  "toaster-",
   // Service worker setup, loaded after the page has.
   "pwa-",
 ];

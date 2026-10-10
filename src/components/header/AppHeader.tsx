@@ -4,6 +4,7 @@ import {
   Check,
   FolderPlus,
   LayoutGrid,
+  LogIn,
   PencilRuler,
   Plus,
   Search,
@@ -24,6 +25,8 @@ import type { ClockFormat } from "@shared/dashboard-settings";
 export type AppPage = "services" | "stats";
 
 interface AppHeaderProps {
+  /** False for guests: add, edit and settings give way to a sign-in button. */
+  canEdit?: boolean;
   /** Edit mode swaps the search trigger and status for the editing controls. */
   editing: boolean;
   page?: AppPage;
@@ -44,6 +47,8 @@ interface AppHeaderProps {
   clockFormat?: ClockFormat;
   /** Compact widgets shown next to the host status. */
   widgets?: ReactNode;
+  /** Shown to guests when there is a password to sign in with. */
+  onSignIn?: () => void;
 }
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -55,6 +60,7 @@ const PAGES: Array<{ page: AppPage; path: string; label: string; Icon: typeof Ac
 ];
 
 export function AppHeader({
+  canEdit = true,
   editing,
   page = "services",
   showStatsPage = false,
@@ -69,6 +75,7 @@ export function AppHeader({
   onPreloadPalette,
   clockFormat,
   widgets,
+  onSignIn,
 }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/65">
@@ -156,45 +163,60 @@ export function AppHeader({
 
             <HeaderStatus clockFormat={clockFormat}>{widgets}</HeaderStatus>
 
-            <div className="flex shrink-0 items-center gap-1">
-              {page === "services" && (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  className="pointer-coarse:size-9"
-                  aria-label="Add service"
-                  onClick={onAddService}
-                >
-                  <Plus />
-                </Button>
-              )}
-              {canEditLayout && page === "services" && (
+            {!canEdit && onSignIn && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 pointer-coarse:h-9"
+                onClick={onSignIn}
+              >
+                <LogIn aria-hidden="true" />
+                Sign in
+              </Button>
+            )}
+
+            {canEdit && (
+              <div className="flex shrink-0 items-center gap-1">
+                {page === "services" && (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    className="pointer-coarse:size-9"
+                    aria-label="Add service"
+                    onClick={onAddService}
+                  >
+                    <Plus />
+                  </Button>
+                )}
+                {canEditLayout && page === "services" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="pointer-coarse:size-9"
+                    aria-label="Edit layout"
+                    onClick={onEditLayout}
+                    onFocus={preloadEditableBoard}
+                    onPointerEnter={preloadEditableBoard}
+                  >
+                    <PencilRuler />
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
                   className="pointer-coarse:size-9"
-                  aria-label="Edit layout"
-                  onClick={onEditLayout}
-                  onFocus={preloadEditableBoard}
-                  onPointerEnter={preloadEditableBoard}
+                  aria-label="Open settings"
+                  onClick={onOpenSettings}
+                  onFocus={preloadSettingsDialog}
+                  onPointerEnter={preloadSettingsDialog}
                 >
-                  <PencilRuler />
+                  <Settings />
                 </Button>
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="pointer-coarse:size-9"
-                aria-label="Open settings"
-                onClick={onOpenSettings}
-                onFocus={preloadSettingsDialog}
-                onPointerEnter={preloadSettingsDialog}
-              >
-                <Settings />
-              </Button>
-            </div>
+              </div>
+            )}
           </>
         )}
       </div>

@@ -1,3 +1,5 @@
+import { cacheNamesFor } from "@/sw/routes";
+
 const SCRIPT_URL = "/sw.js";
 const RELOAD_KEY = "orbitdash.staleChunkReload";
 const RELOAD_COOLDOWN_MS = 10_000;
@@ -65,4 +67,20 @@ export function reloadOnStaleChunks(target: Window = window): void {
     }
     target.location.reload();
   });
+}
+
+/**
+ * Signing out removes what the service worker kept for offline use (API responses, icons and
+ * wallpapers), so the next person at this browser can't read the dashboard from its cache. The
+ * app shell stays.
+ */
+export async function clearCachedData(
+  storage: Pick<CacheStorage, "delete"> | undefined = typeof caches === "undefined"
+    ? undefined
+    : caches
+): Promise<void> {
+  if (!storage) return;
+  // These names don't depend on the build version.
+  const { data, icons, wallpapers } = cacheNamesFor("");
+  await Promise.all([data, icons, wallpapers].map((name) => storage.delete(name))).catch(() => {});
 }

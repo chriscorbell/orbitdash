@@ -11,7 +11,9 @@ export default defineConfig({
     proxy: {
       // Object form keeps changeOrigin off, so the backend sees the browser's
       // Host header; the API's cross-site guard compares it against Origin.
-      "/api": { target: "http://localhost:3001" },
+      // ORBITDASH_API_PROXY points the dev server at another backend (the e2e
+      // suite runs a second one with auth turned on).
+      "/api": { target: process.env.ORBITDASH_API_PROXY ?? "http://localhost:3001" },
     },
   },
   build: {

@@ -57,6 +57,7 @@ Use this file as a practical handoff for future agents working in this repositor
   - `PORT`
   - `NODE_ENV`
   - `LOG_LEVEL` (`debug` | `info` | `warn` | `error`, default `info`)
+  - Auth: `ORBITDASH_AUTH` (`none` | `password` | `proxy`), `ORBITDASH_PASSWORD` or `ORBITDASH_PASSWORD_HASH`, `ORBITDASH_SESSION_DAYS`, `ORBITDASH_GUEST` (`none` | `view`), `ORBITDASH_PROXY_HEADER`, `ORBITDASH_TRUSTED_PROXIES`. See `docs/architecture.md` under "Optional Authentication".
 
 ## Current Architecture Boundaries
 
@@ -67,6 +68,7 @@ Use this file as a practical handoff for future agents working in this repositor
 - Shared runtime validation is centralized in `shared/schemas.ts`.
 - Shared multipart service request handling is centralized in `shared/service-form-data.ts` and is consumed by both client and server.
 - The metrics collector lives in `server/host/`. `host-fs.ts` is its only file access; every reader takes file contents or an injected `HostFs`, so tests run on fixture strings (`test-fixtures.ts`). The strip's `MetricSample` (`cpu`, `ram`, `disk`) is derived from the richer, versioned `HostSnapshot` of the same tick; keep its three fields stable and add detail to the snapshot.
+- Auth lives in `server/auth/` (config, CIDR matching, sessions, rate limiting, the `/api/*` middleware) with routes in `server/routes/auth.ts`. A new `/api` route is protected automatically; a new public one has to be added to `PUBLIC_API_PATHS` in `server/auth/http.ts`, and a GET that guests must not read needs a rule in `guestRule` there. Decide trust from `getPeerIp` (the socket), never from forwarded headers.
 - Metric history lives in `server/history/`. The rollup math in `rollup.ts` is pure and tested directly; `recorder.ts` holds the minute in progress; `store.ts` owns the SQL for `metric_history_1m` and `metric_history_15m`. Collection must not subscribe to the live topics for history, because subscribing switches sampling to once a second. `tickCollection` calls `metricHistory.record` directly instead.
 
 ## Important Repo-Specific Gotchas
@@ -80,7 +82,7 @@ Use this file as a practical handoff for future agents working in this repositor
 - The main bundle budget should not be raised casually.
   - Chunking uses Rolldown `codeSplitting.groups` in `vite.config.ts`. A group also captures its modules' dependencies, so group priority decides where shared packages like React land. `docs/bundle-size-budget.md` explains the layout and the tracked budgets.
   - If bundle budgets fail again, inspect chunk boundaries before raising thresholds.
-  - `drag-drop-*`, `SettingsDialog-*` and `EditableBoard-*` must stay lazy: modules loaded on first render reach dnd-kit, the settings dialog and the edit board only through `lazy()` components. `npm run bundle:check` fails if `index.html` preloads any of them.
+  - `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `SignInScreen-*` and `toaster-*` must stay lazy: modules loaded on first render reach dnd-kit, the settings dialog, the edit board, the sign-in screen and the toaster only through `lazy()` components. `npm run bundle:check` fails if `index.html` preloads any of them.
   - The same goes for `ServiceStatus-*`: `ServiceCard.tsx` reaches the status dot and details only through `lazy()`. Status response schemas live in `src/lib/api/status.ts` (not `schemas.ts`) for that reason; the pair test in `src/lib/api/schemas.test.ts` covers them.
 - Status checks (`server/status/`, see "Status Checks" in `docs/architecture.md`) are off by default and the migration leaves existing services off. Keep it that way: an upgrade must never start contacting anything. Checker tests use injected fetch/connect and a fake clock, never the network, and logs must never include a check's URL or target (they can hold credentials).
 - The offline service worker (`src/sw/`, built to `dist/sw.js`) runs in production builds only; its caching rules are in `docs/architecture.md` under "Installable App And Offline Shell".

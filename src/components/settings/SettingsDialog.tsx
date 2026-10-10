@@ -31,7 +31,7 @@ import type {
   DashboardWidgetSettings,
   StatsPosition,
 } from "@shared/dashboard-settings";
-import { Columns3, LayoutGrid, LayoutList, List, PencilRuler, Rows3 } from "lucide-react";
+import { Columns3, LayoutGrid, LayoutList, List, LogOut, PencilRuler, Rows3 } from "lucide-react";
 
 // Its own chunk, fetched as the dialog opens; the section sits below the fold.
 const WidgetSettings = lazy(() =>
@@ -40,11 +40,20 @@ const WidgetSettings = lazy(() =>
   }))
 );
 
+interface SettingsAccount {
+  mode: "password" | "proxy";
+  /** The proxy's user name; password mode has a single shared login. */
+  user: string | null;
+  onSignOut?: () => void;
+}
+
 interface SettingsDialogProps {
   /** A section to scroll into view when the dialog opens. */
   focusSection?: "widgets" | null;
   widgets: DashboardWidgetSettings;
   onWidgetsChange: (widgets: Partial<DashboardWidgetSettings>) => void;
+  /** Who is signed in, when auth is on. */
+  account?: SettingsAccount;
   appearance: DashboardAppearanceSettings;
   density: CardDensity;
   mode: BoardMode;
@@ -87,7 +96,37 @@ const STATS_POSITION_OPTIONS: readonly ChoiceOption<StatsPosition>[] = [
   { value: "bottom", label: "Below services" },
 ];
 
+function AccountRow({ account }: { account: SettingsAccount }) {
+  const viaProxy = account.mode === "proxy";
+
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+      <div className="min-w-0 space-y-0.5">
+        <p className="truncate text-sm font-medium">
+          {viaProxy ? (account.user ?? "Signed in") : "Signed in"}
+        </p>
+        <p className="text-muted-foreground text-sm">
+          {viaProxy ? "Through your sign-in proxy" : "With the dashboard password"}
+        </p>
+      </div>
+      {!viaProxy && account.onSignOut && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={account.onSignOut}
+        >
+          <LogOut />
+          Sign out
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function SettingsDialog({
+  account,
   focusSection = null,
   widgets,
   onWidgetsChange,
@@ -289,6 +328,13 @@ export function SettingsDialog({
             <DashboardImportSettings />
             <BackupSettingsSection />
           </section>
+
+          {account && (
+            <section className="space-y-3">
+              <SettingsSectionLabel>Account</SettingsSectionLabel>
+              <AccountRow account={account} />
+            </section>
+          )}
         </div>
 
         <DialogFooter showCloseButton />
