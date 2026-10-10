@@ -9,7 +9,7 @@
     "dev:server": "bun --watch server/index.ts",
     "dev:all": "bun run dev & bun run dev:server",
     "dev:all:host": "vite --host & bun run dev:server",
-    "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
+    "build": "tsc -b && tsc -p tsconfig.server.json && vite build && node scripts/compress-assets.mjs",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json",
     "prepare": "node scripts/prepare-git-hooks.mjs",
     "start": "NODE_ENV=production bun server/index.ts",
