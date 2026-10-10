@@ -36,7 +36,13 @@ export function ServiceCategoryField({
       <Label id={`${categoryInputId}-label`} htmlFor={categoryInputId} className="font-semibold">
         Category
       </Label>
-      <Select value={selectedCategory} onValueChange={onSelectedCategoryChange}>
+      {/* Radix reports "" when the list and the value change together; that's never a choice. */}
+      <Select
+        value={selectedCategory}
+        onValueChange={(value) => {
+          if (value) onSelectedCategoryChange(value);
+        }}
+      >
         <SelectTrigger
           id={categoryInputId}
           name="category"

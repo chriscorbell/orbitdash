@@ -274,6 +274,34 @@ describe("ServiceDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("keeps what's typed when the category list changes while it's open", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const dialog = (categoryOptions: string[]) => (
+      <ServiceDialog
+        open
+        onOpenChange={vi.fn()}
+        categoryOptions={categoryOptions}
+        defaultCategory="Infra"
+        onSubmit={onSubmit}
+      />
+    );
+    const { rerender } = render(dialog(["Infra"]));
+    fireEvent.change(screen.getByLabelText("Name *"), { target: { value: "Orbit" } });
+    fireEvent.change(screen.getByLabelText("URL *"), { target: { value: "example.com" } });
+
+    // Renamed in another browser: the service still goes to a category of the picked name.
+    rerender(dialog(["Infrastructure"]));
+    expect((screen.getByLabelText("Name *") as HTMLInputElement).value).toBe("Orbit");
+    expect((screen.getByLabelText("New category name") as HTMLInputElement).value).toBe("Infra");
+
+    // Once that name exists again it's picked from the list.
+    rerender(dialog(["Infra", "Infrastructure"]));
+    expect(screen.queryByLabelText("New category name")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add service" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ name: "Orbit", category: "Infra" });
+  });
+
   it("supports accessible dialog semantics and keyboard toggle behavior", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
@@ -774,8 +802,7 @@ describe("ServiceDialog integrations", () => {
     await user.type(screen.getByLabelText("Username *"), "me");
     await user.type(screen.getByLabelText("Password"), "pw");
     await user.click(screen.getByRole("switch", { name: "Allow self-signed certificates" }));
-    const testButtons = screen.getAllByRole("button", { name: "Test" });
-    await user.click(testButtons[testButtons.length - 1]);
+    await user.click(screen.getByRole("button", { name: "Test AdGuard Home" }));
     expect(await screen.findByText("1,000")).toBeTruthy();
     expect(integrationsApi.testIntegration.mock.calls[0][0]).toEqual({
       serviceId: "svc-1",

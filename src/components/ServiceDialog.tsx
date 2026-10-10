@@ -414,7 +414,8 @@ export function ServiceDialog({
   onDelete,
   services,
 }: ServiceDialogProps) {
-  const dialogStateKey = `${service?.id ?? "new"}:${defaultCategory ?? ""}:${categoryOptions.join("|")}`;
+  // Not keyed on the category list: a category added elsewhere must not wipe what's typed.
+  const dialogStateKey = `${service?.id ?? "new"}:${defaultCategory ?? ""}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
