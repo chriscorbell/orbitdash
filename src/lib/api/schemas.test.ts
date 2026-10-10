@@ -38,6 +38,26 @@ const hostSnapshot = {
   network: [{ name: "eth0", rxBytesPerSec: 100, txBytesPerSec: null }],
 };
 
+const historySeries = { avg: [10.5, null], max: [22, null] };
+const metricHistory = {
+  range: "24h",
+  resolutionMs: 300_000,
+  from: 0,
+  to: 600_000,
+  ts: [0, 300_000],
+  series: {
+    cpu: historySeries,
+    memory: historySeries,
+    disk: historySeries,
+    load1: historySeries,
+    temperature: historySeries,
+    netRx: historySeries,
+    netTx: historySeries,
+    diskRead: historySeries,
+    diskWrite: historySeries,
+  },
+};
+
 const systemInfo = {
   cpuCount: 4,
   cpuModel: null,
@@ -147,6 +167,18 @@ const pairs = [
     invalid: [
       { ...systemInfo, osName: undefined },
       { ...systemInfo, uptimeSeconds: "60" },
+    ],
+  },
+  {
+    name: "metric history",
+    mini: mini.metricHistorySchema,
+    full: fullHost.metricHistorySchema,
+    valid: metricHistory,
+    invalid: [
+      { ...metricHistory, range: "2h" },
+      { ...metricHistory, ts: undefined },
+      { ...metricHistory, series: { ...metricHistory.series, netTx: undefined } },
+      { ...metricHistory, series: { ...metricHistory.series, cpu: { avg: ["1"], max: [1] } } },
     ],
   },
 ];

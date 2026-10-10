@@ -166,3 +166,24 @@ export const hostSnapshotSchema = z.object({
     z.object({ name: z.string(), rxBytesPerSec: nullableNumber, txBytesPerSec: nullableNumber })
   ),
 });
+
+const historySeries = z.object({ avg: z.array(nullableNumber), max: z.array(nullableNumber) });
+
+export const metricHistorySchema = z.object({
+  range: z.enum(["1h", "24h", "7d", "30d"]),
+  resolutionMs: z.number(),
+  from: z.number(),
+  to: z.number(),
+  ts: z.array(z.number()),
+  series: z.object({
+    cpu: historySeries,
+    memory: historySeries,
+    disk: historySeries,
+    load1: historySeries,
+    temperature: historySeries,
+    netRx: historySeries,
+    netTx: historySeries,
+    diskRead: historySeries,
+    diskWrite: historySeries,
+  }),
+});

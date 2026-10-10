@@ -25,6 +25,16 @@ orbitdash also backs itself up while it runs, without stopping:
   icons in one step.
 - **Manual snapshot** (Settings, then Data, then Snapshot, or `POST /api/backup/snapshots`).
 
+Metric history describes the machine orbitdash runs on, not the dashboard's configuration. It
+is treated like this:
+
+- **Export** leaves it out.
+- **Import** leaves the current history alone, so restoring services from another machine doesn't
+  bring its telemetry or wipe this one's.
+- **Snapshots** copy the whole database, history included: about 2 MB at full retention (48
+  hours of minutes and 90 days of quarter hours). Restoring a snapshot brings back the history up
+  to when it was taken, followed by a gap.
+
 ### Restore From A Snapshot
 
 Snapshots are complete data directories without the WAL files, so restoring one is a copy:

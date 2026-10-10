@@ -2,6 +2,7 @@ import { METRICS_RETENTION_SECONDS } from "@shared/server-schemas";
 import type { HostSnapshot, MetricSample } from "@shared/types";
 import { createHostCollector, diskUsagePercent, toMetricSample } from "./host/collector";
 import { getHostFs, toHostPath, type HostFs } from "./host/host-fs";
+import { metricHistory } from "./history/recorder";
 import { writeLog } from "./observability";
 
 const collector = createHostCollector({ fs: getHostFs() });
@@ -99,6 +100,8 @@ export function tickCollection(now: number = Date.now()): MetricSample | null {
   lastSampleAt = now;
   const { sample, snapshot } = collect();
   storeSample(sample);
+  // Every sample feeds history: once a second while watched, every 10 seconds otherwise.
+  metricHistory.record(snapshot, sample.disk);
   deliver(subscribers, sample);
   deliver(snapshotSubscribers, snapshot);
 

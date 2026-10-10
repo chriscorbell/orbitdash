@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { app } from "../app";
 import type { Service } from "@shared/types";
+import { getDb } from "../db";
 import { listSnapshots } from "../services/backup-snapshots";
 import type { BackupDocument } from "../services/backup-transfer";
 import { cleanupTestDatabase, createTestDataDir } from "../test-utils";
@@ -142,6 +143,28 @@ describe("backup routes", () => {
     const snapshots = listSnapshots(testDataDir);
     expect(snapshots.map((snapshot) => snapshot.reason)).toEqual(["pre-import"]);
     expect(fs.existsSync(path.join(testDataDir, "backups", snapshots[0].name, "icons"))).toBe(true);
+  });
+
+  it("leaves metric history out of exports and in place across imports", async () => {
+    // History describes this host, not the dashboard's configuration.
+    const db = getDb();
+    db.prepare(
+      "INSERT INTO metric_history_1m (ts, weight_ms, cpu_avg) VALUES (60000, 60000, 5)"
+    ).run();
+    db.prepare(
+      "INSERT INTO metric_history_15m (ts, weight_ms, cpu_avg) VALUES (0, 60000, 5)"
+    ).run();
+
+    const document = await exportDocument();
+    expect(JSON.stringify(document)).not.toContain("history");
+    expect((await importDocument(document)).status).toBe(200);
+
+    expect(db.prepare("SELECT COUNT(*) AS count FROM metric_history_1m").get()).toEqual({
+      count: 1,
+    });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM metric_history_15m").get()).toEqual({
+      count: 1,
+    });
   });
 
   it("drops icons that are not real images and clears references to them", async () => {
