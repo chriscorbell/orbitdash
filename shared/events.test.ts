@@ -24,6 +24,7 @@ describe("parseEventTopics", () => {
 
   it("includes the status topic among all topics", () => {
     expect(EVENT_TOPICS).toContain("status");
+    expect(EVENT_TOPICS).toContain("containers");
     expect(TOPIC_BY_EVENT_TYPE.status).toBe("status");
   });
 });

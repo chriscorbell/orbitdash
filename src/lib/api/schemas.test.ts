@@ -98,6 +98,7 @@ const systemInfo = {
   osName: "Debian GNU/Linux 12 (bookworm)",
   platform: "linux",
   uptimeSeconds: 60,
+  docker: false,
 };
 
 const service = {

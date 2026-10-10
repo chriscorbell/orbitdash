@@ -67,7 +67,7 @@ export function readCpuModel(
 export function getSystemInfo(
   hostFs: HostFs = getHostFs(),
   inContainer: boolean = fs.existsSync("/.dockerenv")
-): SystemInfo {
+): Omit<SystemInfo, "docker"> {
   const hostRootName = readHostRootHostname(hostFs);
   return {
     cpuCount: os.availableParallelism?.() ?? os.cpus().length,

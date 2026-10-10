@@ -39,6 +39,17 @@ vi.mock("@/lib/api/host", () => ({
 }));
 
 vi.mock("@/lib/api/history", () => ({ fetchMetricHistory: vi.fn() }));
+// No Docker here; the containers card has its own tests.
+vi.mock("@/lib/api/docker", () => ({
+  fetchDocker: async () => ({
+    configured: false,
+    available: false,
+    error: "Docker isn't set up",
+    containers: [],
+    updatedAt: null,
+  }),
+  subscribeContainers: () => () => {},
+}));
 vi.mock("@/lib/api/alerts", () => ({
   fetchAlerts: vi.fn().mockResolvedValue({
     active: [

@@ -2,6 +2,7 @@ import { buildApiUrl } from "@/lib/api/client";
 import type {
   AlertEvent,
   ConfigChangedEvent,
+  ContainersEvent,
   EventTopic,
   HostEvent,
   MetricsEvent,
@@ -14,6 +15,7 @@ export type ConnectionEvent = "open" | "error" | "resumed";
 interface EventsByTopic {
   alerts: AlertEvent;
   config: ConfigChangedEvent;
+  containers: ContainersEvent;
   host: HostEvent;
   metrics: MetricsEvent;
   status: StatusEvent;
@@ -45,6 +47,7 @@ export interface EventStream {
 const EVENT_TYPES: Record<EventTopic, ServerEvent["type"]> = {
   alerts: "alert",
   config: "config.changed",
+  containers: "containers",
   host: "host",
   metrics: "metrics",
   status: "status",

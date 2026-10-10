@@ -22,6 +22,8 @@ import { publish } from "./events";
 import { logOperationalError, recordRequest } from "./observability";
 import { getIconsDir } from "./services/icon-storage";
 import { getSystemInfo } from "./system-info";
+import { dockerMonitor } from "./docker/monitor";
+import dockerRouter from "./routes/docker";
 
 export const app = new Hono();
 
@@ -137,6 +139,7 @@ app.route("/api/alerts", alertsRouter);
 app.route("/api/auth", authRouter);
 app.route("/api/backup", backupRouter);
 app.route("/api/categories", categoriesRouter);
+app.route("/api/docker", dockerRouter);
 app.route("/api/events", eventsRouter);
 app.route("/api/icon-library", iconLibraryRouter);
 app.route("/api/service-tools", serviceToolsRouter);
@@ -161,7 +164,7 @@ app.get("/api/health", (c) => {
 
 app.get("/api/system", (c) => {
   c.header("Cache-Control", "no-store");
-  return c.json(getSystemInfo());
+  return c.json({ ...getSystemInfo(), docker: dockerMonitor.snapshot().available });
 });
 
 app.get("/api/icons/:filename", async (c) => {

@@ -83,7 +83,7 @@ describe("system info", () => {
     );
     const info = getSystemInfo(hostFs, true);
 
-    expect(systemInfoSchema.parse(info)).toEqual(info);
+    expect(systemInfoSchema.parse({ ...info, docker: false })).toEqual({ ...info, docker: false });
     expect(info).toMatchObject({
       cpuModel: "Intel(R) Core(TM) i5-8500T CPU @ 2.10GHz",
       hostname: process.env.ORBITDASH_HOSTNAME?.trim() || "nas",

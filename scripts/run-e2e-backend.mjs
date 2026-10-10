@@ -16,6 +16,8 @@ const child = spawn(bunExecutable, ["server/index.ts"], {
   env: {
     ...process.env,
     ORBITDASH_DATA_DIR: dataDir,
+    // The machine's own containers (or a CI runner's) shouldn't change what the tests see.
+    ORBITDASH_DOCKER_HOST: "off",
     PORT: port,
   },
   stdio: "inherit",
