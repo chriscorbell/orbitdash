@@ -170,6 +170,45 @@ describe("backup routes", () => {
     expect(service.open_in_new_tab).toBe(false);
   });
 
+  it("restores icon source URLs only for services whose icon survives the import", async () => {
+    const document = await exportDocument();
+    const baseService = {
+      url: "https://example.com",
+      description: null,
+      category: null,
+      open_in_new_tab: true,
+      created_at: 1,
+      updated_at: 1,
+    };
+    document.services = [
+      {
+        ...baseService,
+        id: "kept",
+        name: "Kept",
+        icon: "kept.png",
+        icon_source_url: "https://example.com/kept.png",
+      },
+      {
+        ...baseService,
+        id: "dropped",
+        name: "Dropped",
+        icon: "dropped.png",
+        icon_source_url: "https://example.com/dropped.png",
+      },
+    ];
+    document.icons = [{ filename: "kept.png", data: PNG_BYTES.toString("base64") }];
+
+    expect((await importDocument(document)).status).toBe(200);
+
+    const services = (await (await app.request("/api/services")).json()) as Service[];
+    expect(
+      services.map(({ name, icon, icon_source_url }) => ({ name, icon, icon_source_url }))
+    ).toEqual([
+      { name: "Dropped", icon: null, icon_source_url: null },
+      { name: "Kept", icon: "kept.png", icon_source_url: "https://example.com/kept.png" },
+    ]);
+  });
+
   it("rejects files that are not orbitdash backups without touching data", async () => {
     await createServiceWithIcon("Keep", "Media");
 

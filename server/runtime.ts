@@ -1,9 +1,12 @@
 import { closeDb, getDataDir, initializeDb } from "./db";
 import { cancelAllJobs, scheduleJob } from "./jobs";
 import { startCollection, stopCollection } from "./metrics";
+import { writeLog } from "./observability";
 import { runNightlySnapshotIfDue } from "./services/backup-schedule";
+import { cleanupOrphanIcons } from "./services/icon-storage";
 
 export interface InitializeServerOptions {
+  cleanupIcons?: boolean;
   dataDir?: string;
   dbPath?: string;
   logStartup?: boolean;
@@ -17,6 +20,20 @@ let runtimeInitialized = false;
 let signalHandlersRegistered = false;
 
 const HOUR_MS = 60 * 60 * 1000;
+
+// A failed cleanup must never stop the server from starting; the orphans just wait for next time.
+function runIconCleanup() {
+  try {
+    const removed = cleanupOrphanIcons();
+    if (removed > 0) {
+      writeLog("info", "icons.cleanup", { removed });
+    }
+  } catch (error) {
+    writeLog("error", "icons.cleanup_failed", {
+      message: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+}
 
 function startBackgroundJobs() {
   // Checked hourly so a server that restarts often still gets one snapshot a day.
@@ -60,6 +77,10 @@ export function initializeServer(options: InitializeServerOptions = {}) {
     dataDir: options.dataDir,
     dbPath: options.dbPath,
   });
+
+  if (options.cleanupIcons !== false) {
+    runIconCleanup();
+  }
 
   if (options.startMetrics !== false) {
     startCollection();

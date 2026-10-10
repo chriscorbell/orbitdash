@@ -64,6 +64,7 @@ const baseService: Service = {
   url: "https://example.com/orbit",
   description: "Dashboard",
   icon: null,
+  icon_source_url: null,
   category: "Monitoring",
   open_in_new_tab: true,
   created_at: 1,

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getDataDir } from "../db";
+import { getDataDir, getDb } from "../db";
 import { normalizeIconUrl } from "@shared/urls";
 
 const ICONS_DIR_NAME = "icons";
@@ -56,8 +56,11 @@ export function detectIconExt(buffer: Buffer): string | null {
   return null;
 }
 
-function persistIcon(filename: string, buffer: Buffer): void {
+/** Each write gets a fresh name so a failed save can drop it without touching the current icon. */
+function persistIcon(serviceId: string, ext: string, buffer: Buffer): string {
+  const filename = `${serviceId}-${crypto.randomUUID().slice(0, 8)}${ext}`;
   fs.writeFileSync(path.join(getIconsDir(), filename), buffer);
+  return filename;
 }
 
 function validateUploadedIconBuffer(buffer: Buffer): string {
@@ -98,35 +101,46 @@ export function removeStoredIcon(iconFilename: string | null | undefined): void 
   }
 }
 
-function replaceStoredIcon(
-  previousIcon: string | null | undefined,
-  nextFilename: string,
-  buffer: Buffer
-): string {
-  removeStoredIcon(previousIcon);
-  persistIcon(nextFilename, buffer);
-  return nextFilename;
+/**
+ * Deletes files in the icons directory that no service references, such as icons left behind by a
+ * crash between writing the file and saving the service. Returns the number of files removed.
+ */
+export function cleanupOrphanIcons(): number {
+  const referenced = new Set(
+    (
+      getDb().prepare("SELECT icon FROM services WHERE icon IS NOT NULL").all() as Array<{
+        icon: string;
+      }>
+    ).map((row) => row.icon)
+  );
+
+  const iconsDir = getIconsDir();
+  let removed = 0;
+  for (const entry of fs.readdirSync(iconsDir, { withFileTypes: true })) {
+    if (!entry.isFile() || referenced.has(entry.name)) {
+      continue;
+    }
+
+    fs.unlinkSync(path.join(iconsDir, entry.name));
+    removed += 1;
+  }
+
+  return removed;
 }
 
-export async function persistUploadedIcon(
-  serviceId: string,
-  iconFile: File,
-  previousIcon?: string | null
-): Promise<string> {
+/** Writes an uploaded icon under a new filename. The caller removes the previous icon. */
+export async function persistUploadedIcon(serviceId: string, iconFile: File): Promise<string> {
   if (iconFile.size > MAX_ICON_BYTES) {
     throw new Error("icon file is too large");
   }
 
   const buffer = Buffer.from(await iconFile.arrayBuffer());
   const ext = validateUploadedIconBuffer(buffer);
-  return replaceStoredIcon(previousIcon, `${serviceId}${ext}`, buffer);
+  return persistIcon(serviceId, ext, buffer);
 }
 
-export async function persistDownloadedIcon(
-  serviceId: string,
-  iconUrl: string,
-  previousIcon?: string | null
-): Promise<string> {
+/** Downloads an icon and writes it under a new filename. The caller removes the previous icon. */
+export async function persistDownloadedIcon(serviceId: string, iconUrl: string): Promise<string> {
   const normalizedIconUrl = normalizeIconUrl(iconUrl);
   if (!normalizedIconUrl) {
     throw new Error("Icon URL must be a valid http(s) URL");
@@ -158,7 +172,7 @@ export async function persistDownloadedIcon(
       throw new Error("Unsupported icon type");
     }
 
-    return replaceStoredIcon(previousIcon, `${serviceId}${ext}`, buffer);
+    return persistIcon(serviceId, ext, buffer);
   } finally {
     clearTimeout(timeout);
   }

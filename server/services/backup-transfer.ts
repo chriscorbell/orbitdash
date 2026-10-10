@@ -21,6 +21,8 @@ const backupServiceSchema = z.object({
     .refine((value) => normalizeServiceUrl(value) !== null, "service url must be a valid URL"),
   description: z.string().nullable(),
   icon: z.string().nullable(),
+  // Added after the first backup files were written, so older exports omit it.
+  icon_source_url: z.string().nullable().optional(),
   category: z.string().nullable(),
   open_in_new_tab: z.boolean(),
   created_at: z.number().int(),
@@ -66,6 +68,7 @@ interface ServiceRow {
   url: string;
   description: string | null;
   icon: string | null;
+  icon_source_url: string | null;
   category: string | null;
   open_in_new_tab: number;
   created_at: number;
@@ -152,8 +155,8 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
     const snapshot = createSnapshot(db, dataDir, "pre-import");
 
     const insertService = db.prepare(
-      `INSERT INTO services (id, name, url, description, icon, category, open_in_new_tab, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO services (id, name, url, description, icon, icon_source_url, category, open_in_new_tab, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
 
@@ -162,12 +165,14 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
       db.exec("DELETE FROM settings");
 
       for (const service of document.services) {
+        const icon = service.icon && icons.has(service.icon) ? service.icon : null;
         insertService.run(
           service.id,
           service.name,
           normalizeServiceUrl(service.url)!,
           service.description?.trim() || null,
-          service.icon && icons.has(service.icon) ? service.icon : null,
+          icon,
+          icon ? (service.icon_source_url ?? null) : null,
           service.category?.trim() || null,
           service.open_in_new_tab ? 1 : 0,
           service.created_at,

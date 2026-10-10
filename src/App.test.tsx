@@ -124,6 +124,7 @@ const serviceStub: Service = {
   url: "https://example.com/orbit",
   description: null,
   icon: null,
+  icon_source_url: null,
   category: null,
   open_in_new_tab: true,
   created_at: 1,

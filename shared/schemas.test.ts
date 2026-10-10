@@ -231,6 +231,7 @@ describe("response schemas", () => {
       url: "https://example.com/orbit",
       description: null,
       icon: null,
+      icon_source_url: null,
       category: "Infra",
       open_in_new_tab: true,
       created_at: 1,
@@ -239,6 +240,16 @@ describe("response schemas", () => {
 
     expect(serviceSchema.parse(service)).toEqual(service);
     expect(servicesResponseSchema.parse([service])).toEqual([service]);
+
+    const downloaded = {
+      ...service,
+      icon: "svc-1-a1b2c3d4.svg",
+      icon_source_url: "https://example.com/icon.svg",
+    };
+    expect(serviceSchema.parse(downloaded)).toEqual(downloaded);
+
+    const { icon_source_url: _omitted, ...withoutSourceUrl } = service;
+    expect(serviceSchema.safeParse(withoutSourceUrl).success).toBe(false);
   });
 
   it("validates category order responses", () => {

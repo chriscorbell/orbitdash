@@ -66,6 +66,12 @@ const migrations: Migration[] = [
     // Metric samples moved to an in-memory buffer; see server/metrics.ts.
     statements: [`DROP TABLE IF EXISTS metrics_samples`],
   },
+  {
+    id: 4,
+    name: "services-icon-source-url",
+    // Remembers where a downloaded icon came from so it can be refreshed later.
+    statements: [`ALTER TABLE services ADD COLUMN icon_source_url TEXT`],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {

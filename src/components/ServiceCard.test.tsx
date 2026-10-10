@@ -15,6 +15,7 @@ const baseService: Service = {
   url: "https://example.com/crafty",
   description: "Minecraft server console and status page",
   icon: null,
+  icon_source_url: null,
   category: "Games",
   open_in_new_tab: true,
   created_at: 1,

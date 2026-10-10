@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { Database } from "bun:sqlite";
 import fs from "fs";
+import path from "path";
 import {
   closeDb,
   getDb,
@@ -57,7 +59,39 @@ describe("database integration", () => {
         id: 3,
         name: "drop-metrics-samples",
       },
+      {
+        id: 4,
+        name: "services-icon-source-url",
+      },
     ]);
+  });
+
+  it("adds a nullable icon_source_url column to existing services", () => {
+    const legacy = new Database(path.join(testDataDir!, "orbitdash.db"));
+    legacy.exec(`
+      CREATE TABLE schema_migrations (id INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL);
+      INSERT INTO schema_migrations VALUES (1, 'initial-schema', 0), (2, 'services-constraints', 0), (3, 'drop-metrics-samples', 0);
+      CREATE TABLE services (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        description TEXT,
+        icon TEXT,
+        category TEXT,
+        open_in_new_tab INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO services VALUES ('svc-1', 'Orbit', 'https://example.com', NULL, 'svc-1.png', NULL, 1, 1, 1);
+    `);
+    legacy.close();
+
+    initializeDb({ dataDir: testDataDir! });
+
+    expect(
+      getDb().prepare("SELECT icon, icon_source_url FROM services WHERE id = ?").get("svc-1")
+    ).toEqual({ icon: "svc-1.png", icon_source_url: null });
   });
 
   it("supports insert, update, and delete flows against the services table", () => {
