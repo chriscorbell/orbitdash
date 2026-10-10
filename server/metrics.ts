@@ -2,6 +2,7 @@ import { METRICS_RETENTION_SECONDS } from "@shared/server-schemas";
 import type { HostSnapshot, MetricSample } from "@shared/types";
 import { createHostCollector, diskUsagePercent, toMetricSample } from "./host/collector";
 import { getHostFs, toHostPath, type HostFs } from "./host/host-fs";
+import { metricAlerts } from "./alerts/service";
 import { metricHistory } from "./history/recorder";
 import { writeLog } from "./observability";
 
@@ -102,6 +103,14 @@ export function tickCollection(now: number = Date.now()): MetricSample | null {
   storeSample(sample);
   // Every sample feeds history: once a second while watched, every 10 seconds otherwise.
   metricHistory.record(snapshot, sample.disk);
+  try {
+    metricAlerts.observe(snapshot, now);
+  } catch (error) {
+    // Alerts must never stop collection; the next tick tries again.
+    writeLog("warn", "alerts.observe_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
   deliver(subscribers, sample);
   deliver(snapshotSubscribers, snapshot);
 

@@ -182,6 +182,26 @@ const migrations: Migration[] = [
       )`
     ),
   },
+  {
+    id: 8,
+    name: "metric-alerts",
+    // Threshold alerts (server/alerts/): one row per breach, resolved_at NULL while firing.
+    statements: [
+      `CREATE TABLE metric_alerts (
+        id TEXT PRIMARY KEY,
+        metric TEXT NOT NULL,
+        subject TEXT,
+        threshold REAL NOT NULL,
+        duration_sec INTEGER NOT NULL,
+        value REAL NOT NULL,
+        peak REAL NOT NULL,
+        started_at INTEGER NOT NULL,
+        fired_at INTEGER NOT NULL,
+        resolved_at INTEGER
+      )`,
+      "CREATE INDEX metric_alerts_fired_at ON metric_alerts (fired_at)",
+    ],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {

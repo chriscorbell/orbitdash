@@ -221,3 +221,35 @@ export interface RenameCategoryResponse {
 
 /** Response shape for GET /api/services */
 export type ServicesResponse = Service[];
+
+/** What a metric alert watches. Disk rules apply to every mounted filesystem. */
+export type AlertMetric = "cpu" | "memory" | "disk" | "temperature";
+
+/** One alert rule: fires when the metric stays above the threshold for the duration. */
+export interface AlertRule {
+  metric: AlertMetric;
+  enabled: boolean;
+  threshold: number; // percent, or °C for temperature
+  durationSec: number;
+}
+
+/** A threshold breach, firing until the value drops back below it. */
+export interface MetricAlert {
+  id: string;
+  metric: AlertMetric;
+  subject: string | null; // the mountpoint for disk alerts
+  threshold: number;
+  durationSec: number;
+  value: number; // the latest reading
+  peak: number;
+  startedAt: number; // when the breach began, ms since epoch
+  firedAt: number; // when it had lasted long enough to fire
+  resolvedAt: number | null;
+}
+
+/** Response shape for GET /api/alerts */
+export interface AlertsResponse {
+  active: MetricAlert[];
+  recent: MetricAlert[]; // resolved, newest first
+  rules: AlertRule[];
+}

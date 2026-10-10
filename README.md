@@ -48,6 +48,7 @@ version before creating the matching tag.
 
 - Live CPU, memory and disk usage in a compact strip with sparklines
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
+- Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
 - A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
