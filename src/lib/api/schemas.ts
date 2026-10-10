@@ -91,9 +91,67 @@ export type ImportSummary = z.infer<typeof importSummarySchema>;
 
 export const systemInfoSchema = z.object({
   cpuCount: z.number(),
+  cpuModel: z.nullable(z.string()),
   hostname: z.nullable(z.string()),
+  kernel: z.nullable(z.string()),
+  osName: z.nullable(z.string()),
   platform: z.string(),
   uptimeSeconds: z.number(),
 });
 
 export type SystemInfo = z.infer<typeof systemInfoSchema>;
+
+const nullableNumber = z.nullable(z.number());
+
+export const hostSnapshotSchema = z.object({
+  version: z.literal(1),
+  ts: z.number(),
+  intervalMs: nullableNumber,
+  cpu: z.object({
+    usage: nullableNumber,
+    cores: z.array(
+      z.object({ id: z.number(), usage: nullableNumber, frequencyMhz: nullableNumber })
+    ),
+    load: z.nullable(z.object({ one: z.number(), five: z.number(), fifteen: z.number() })),
+    frequencyMhz: nullableNumber,
+    temperatureCelsius: nullableNumber,
+  }),
+  memory: z.nullable(
+    z.object({
+      totalBytes: z.number(),
+      usedBytes: z.number(),
+      availableBytes: z.number(),
+      cachedBytes: nullableNumber,
+      swapTotalBytes: nullableNumber,
+      swapUsedBytes: nullableNumber,
+    })
+  ),
+  temperatures: z.array(
+    z.object({
+      id: z.string(),
+      chip: z.string(),
+      label: z.nullable(z.string()),
+      celsius: z.number(),
+    })
+  ),
+  filesystems: z.array(
+    z.object({
+      mountpoint: z.string(),
+      device: z.string(),
+      type: z.string(),
+      totalBytes: z.number(),
+      usedBytes: z.number(),
+      availableBytes: z.number(),
+    })
+  ),
+  disks: z.array(
+    z.object({
+      name: z.string(),
+      readBytesPerSec: nullableNumber,
+      writeBytesPerSec: nullableNumber,
+    })
+  ),
+  network: z.array(
+    z.object({ name: z.string(), rxBytesPerSec: nullableNumber, txBytesPerSec: nullableNumber })
+  ),
+});

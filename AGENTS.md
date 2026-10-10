@@ -52,6 +52,7 @@ Use this file as a practical handoff for future agents working in this repositor
 - Main environment variables:
   - `ORBITDASH_DATA_DIR`
   - `ORBITDASH_DISK_PATH`
+  - `ORBITDASH_HOST_ROOT` (a read-only mount of the host's `/`; host metrics are read under it)
   - `PORT`
   - `NODE_ENV`
   - `LOG_LEVEL` (`debug` | `info` | `warn` | `error`, default `info`)
@@ -63,6 +64,7 @@ Use this file as a practical handoff for future agents working in this repositor
 - Frontend service management is decomposed across `ServicesSection`, `ServiceDialog`, and smaller helper components/hooks under `src/components/services/`.
 - Shared runtime validation is centralized in `shared/schemas.ts`.
 - Shared multipart service request handling is centralized in `shared/service-form-data.ts` and is consumed by both client and server.
+- The metrics collector lives in `server/host/`. `host-fs.ts` is its only file access; every reader takes file contents or an injected `HostFs`, so tests run on fixture strings (`test-fixtures.ts`). The strip's `MetricSample` (`cpu`, `ram`, `disk`) is derived from the richer, versioned `HostSnapshot` of the same tick; keep its three fields stable and add detail to the snapshot.
 
 ## Important Repo-Specific Gotchas
 

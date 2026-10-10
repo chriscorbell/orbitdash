@@ -1,120 +1,33 @@
-import os from "os";
-import fs from "fs";
-import { execFileSync } from "child_process";
 import { METRICS_RETENTION_SECONDS } from "@shared/server-schemas";
-import type { MetricSample } from "@shared/types";
+import type { HostSnapshot, MetricSample } from "@shared/types";
+import { createHostCollector, diskUsagePercent, toMetricSample } from "./host/collector";
+import { getHostFs, toHostPath, type HostFs } from "./host/host-fs";
+import { writeLog } from "./observability";
 
-/** Collect current system metrics */
-export function collectMetrics(): MetricSample {
-  const cpu = getCpuUsage();
-  const ram = getRamUsage();
-  const disk = getDiskUsage();
-  const ts = Date.now();
-  return { ts, cpu, ram, disk };
+const collector = createHostCollector({ fs: getHostFs() });
+let latestSnapshot: HostSnapshot | null = null;
+
+/**
+ * Disk use of the configured mount (or /), read with statfs. With ORBITDASH_HOST_ROOT set, the
+ * path is a host path read under that root.
+ */
+export function getDiskUsage(
+  mountPath: string = process.env.ORBITDASH_DISK_PATH || "/",
+  hostFs: HostFs = getHostFs()
+): number {
+  return diskUsagePercent(hostFs.statfs(toHostPath(hostFs.root, mountPath)));
 }
 
-/** CPU usage as percentage (0-100) based on /proc/stat or os.cpus() */
-let prevIdle = 0;
-let prevTotal = 0;
-
-function getCpuUsage(): number {
-  try {
-    // Try Linux /proc/stat first (works in Docker)
-    const stat = fs.readFileSync("/proc/stat", "utf-8");
-    const cpuLine = stat.split("\n")[0]; // "cpu  user nice system idle ..."
-    const parts = cpuLine.split(/\s+/).slice(1).map(Number);
-    const idle = parts[3] + (parts[4] || 0); // idle + iowait
-    const total = parts.reduce((a, b) => a + b, 0);
-
-    const diffIdle = idle - prevIdle;
-    const diffTotal = total - prevTotal;
-    prevIdle = idle;
-    prevTotal = total;
-
-    if (diffTotal === 0) return 0;
-    return Math.round(((diffTotal - diffIdle) / diffTotal) * 10000) / 100;
-  } catch {
-    // Fallback: use os.cpus()
-    const cpus = os.cpus();
-    let totalIdle = 0;
-    let totalTick = 0;
-    for (const cpu of cpus) {
-      for (const type in cpu.times) {
-        totalTick += cpu.times[type as keyof typeof cpu.times];
-      }
-      totalIdle += cpu.times.idle;
-    }
-
-    const diffIdle = totalIdle - prevIdle;
-    const diffTotal = totalTick - prevTotal;
-    prevIdle = totalIdle;
-    prevTotal = totalTick;
-
-    if (diffTotal === 0) return 0;
-    return Math.round(((diffTotal - diffIdle) / diffTotal) * 10000) / 100;
-  }
+/** One reading of the host: the full snapshot, and the strip's sample derived from it. */
+function collect(): { sample: MetricSample; snapshot: HostSnapshot } {
+  const snapshot = collector.collect(Date.now());
+  latestSnapshot = snapshot;
+  return { sample: toMetricSample(snapshot, getDiskUsage()), snapshot };
 }
 
-/** RAM usage as percentage */
-function getRamUsage(): number {
-  try {
-    // Use /proc/meminfo for accurate "available" memory (matches btop/htop/free)
-    const meminfo = fs.readFileSync("/proc/meminfo", "utf-8");
-    const getValue = (key: string): number => {
-      const match = meminfo.match(new RegExp(`${key}:\\s+(\\d+)`));
-      return match ? parseInt(match[1], 10) * 1024 : 0; // convert kB to bytes
-    };
-    const total = getValue("MemTotal");
-    const available = getValue("MemAvailable");
-    if (total === 0) throw new Error("Could not read MemTotal");
-    const used = total - available;
-    return Math.round((used / total) * 10000) / 100;
-  } catch {
-    // macOS fallback: use vm_stat to compute available memory the same way
-    // btop/Activity Monitor do (free + inactive + speculative + purgeable pages)
-    try {
-      return getMacRamUsage();
-    } catch {
-      // Last resort: os.freemem counts only truly-free pages and will over-report usage
-      const total = os.totalmem();
-      const free = os.freemem();
-      const used = total - free;
-      return Math.round((used / total) * 10000) / 100;
-    }
-  }
-}
-
-function getMacRamUsage(): number {
-  const vmstat = execFileSync("vm_stat", { encoding: "utf-8" });
-  const pageSize = (() => {
-    const match = vmstat.match(/page size of (\d+) bytes/);
-    return match ? parseInt(match[1], 10) : 4096;
-  })();
-  const getPages = (key: string): number => {
-    const match = vmstat.match(new RegExp(`${key}:\\s+(\\d+)\\.`));
-    return match ? parseInt(match[1], 10) : 0;
-  };
-  const free = getPages("Pages free");
-  const inactive = getPages("Pages inactive");
-  const speculative = getPages("Pages speculative");
-  const purgeable = getPages("Pages purgeable");
-  const total = os.totalmem();
-  const available = (free + inactive + speculative + purgeable) * pageSize;
-  const used = Math.max(0, total - available);
-  return Math.round((used / total) * 10000) / 100;
-}
-
-/** Disk usage as percentage of the configured mount (or root), read with statfs. */
-export function getDiskUsage(mountPath: string = process.env.ORBITDASH_DISK_PATH || "/"): number {
-  try {
-    const stats = fs.statfsSync(mountPath);
-    // Count reserved blocks as used (total - available), matching `df`'s Use% column.
-    if (stats.blocks === 0) return 0;
-    const used = stats.blocks - stats.bavail;
-    return Math.round((used / stats.blocks) * 10000) / 100;
-  } catch {
-    return 0;
-  }
+/** The most recent snapshot, reading the host now if nothing has been collected yet. */
+export function getLatestSnapshot(): HostSnapshot {
+  return latestSnapshot ?? collect().snapshot;
 }
 
 // Samples live in memory only: retention is a minute, so persisting them
@@ -137,15 +50,34 @@ export function getRecentSamples(windowSec: number = 30): MetricSample[] {
   return sampleBuffer.filter((sample) => sample.ts > cutoff);
 }
 
-// SSE subscribers
-type SseCallback = (sample: MetricSample) => void;
-const subscribers = new Set<SseCallback>();
+// Live subscribers: samples feed the strip, snapshots feed the `host` event topic.
+const subscribers = new Set<(sample: MetricSample) => void>();
+const snapshotSubscribers = new Set<(snapshot: HostSnapshot) => void>();
 
-export function subscribe(cb: SseCallback): () => void {
-  subscribers.add(cb);
+function addSubscriber<T>(set: Set<T>, cb: T): () => void {
+  set.add(cb);
   return () => {
-    subscribers.delete(cb);
+    set.delete(cb);
   };
+}
+
+export function subscribe(cb: (sample: MetricSample) => void): () => void {
+  return addSubscriber(subscribers, cb);
+}
+
+export function subscribeSnapshots(cb: (snapshot: HostSnapshot) => void): () => void {
+  return addSubscriber(snapshotSubscribers, cb);
+}
+
+/** Delivers to every subscriber, dropping any that throw. */
+function deliver<T>(set: Set<(value: T) => void>, value: T): void {
+  for (const cb of set) {
+    try {
+      cb(value);
+    } catch {
+      set.delete(cb);
+    }
+  }
 }
 
 /** Sampling cadence while someone watches the live stream, and while nobody does. */
@@ -157,23 +89,18 @@ let lastSampleAt = 0;
 
 /** One collection tick: samples every tick while subscribed, otherwise every 10 seconds. */
 export function tickCollection(now: number = Date.now()): MetricSample | null {
-  const interval = subscribers.size > 0 ? ACTIVE_SAMPLE_INTERVAL_MS : IDLE_SAMPLE_INTERVAL_MS;
+  const watched = subscribers.size > 0 || snapshotSubscribers.size > 0;
+  const interval = watched ? ACTIVE_SAMPLE_INTERVAL_MS : IDLE_SAMPLE_INTERVAL_MS;
   // Small tolerance so a 1s timer that fires a few ms early doesn't skip a sample.
   if (now - lastSampleAt < interval - 50) {
     return null;
   }
 
   lastSampleAt = now;
-  const sample = collectMetrics();
+  const { sample, snapshot } = collect();
   storeSample(sample);
-
-  for (const cb of subscribers) {
-    try {
-      cb(sample);
-    } catch {
-      subscribers.delete(cb);
-    }
-  }
+  deliver(subscribers, sample);
+  deliver(snapshotSubscribers, snapshot);
 
   return sample;
 }
@@ -182,8 +109,13 @@ export function tickCollection(now: number = Date.now()): MetricSample | null {
 export function startCollection(): void {
   if (collectionInterval) return;
 
-  // Take an initial reading to prime the CPU diff counters
-  collectMetrics();
+  const hostFs = getHostFs();
+  if (hostFs.root && hostFs.read("/proc/stat") === null) {
+    writeLog("warn", "metrics.host_root_unreadable", { root: hostFs.root });
+  }
+
+  // Take an initial reading so the first tick already has counters to compute rates against
+  collect();
   lastSampleAt = 0;
 
   collectionInterval = setInterval(() => tickCollection(), ACTIVE_SAMPLE_INTERVAL_MS);
@@ -194,6 +126,7 @@ export function stopCollection(): void {
     clearInterval(collectionInterval);
     collectionInterval = null;
   }
+  lastSampleAt = 0;
 }
 
 export function isCollectionRunning(): boolean {
