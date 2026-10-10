@@ -118,6 +118,42 @@ dependencies and a larger runtime for the handful of rules orbitdash needs. The 
   event so it stays out of the entry chunk; development unregisters any worker a production build
   left on the same origin.
 
+### Optional Authentication
+
+Auth is off by default and configured only through environment variables, read and validated once
+at startup (`server/auth/config.ts`); an invalid setup stops the server before it touches the data
+directory. Settings can't change it, so nobody can switch it off from the dashboard. There are
+three modes: `none`, `password` (one shared password, argon2id through `Bun.password`), and
+`proxy` (a trusted reverse proxy names the user in a header). `ORBITDASH_GUEST=view` adds a
+read-only view for anyone without a session.
+
+- `server/auth/http.ts` holds the `/api/*` middleware, which runs after the same-origin guard. It
+  lets health and the auth routes through, gives guests GET and HEAD (backups excepted), and
+  answers everything else with 401 (or 403 for guests) and the auth state, so the browser knows
+  whether to show sign-in or go read-only. The page and its scripts stay public.
+- Trust decisions use the socket's address (Bun's `server.requestIP`, which `server/index.ts`
+  passes to Hono as env), never `X-Forwarded-For`. Only when the peer is in
+  `ORBITDASH_TRUSTED_PROXIES` do the proxy user header, `X-Forwarded-For` (for the client's address
+  in rate limits and logs) and `X-Forwarded-Proto` (for the cookie's `Secure` flag) count.
+  `server/auth/ip.ts` parses and matches IPv4 and IPv6 CIDRs; IPv4-mapped IPv6 addresses count as
+  IPv4.
+- Password sessions (`server/auth/sessions.ts`) are random 32-byte tokens in an `HttpOnly`,
+  `SameSite=Lax` cookie. The `sessions` table stores a SHA-256 of each token, its expiry, and a
+  fingerprint of the password hash it was created under, so a new password ends older sessions.
+  Expiry slides with use, written at most once an hour. A plain `ORBITDASH_PASSWORD` is hashed into
+  `auth_state` and that hash is reused while the password still matches, so sessions survive
+  restarts; neither table is part of backup exports. Logout deletes the session, and an open event
+  stream checks its session on each keep-alive and closes once it is gone.
+- Login is rate limited per client address in memory (`server/auth/rate-limit.ts`, 5 failures per
+  15 minutes). Each attempt counts before the argon2 check runs, so parallel guesses can't slip
+  past the limit, and an empty password costs the same check as a wrong one.
+- In the browser, `AuthGate` (`src/components/auth/`) asks `GET /api/auth/session` first. The last
+  answer is kept in localStorage so the dashboard renders at once and offline. The sign-in screen
+  is a lazy chunk. The API client hands the auth state of any 401 or 403 to `useAuthSession`, and a
+  dropped event stream triggers a fresh check, so an expired session leads back to sign-in from
+  wherever it was noticed. Guests get the dashboard without add, edit, settings or the service
+  dialogs. Signing out also clears the service worker's cached data.
+
 ### Shared Types And Schemas
 
 Shared TypeScript types define API contracts used on both client and server. Shared runtime schemas

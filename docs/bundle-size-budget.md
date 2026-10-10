@@ -20,12 +20,15 @@ matches, so group priority decides where shared packages land:
 4. `icons`: lucide-react.
 5. `vendor`: everything else in `node_modules` that the first render needs (Radix, Floating UI,
    tailwind-merge). The `$initial` tag keeps packages used only by lazy chunks, like the Select
-   and Tabs primitives, inside those chunks.
+   and Tabs primitives and Radix Toast, inside those chunks.
 
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*` and `pwa-*` (service worker setup, imported after the page has loaded) must never be loaded up front. If React lands in one of them again,
+`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`,
+`SignInScreen-*` (only shown when auth is on), `toaster-*` (loaded with the first toast or once the
+page is idle) and `pwa-*` (service worker setup, imported after the page has loaded) must never be
+loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
@@ -34,10 +37,10 @@ happens.
 
 | Asset group           | Budget raw | Budget gzip | Current baseline                             |
 | --------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`          |      68 kB |       23 kB | about 64 kB raw / 22.1 kB gzip / 19.5 kB br  |
-| `index-*.css`         |      90 kB |       15 kB | about 85 kB raw / 14.0 kB gzip / 11.7 kB br  |
+| `index-*.js`          |      68 kB |       23 kB | about 66 kB raw / 22.7 kB gzip / 20.0 kB br  |
+| `index-*.css`         |      90 kB |       15 kB | about 88 kB raw / 14.3 kB gzip / 12.0 kB br  |
 | `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
-| `vendor-*.js`         |     110 kB |       34 kB | about 96 kB raw / 29.0 kB gzip / 26.0 kB br  |
+| `vendor-*.js`         |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
 | `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
 | `ServiceDialog-*.js`  |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
 | `SettingsDialog-*.js` |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
@@ -45,6 +48,8 @@ happens.
 | `StatsPage-*.js`      |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
 | `CommandPalette-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
 | `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
+| `SignInScreen-*.js`   |       6 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
+| `toaster-*.js`        |      16 kB |        6 kB | about 13 kB raw / 4.7 kB gzip / 4.3 kB br    |
 | `sw.js`               |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
 
 Sizes are in KiB, as printed by the check script.
@@ -67,10 +72,20 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*` or `pwa-*` chunk
+- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`,
+  `StatsPage-*`, `CommandPalette-*`, `SignInScreen-*`, `toaster-*` or `pwa-*` chunk
 
 ## History
 
+- Optional auth added about 1 kB gzip to the entry: the session check that decides between the
+  dashboard and the sign-in screen, the 401 handling in the API client, and the guest read-only
+  state. The sign-in screen itself is the lazy `SignInScreen-*` chunk (about 1.8 kB gzip), loaded
+  only when auth is on and this browser isn't signed in. Instead of raising the entry budget, the
+  toaster moved into a lazy `toaster-*` chunk: toasts only follow an action, so it downloads once
+  the page is idle and mounts with the first toast. That took about 0.6 kB gzip off the entry, and
+  Radix Toast and its dependencies out of `vendor-*`, which fell from about 96 kB / 29 kB to
+  65 kB / 19.6 kB; its budget came down from 110 kB / 34 kB to 75 kB / 23 kB. The first paint went
+  from about 51 kB to 42 kB gzip across the entry and `vendor-*`.
 - The installable app keeps its service worker setup (registration and the stale-chunk reload) out
   of the entry: `main.tsx` imports it after the page's load event, as a `pwa-*` chunk of about
   0.5 kB gzip. The entry only gained that import and the event stream's reconnect refresh, about

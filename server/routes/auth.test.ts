@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, jest } from "bun:test";
+import { afterEach, describe, expect, it, jest, spyOn } from "bun:test";
 import { authSessionSchema } from "@shared/auth-schemas";
 import { app } from "../app";
 import { parseAuthConfig } from "../auth/config";
@@ -450,11 +450,21 @@ describe("proxy mode", () => {
 
   it("ignores the header from anyone but a trusted proxy, whatever X-Forwarded-For says", async () => {
     start(PROXY_ENV);
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
 
     const spoofed = await call("/api/services", {
       headers: { "Remote-User": "chris", "X-Forwarded-For": PROXY_IP },
     });
     expect(spoofed.status).toBe(401);
+    // Logged with the peer address, so a wrong ORBITDASH_TRUSTED_PROXIES is easy to spot.
+    expect(warn.mock.calls.map(([line]) => JSON.parse(String(line)))).toContainEqual(
+      expect.objectContaining({
+        event: "auth.proxy_header_ignored",
+        header: "remote-user",
+        peer: CLIENT_IP,
+      })
+    );
+    warn.mockRestore();
   });
 
   it("keeps the proxy user signed in on logout", async () => {

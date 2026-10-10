@@ -20,21 +20,29 @@ function formatWait(ms: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-/** Milliseconds left until `until`, ticking once a second; null once it has passed. */
-function useCountdown(until: number | null): number | null {
+interface Lock {
+  /** When the lock was set; the clock below may not have ticked since. */
+  setAt: number;
+  until: number;
+}
+
+/** Milliseconds left on the lock, ticking once a second; null once it has passed. */
+function useCountdown(lock: Lock | null): number | null {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (until === null) return;
+    if (lock === null) return;
     const timer = setInterval(() => {
       const current = Date.now();
       setNow(current);
-      if (current >= until) clearInterval(timer);
+      if (current >= lock.until) clearInterval(timer);
     }, 1000);
     return () => clearInterval(timer);
-  }, [until]);
+  }, [lock]);
 
-  return until !== null && until > now ? until - now : null;
+  if (lock === null) return null;
+  const left = lock.until - Math.max(now, lock.setAt);
+  return left > 0 ? left : null;
 }
 
 /** A short head shake for a rejected password; skipped when reduced motion is preferred. */
@@ -53,8 +61,8 @@ function PasswordForm({ onSignedIn }: Pick<SignInScreenProps, "onSignedIn">) {
   const [visible, setVisible] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
-  const wait = useCountdown(lockedUntil);
+  const [lock, setLock] = useState<Lock | null>(null);
+  const wait = useCountdown(lock);
   const locked = wait !== null;
 
   const submit = async (event: FormEvent) => {
@@ -69,7 +77,8 @@ function PasswordForm({ onSignedIn }: Pick<SignInScreenProps, "onSignedIn">) {
       setPending(false);
       shake(fieldRef.current);
       if (caught instanceof ApiError && caught.status === 429) {
-        setLockedUntil(Date.now() + (caught.retryAfterSeconds ?? 60) * 1000);
+        const setAt = Date.now();
+        setLock({ setAt, until: setAt + (caught.retryAfterSeconds ?? 60) * 1000 });
       } else if (caught instanceof ApiError && caught.status === 401) {
         setError("Incorrect password.");
         setPassword("");
@@ -88,6 +97,7 @@ function PasswordForm({ onSignedIn }: Pick<SignInScreenProps, "onSignedIn">) {
       <input
         type="text"
         name="username"
+        aria-label="Username"
         autoComplete="username"
         value="orbitdash"
         readOnly
@@ -120,16 +130,15 @@ function PasswordForm({ onSignedIn }: Pick<SignInScreenProps, "onSignedIn">) {
             {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         </div>
-        {message && (
-          <p
-            id="sign-in-message"
-            role="alert"
-            className="flex animate-in items-center gap-1.5 text-sm text-destructive fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none"
-          >
-            <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
-            <span className="tabular-nums">{message}</span>
-          </p>
-        )}
+        {/* Always there, so a message doesn't push the form around and is announced. */}
+        <p id="sign-in-message" role="alert" className="min-h-5 text-sm text-destructive">
+          {message && (
+            <span className="flex animate-in items-center gap-1.5 fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+              <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
+              <span className="tabular-nums">{message}</span>
+            </span>
+          )}
+        </p>
       </div>
       <Button
         type="submit"

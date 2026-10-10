@@ -95,6 +95,13 @@ When changing server routes or shared validation logic, run both `test:unit` and
 | `NODE_ENV`            | unset in development, `production` for `npm start` | Standard runtime mode flag                                      |
 | `LOG_LEVEL`           | `info`                                             | Minimum log level: `debug`, `info`, `warn` or `error`           |
 
+Authentication has its own variables (`ORBITDASH_AUTH`, `ORBITDASH_PASSWORD`,
+`ORBITDASH_PASSWORD_HASH`, `ORBITDASH_SESSION_DAYS`, `ORBITDASH_GUEST`, `ORBITDASH_PROXY_HEADER`,
+`ORBITDASH_TRUSTED_PROXIES`); see the Authentication section of the [README](README.md). To try it
+locally, run `ORBITDASH_AUTH=password ORBITDASH_PASSWORD=dev npm run dev:server` with
+`npm run dev`. The e2e suite runs a second backend with password auth on port 3002 (and a second
+Vite server on 4174, pointed at it through `ORBITDASH_API_PROXY`) for `e2e/auth.spec.ts`.
+
 ## Architecture Notes
 
 See [docs/architecture.md](docs/architecture.md) for the high-level design choices and the reasons

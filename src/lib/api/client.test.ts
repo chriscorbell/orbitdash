@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { jsonBody, request, requestJson } from "@/lib/api/client";
+import {
+  ApiError,
+  jsonBody,
+  request,
+  requestJson,
+  setAuthChallengeHandler,
+} from "@/lib/api/client";
 import { TAB_ID } from "@/lib/tab-id";
 
 const payloadSchema = z.object({
@@ -54,5 +60,59 @@ describe("api client", () => {
     );
 
     await expect(requestJson("/api/test", {}, "Failed", payloadSchema)).rejects.toThrow();
+  });
+  it("throws an ApiError with the status, the server's message and any Retry-After", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "too many sign-in attempts" }), {
+          status: 429,
+          headers: { "Retry-After": "90" },
+        })
+      )
+    );
+
+    const error = await request("/api/auth/login", { method: "POST" }, "Failed").catch(
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      message: "too many sign-in attempts",
+      retryAfterSeconds: 90,
+      status: 429,
+    });
+  });
+
+  it("falls back to the default message for bodies that aren't JSON errors", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("oops", { status: 502 })));
+
+    await expect(request("/api/test", {}, "Failed")).rejects.toMatchObject({
+      message: "Failed",
+      retryAfterSeconds: null,
+      status: 502,
+    });
+  });
+
+  it("passes the auth state of 401 and 403 replies to the challenge handler", async () => {
+    const handler = vi.fn();
+    setAuthChallengeHandler(handler);
+    const auth = { mode: "password", canEdit: false };
+    const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(reply(401, { error: "sign in required", auth }))
+        .mockResolvedValueOnce(reply(403, { error: "sign in to make changes", auth }))
+        .mockResolvedValueOnce(reply(401, { error: "incorrect password" }))
+        .mockResolvedValueOnce(reply(404, { error: "not found", auth }))
+    );
+
+    for (let call = 0; call < 4; call += 1) {
+      await request("/api/test", {}, "Failed").catch(() => {});
+    }
+
+    expect(handler.mock.calls).toEqual([[auth], [auth]]);
+    setAuthChallengeHandler(null);
   });
 });

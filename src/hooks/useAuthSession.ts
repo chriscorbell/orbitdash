@@ -5,7 +5,7 @@ import { setAuthChallengeHandler } from "@/lib/api/client";
 import { authSessionSchema } from "@/lib/api/schemas";
 import { eventStream } from "@/lib/live/event-stream";
 import { queryKeys } from "@/lib/query-client";
-import type { AuthSession } from "@shared/auth";
+import { accessForSession, type AuthSession } from "@shared/auth";
 
 const CACHE_KEY = "orbitdash.authCache";
 // Long enough to cost nothing, short enough to keep a 30-day sliding session alive.
@@ -28,10 +28,17 @@ function writeCachedSession(session: AuthSession) {
   }
 }
 
-/** After signing in or out: the new auth state, and everything else fetched again as that user. */
+/**
+ * After signing in or out: the new auth state, and everything else fetched again as that user.
+ * When the new state is the sign-in screen, the data is dropped instead, since it can't load.
+ */
 export function applyAuthSession(queryClient: QueryClient, session: AuthSession) {
+  const others = {
+    predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey[0] !== queryKeys.auth[0],
+  };
+  if (accessForSession(session) === "sign-in") queryClient.removeQueries(others);
+  else void queryClient.resetQueries(others);
   queryClient.setQueryData(queryKeys.auth, session);
-  void queryClient.resetQueries({ predicate: (query) => query.queryKey[0] !== queryKeys.auth[0] });
 }
 
 /**
@@ -63,11 +70,12 @@ export function useAuthSession() {
       const parsed = authSessionSchema.safeParse(auth);
       if (parsed.success) queryClient.setQueryData(queryKeys.auth, parsed.data);
     });
+    // A stream refused with 401 (signed out in another tab, session expired) only reports an
+    // error, so check what changed. A check already under way is reused, not repeated.
     const stopListening = eventStream.onConnection((event) => {
-      if (event !== "error") return;
-      queryClient
-        .fetchQuery({ queryKey: queryKeys.auth, queryFn: fetchAuthSession, staleTime: 10_000 })
-        .catch(() => {});
+      if (event === "error") {
+        void queryClient.refetchQueries({ queryKey: queryKeys.auth }, { cancelRefetch: false });
+      }
     });
     return () => {
       setAuthChallengeHandler(null);

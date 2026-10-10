@@ -173,4 +173,36 @@ describe("SettingsDialog", () => {
 
     expect(props.onEditLayout).toHaveBeenCalledTimes(1);
   });
+
+  it("shows who is signed in, with sign-out in password mode", async () => {
+    const user = userEvent.setup();
+    const onSignOut = vi.fn();
+    renderHeader({ account: { mode: "password", user: "admin", onSignOut } });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("With the dashboard password")).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "Sign out" }));
+    expect(onSignOut).toHaveBeenCalled();
+  });
+
+  it("names the proxy's user, and leaves signing out to the proxy", async () => {
+    const user = userEvent.setup();
+    renderHeader({ account: { mode: "proxy", user: "chris@example.com", onSignOut: vi.fn() } });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("chris@example.com")).toBeTruthy();
+    expect(within(dialog).getByText("Through your sign-in proxy")).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: "Sign out" })).toBeNull();
+  });
+
+  it("has no account section with auth off", async () => {
+    const user = userEvent.setup();
+    renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText("Account")).toBeNull();
+  });
 });

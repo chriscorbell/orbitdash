@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { writeLog } from "../observability";
 import { resolveClientIp } from "./ip";
 import {
   describeSession,
@@ -57,7 +58,8 @@ export function isSecureRequest(c: Context): boolean {
 export function setSessionCookie(c: Context, token: string, expiresAt: number, now: number) {
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
-    maxAge: Math.max(0, Math.floor((expiresAt - now) / 1000)),
+    // Rounded: the request may finish a few milliseconds after the expiry was set.
+    maxAge: Math.max(0, Math.round((expiresAt - now) / 1000)),
     path: "/",
     sameSite: "Lax",
     secure: isSecureRequest(c),
@@ -84,13 +86,22 @@ export function identifyRequest(c: Context, { withSession = true } = {}): Reques
   const cached = withSession ? identities.get(c.req.raw) : undefined;
   if (cached) return cached;
 
+  const { mode, proxyHeader, trustedProxies } = getAuthConfig();
+  const peerIp = getPeerIp(c);
+  const proxyUser = c.req.header(proxyHeader);
   const identity = resolveIdentity({
     now: Date.now(),
-    peerIp: getPeerIp(c),
-    proxyUser: c.req.header(getAuthConfig().proxyHeader),
+    peerIp,
+    proxyUser,
     sessionToken: withSession ? readSessionToken(c) : undefined,
   });
   if (withSession) identities.set(c.req.raw, identity);
+
+  // Either someone is trying the header directly, or ORBITDASH_TRUSTED_PROXIES doesn't match the
+  // address the proxy connects from; the peer address in the log tells which.
+  if (mode === "proxy" && proxyUser && !trustedProxies.matches(peerIp)) {
+    writeLog("warn", "auth.proxy_header_ignored", { header: proxyHeader, peer: peerIp });
+  }
   return identity;
 }
 

@@ -3,7 +3,9 @@ import { spawn } from "child_process";
 import path from "path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const dataDir = path.join(repoRoot, ".e2e-data");
+// A second backend (the auth e2e project) runs on another port with its own data.
+const port = process.env.E2E_BACKEND_PORT ?? "3001";
+const dataDir = path.join(repoRoot, port === "3001" ? ".e2e-data" : `.e2e-data-${port}`);
 
 rmSync(dataDir, { force: true, recursive: true });
 mkdirSync(dataDir, { recursive: true });
@@ -14,7 +16,7 @@ const child = spawn(bunExecutable, ["server/index.ts"], {
   env: {
     ...process.env,
     ORBITDASH_DATA_DIR: dataDir,
-    PORT: "3001",
+    PORT: port,
   },
   stdio: "inherit",
 });

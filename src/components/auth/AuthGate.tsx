@@ -44,7 +44,10 @@ export function AuthGate() {
       onSignIn={() => setSigningIn(true)}
       onSignOut={() => {
         signOut().then(
-          (next) => applyAuthSession(queryClient, next),
+          (next) => {
+            void import("@/lib/pwa").then((pwa) => pwa.clearCachedData());
+            applyAuthSession(queryClient, next);
+          },
           (error: unknown) => toastError(error, "Couldn't sign out")
         );
       }}
