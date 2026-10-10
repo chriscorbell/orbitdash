@@ -1,4 +1,6 @@
-import { closeDb, getDataDir, initializeDb, isDbInitialized } from "./db";
+import { parseAuthConfig, type AuthConfig } from "./auth/config";
+import { configureAuth, getAuthConfig, purgeStaleSessions, resetAuth } from "./auth/service";
+import { closeDb, getDataDir, getDb, initializeDb, isDbInitialized } from "./db";
 import { metricHistory, nextFlushDelayMs } from "./history/recorder";
 import { MINUTE_MS } from "./history/rollup";
 import { cancelAllJobs, scheduleJob } from "./jobs";
@@ -10,6 +12,8 @@ import { purgeTrash } from "./services/service-trash";
 import { cleanupOrphanIcons } from "./services/icon-storage";
 
 export interface InitializeServerOptions {
+  /** Auth settings; read from the environment (ORBITDASH_AUTH and friends) when left out. */
+  auth?: AuthConfig;
   cleanupIcons?: boolean;
   dataDir?: string;
   dbPath?: string;
@@ -62,6 +66,21 @@ function startBackgroundJobs() {
     initialDelayMs: 2 * MINUTE_MS,
     intervalMs: HOUR_MS,
   });
+  scheduleJob("purge-sessions", () => void purgeStaleSessions(Date.now()), {
+    initialDelayMs: 3 * MINUTE_MS,
+    intervalMs: HOUR_MS,
+  });
+}
+
+function logAuthMode() {
+  const { guest, mode, proxyHeader, sessionTtlMs, trustedProxies } = getAuthConfig();
+  writeLog("info", "auth.configured", {
+    mode,
+    ...(mode === "none" ? {} : { guest }),
+    ...(mode === "password" ? { sessionDays: sessionTtlMs / (24 * HOUR_MS) } : {}),
+    ...(mode === "proxy" ? { proxyHeader } : {}),
+    ...(trustedProxies.isEmpty ? {} : { trustedProxies: trustedProxies.entries }),
+  });
 }
 
 // Writes the minute in progress so a restart doesn't drop it; the next process merges into it.
@@ -84,6 +103,7 @@ export function shutdown() {
   stopCollection();
   flushMetricHistory();
   closeDb();
+  resetAuth();
   runtimeInitialized = false;
 }
 
@@ -110,10 +130,14 @@ export function initializeServer(options: InitializeServerOptions = {}) {
     return;
   }
 
+  // Read first, so a bad auth setup stops startup before anything touches the data directory.
+  const authConfig = options.auth ?? parseAuthConfig(process.env);
+
   initializeDb({
     dataDir: options.dataDir,
     dbPath: options.dbPath,
   });
+  configureAuth(authConfig, getDb());
 
   if (options.cleanupIcons !== false) {
     runIconCleanup();
@@ -134,6 +158,7 @@ export function initializeServer(options: InitializeServerOptions = {}) {
   if (options.logStartup !== false) {
     console.log(`🚀 orbitdash server starting on port ${options.port ?? 3001}`);
     console.log(`📁 Data directory: ${getDataDir()}`);
+    logAuthMode();
   }
 
   runtimeInitialized = true;

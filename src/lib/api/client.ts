@@ -8,17 +8,33 @@ export interface Parser<T> {
   parse: (data: unknown) => T;
 }
 
-function getErrorMessage(data: unknown): string | null {
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    "error" in data &&
-    typeof data.error === "string"
-  ) {
-    return data.error;
-  }
+/** A failed API call, with its HTTP status and, for 429s, how many seconds to wait. */
+export class ApiError extends Error {
+  readonly retryAfterSeconds: number | null;
+  readonly status: number;
 
-  return null;
+  constructor(message: string, status: number, retryAfterSeconds: number | null = null) {
+    super(message);
+    this.name = "ApiError";
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.status = status;
+  }
+}
+
+let authChallengeHandler: ((auth: unknown) => void) | null = null;
+
+/**
+ * Receives the auth state that 401 and 403 replies carry, so an expired session goes back to the
+ * sign-in screen (or a guest view) from wherever the failing request was made.
+ */
+export function setAuthChallengeHandler(handler: ((auth: unknown) => void) | null) {
+  authChallengeHandler = handler;
+}
+
+function readField(data: unknown, field: string): unknown {
+  return typeof data === "object" && data !== null && field in data
+    ? (data as Record<string, unknown>)[field]
+    : undefined;
 }
 
 async function throwIfNotOk(res: Response, fallbackMessage: string): Promise<void> {
@@ -26,18 +42,25 @@ async function throwIfNotOk(res: Response, fallbackMessage: string): Promise<voi
     return;
   }
 
-  let message = fallbackMessage;
+  let data: unknown = null;
   try {
-    const data = await res.json();
-    const errorMessage = getErrorMessage(data);
-    if (errorMessage) {
-      message = errorMessage;
-    }
+    data = await res.json();
   } catch {
     // Fall back to the default message when the response body is not JSON.
   }
 
-  throw new Error(message);
+  const auth = readField(data, "auth");
+  if ((res.status === 401 || res.status === 403) && auth !== undefined) {
+    authChallengeHandler?.(auth);
+  }
+
+  const error = readField(data, "error");
+  const retryAfter = Number(res.headers.get("retry-after"));
+  throw new ApiError(
+    typeof error === "string" && error ? error : fallbackMessage,
+    res.status,
+    retryAfter > 0 ? retryAfter : null
+  );
 }
 
 export async function request(

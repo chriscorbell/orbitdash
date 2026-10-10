@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
 export const queryKeys = {
+  auth: ["auth"] as const,
   categories: ["categories"] as const,
   services: ["services"] as const,
   settings: (deviceId: string) => ["settings", deviceId] as const,

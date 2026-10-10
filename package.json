@@ -13,6 +13,7 @@
     "typecheck": "tsc -b && tsc -p tsconfig.server.json",
     "prepare": "node scripts/prepare-git-hooks.mjs",
     "start": "NODE_ENV=production bun server/index.ts",
+    "hash-password": "bun server/cli/hash-password.ts",
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

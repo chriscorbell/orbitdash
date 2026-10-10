@@ -34,6 +34,8 @@ interface ServicesSectionProps {
   density: CardDensity;
   mode: BoardMode;
   editing: boolean;
+  /** Guests see the board but nothing that changes it, and the service dialogs never load. */
+  readOnly?: boolean;
   renamingKey: string | null;
   addOpen: boolean;
   onAddOpenChange: (open: boolean) => void;
@@ -60,6 +62,7 @@ export function ServicesSection({
   density,
   mode,
   editing,
+  readOnly = false,
   renamingKey,
   addOpen,
   onAddOpenChange,
@@ -131,7 +134,7 @@ export function ServicesSection({
       />
 
       {!showInitialLoading && !showInitialError && services.length === 0 && groups.length === 0 && (
-        <ServicesEmptyState onAddService={() => onAddOpenChange(true)} />
+        <ServicesEmptyState onAddService={readOnly ? undefined : () => onAddOpenChange(true)} />
       )}
 
       {showBoard &&
@@ -158,51 +161,55 @@ export function ServicesSection({
           services.length > 0 && readOnlyBoard
         ))}
 
-      {/* Add dialog */}
-      <Suspense fallback={null}>
-        <ServiceDialog
-          open={addOpen}
-          onOpenChange={(open) => {
-            onAddOpenChange(open);
-            if (!open) setAddCategory(null);
-          }}
-          categoryOptions={categoryOptions}
-          defaultCategory={addCategory}
-          onSubmit={async (payload, iconFile) => {
-            const created = await onCreate(payload, iconFile);
-            toast({ title: `Added ${created.name}`, tone: "success" });
-          }}
-        />
-      </Suspense>
+      {!readOnly && (
+        <>
+          {/* Add dialog */}
+          <Suspense fallback={null}>
+            <ServiceDialog
+              open={addOpen}
+              onOpenChange={(open) => {
+                onAddOpenChange(open);
+                if (!open) setAddCategory(null);
+              }}
+              categoryOptions={categoryOptions}
+              defaultCategory={addCategory}
+              onSubmit={async (payload, iconFile) => {
+                const created = await onCreate(payload, iconFile);
+                toast({ title: `Added ${created.name}`, tone: "success" });
+              }}
+            />
+          </Suspense>
 
-      {/* Edit dialog */}
-      <Suspense fallback={null}>
-        <ServiceDialog
-          open={editingService !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              setEditingService(null);
-            }
-          }}
-          service={editingService}
-          categoryOptions={categoryOptions}
-          onSubmit={async (payload, iconFile, removeIcon) => {
-            if (!editingService) {
-              return;
-            }
-
-            await onUpdate(editingService.id, payload, iconFile, removeIcon);
-            toast({ title: "Changes saved", tone: "success" });
-          }}
-          onDelete={
-            editingService
-              ? async () => {
-                  await handleDelete(editingService);
+          {/* Edit dialog */}
+          <Suspense fallback={null}>
+            <ServiceDialog
+              open={editingService !== null}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setEditingService(null);
                 }
-              : undefined
-          }
-        />
-      </Suspense>
+              }}
+              service={editingService}
+              categoryOptions={categoryOptions}
+              onSubmit={async (payload, iconFile, removeIcon) => {
+                if (!editingService) {
+                  return;
+                }
+
+                await onUpdate(editingService.id, payload, iconFile, removeIcon);
+                toast({ title: "Changes saved", tone: "success" });
+              }}
+              onDelete={
+                editingService
+                  ? async () => {
+                      await handleDelete(editingService);
+                    }
+                  : undefined
+              }
+            />
+          </Suspense>
+        </>
+      )}
 
       {deleteCategoryTarget && (
         <Suspense fallback={null}>

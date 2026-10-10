@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { parseEventTopics } from "@shared/events";
+import { getSessionRecheck } from "../auth/http";
 import { subscribeEvents } from "../events";
 import { subscribe as subscribeMetrics, subscribeSnapshots } from "../metrics";
 
@@ -14,6 +15,8 @@ export const KEEP_ALIVE_MS = 15_000;
  */
 eventsRouter.get("/", (c) => {
   const topics = parseEventTopics(c.req.query("topics"));
+  // A stream opened with a session closes once that session is signed out or expires.
+  const sessionStillValid = getSessionRecheck(c);
 
   return streamSSE(c, async (stream) => {
     let finish = () => {};
@@ -37,6 +40,10 @@ eventsRouter.get("/", (c) => {
 
     send("ready", { topics });
     const keepAlive = setInterval(() => {
+      if (sessionStillValid && !sessionStillValid()) {
+        finish();
+        return;
+      }
       stream.writeSSE({ event: "ping", data: "" }).catch(finish);
     }, KEEP_ALIVE_MS);
 

@@ -12,7 +12,7 @@ import {
 import { StatsStrip } from "@/components/stats/StatsStrip";
 import { Wallpaper } from "@/components/Wallpaper";
 import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/toaster";
+import { LazyToaster } from "@/components/ui/lazy-toaster";
 import { useCategories } from "@/hooks/useCategories";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLiveQueries } from "@/hooks/useLiveQueries";
@@ -23,6 +23,7 @@ import { useAppliedAppearance } from "@/lib/theme";
 import { navigate, usePathname } from "@/lib/router";
 import { toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { OPEN_AUTH_SESSION, type AuthSession } from "@shared/auth";
 import type { DashboardAppearanceSettings } from "@shared/dashboard-settings";
 import {
   Activity,
@@ -45,8 +46,17 @@ const SettingsDialog = lazy(() =>
   loadSettingsDialog().then((module) => ({ default: module.SettingsDialog }))
 );
 
-function App() {
+interface AppProps {
+  /** What this browser may do; without auth everyone can edit. */
+  auth?: AuthSession;
+  /** Opens the sign-in screen from the read-only (guest) dashboard. */
+  onSignIn?: () => void;
+  onSignOut?: () => void;
+}
+
+function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
   useLiveQueries();
+  const { canEdit } = auth;
   const {
     services,
     loading: servicesLoading,
@@ -86,7 +96,9 @@ function App() {
   const openPalette = (query = "") => setPalette({ mounted: true, open: true, query });
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editingState, setEditing] = useState(false);
+  // Edit mode ends by itself if the session does (for example, signed out in another tab).
+  const editing = editingState && canEdit;
   // The category whose name is being edited in place, e.g. one just created.
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   // Mounted on first open and kept, so closing still plays the exit animation.
@@ -122,7 +134,8 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  const paletteActions: PaletteActionWithIcon[] = [
+  // Guests only get navigation; everything that changes the dashboard needs a sign-in.
+  const editActions: PaletteActionWithIcon[] = [
     {
       id: "add-service",
       label: "Add service",
@@ -144,6 +157,10 @@ function App() {
           },
         ]
       : []),
+  ];
+
+  const paletteActions: PaletteActionWithIcon[] = [
+    ...(canEdit ? editActions : []),
     ...(showStatsPage
       ? [
           page === "stats"
@@ -163,28 +180,32 @@ function App() {
               },
         ]
       : []),
-    {
-      id: "open-settings",
-      label: "Open settings",
-      keywords: "preferences options configure",
-      icon: Settings,
-      run: openSettings,
-    },
-    ...(
-      [
-        ["dark", "Use dark theme", Moon],
-        ["light", "Use light theme", Sun],
-        ["system", "Use system theme", Monitor],
-      ] as const
-    )
-      .filter(([theme]) => theme !== appearance.theme)
-      .map(([theme, label, icon]) => ({
-        id: `theme-${theme}`,
-        label,
-        keywords: "appearance mode color",
-        icon,
-        run: () => updateAppearance({ theme }),
-      })),
+    ...(canEdit
+      ? [
+          {
+            id: "open-settings",
+            label: "Open settings",
+            keywords: "preferences options configure",
+            icon: Settings,
+            run: openSettings,
+          },
+          ...(
+            [
+              ["dark", "Use dark theme", Moon],
+              ["light", "Use light theme", Sun],
+              ["system", "Use system theme", Monitor],
+            ] as const
+          )
+            .filter(([theme]) => theme !== appearance.theme)
+            .map(([theme, label, icon]) => ({
+              id: `theme-${theme}`,
+              label,
+              keywords: "appearance mode color",
+              icon,
+              run: () => updateAppearance({ theme }),
+            })),
+        ]
+      : []),
   ];
 
   const stats = showStats ? <StatsStrip /> : null;
@@ -201,12 +222,14 @@ function App() {
         page={page}
         showStatsPage={showStatsPage}
         editing={editing}
+        canEdit={canEdit}
         canEditLayout={showServices}
         onAddService={() => setAddOpen(true)}
         onDoneEditing={stopEditing}
         onEditLayout={startEditing}
         onNewCategory={addCategory}
         onOpenSettings={openSettings}
+        onSignIn={auth.mode === "password" ? onSignIn : undefined}
         onOpenPalette={() => openPalette()}
         onPreloadPalette={preloadCommandPalette}
       />
@@ -240,6 +263,7 @@ function App() {
               density={density}
               mode={mode}
               editing={editing}
+              readOnly={!canEdit}
               renamingKey={renamingKey}
               addOpen={addOpen}
               onAddOpenChange={setAddOpen}
@@ -257,17 +281,22 @@ function App() {
           {!showServices && !showStats && (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
               <p className="text-sm font-medium">Nothing is shown right now</p>
-              <Button variant="outline" size="sm" onClick={openSettings}>
-                Open settings
-              </Button>
+              {canEdit && (
+                <Button variant="outline" size="sm" onClick={openSettings}>
+                  Open settings
+                </Button>
+              )}
             </div>
           )}
         </main>
       )}
       <Footer />
-      {settingsMounted && (
+      {settingsMounted && canEdit && (
         <Suspense fallback={null}>
           <SettingsDialog
+            account={
+              auth.mode === "none" ? undefined : { mode: auth.mode, user: auth.user, onSignOut }
+            }
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
             appearance={appearance}
@@ -306,7 +335,7 @@ function App() {
           />
         </Suspense>
       )}
-      <Toaster />
+      <LazyToaster />
     </div>
   );
 }
