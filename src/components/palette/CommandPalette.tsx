@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { ServiceIcon } from "@/components/services/ServiceIcon";
 import { getIconUrl } from "@/lib/api/services";
+import { serviceHref, type LinkTarget } from "@/lib/link-target";
 import { hostOf, rankPaletteItems, type PaletteAction, type PaletteItem } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { buildSearchUrl, type DashboardSearchSettings } from "@shared/dashboard-settings";
@@ -17,6 +18,8 @@ interface CommandPaletteProps {
   actions: readonly PaletteActionWithIcon[];
   /** Text typed before the palette opened (type-to-search). */
   initialQuery: string;
+  /** Which URL services open, as on their cards. */
+  linkTarget: LinkTarget;
   open: boolean;
   search: DashboardSearchSettings;
   services: readonly Service[];
@@ -49,6 +52,7 @@ function openUrl(url: string, newTab: boolean) {
 export function CommandPalette({
   actions,
   initialQuery,
+  linkTarget,
   open,
   search,
   services,
@@ -67,6 +71,7 @@ export function CommandPalette({
             <PaletteBody
               actions={actions}
               initialQuery={initialQuery}
+              linkTarget={linkTarget}
               search={search}
               services={services}
               onClose={() => onOpenChange(false)}
@@ -81,6 +86,7 @@ export function CommandPalette({
 function PaletteBody({
   actions,
   initialQuery,
+  linkTarget,
   search,
   services,
   onClose,
@@ -106,7 +112,7 @@ function PaletteBody({
     if (item.kind === "action") {
       item.action.run();
     } else if (item.kind === "service") {
-      const url = normalizeServiceUrl(item.service.url);
+      const url = normalizeServiceUrl(serviceHref(item.service, linkTarget));
       if (url) openUrl(url, newTab || item.service.open_in_new_tab);
     } else {
       openUrl(buildSearchUrl(search, item.query), true);
@@ -192,7 +198,7 @@ function PaletteBody({
                   selected ? "bg-accent text-accent-foreground" : "text-foreground"
                 )}
               >
-                <PaletteItemContent item={item} search={search} />
+                <PaletteItemContent item={item} linkTarget={linkTarget} search={search} />
                 {selected && (
                   <CornerDownLeft
                     aria-hidden="true"
@@ -210,9 +216,11 @@ function PaletteBody({
 
 function PaletteItemContent({
   item,
+  linkTarget,
   search,
 }: {
   item: PaletteItem;
+  linkTarget: LinkTarget;
   search: DashboardSearchSettings;
 }) {
   if (item.kind === "service") {
@@ -226,7 +234,13 @@ function PaletteItemContent({
         />
         <span className="min-w-0 truncate font-medium">{service.name}</span>
         <span className="min-w-0 truncate text-xs text-muted-foreground">
-          {[service.category, hostOf(service.url)].filter(Boolean).join(" · ")}
+          {[
+            ...item.tags.map((tag) => `#${tag}`),
+            service.category,
+            hostOf(serviceHref(service, linkTarget)),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </span>
       </>
     );

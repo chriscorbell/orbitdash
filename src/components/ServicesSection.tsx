@@ -6,6 +6,7 @@ import { useServicesSectionState } from "@/components/services/useServicesSectio
 import { loadEditableBoard } from "@/components/settings/settings-preload";
 import type { UseCategoriesResult } from "@/hooks/useCategories";
 import type { ServiceMove } from "@/lib/board-groups";
+import type { LinkTarget } from "@/lib/link-target";
 import { toast } from "@/lib/toast";
 import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 import type { CreateServicePayload, Service, UpdateServicePayload } from "@shared/types";
@@ -33,6 +34,8 @@ interface ServicesSectionProps {
   error: string | null;
   density: CardDensity;
   mode: BoardMode;
+  /** Which URL cards open when a service has an external one too. */
+  linkTarget: LinkTarget;
   editing: boolean;
   /** Guests see the board but nothing that changes it, and the service dialogs never load. */
   readOnly?: boolean;
@@ -61,6 +64,7 @@ export function ServicesSection({
   error,
   density,
   mode,
+  linkTarget,
   editing,
   readOnly = false,
   renamingKey,
@@ -112,9 +116,9 @@ export function ServicesSection({
   const hasCategories = groups.some((group) => group.categoryId !== null);
   const showBoard = !showInitialLoading && !showInitialError && groups.length > 0;
   const readOnlyBoard = hasCategories ? (
-    <CategorySectionList density={density} groups={groups} mode={mode} />
+    <CategorySectionList density={density} groups={groups} linkTarget={linkTarget} mode={mode} />
   ) : (
-    <ServiceGrid density={density} services={services} />
+    <ServiceGrid density={density} linkTarget={linkTarget} services={services} />
   );
 
   return (
@@ -142,8 +146,10 @@ export function ServicesSection({
           // The read-only board stands in while the editor's code downloads, so nothing jumps.
           <Suspense fallback={readOnlyBoard}>
             <EditableBoard
+              categories={categories.categories}
               density={density}
               groups={groups}
+              linkTarget={linkTarget}
               mode={mode}
               renamingKey={renamingKey}
               onAddService={handleAddToGroup}
@@ -173,6 +179,7 @@ export function ServicesSection({
               }}
               categoryOptions={categoryOptions}
               defaultCategory={addCategory}
+              services={services}
               onSubmit={async (payload, iconFile) => {
                 const created = await onCreate(payload, iconFile);
                 toast({ title: `Added ${created.name}`, tone: "success" });
@@ -191,6 +198,7 @@ export function ServicesSection({
               }}
               service={editingService}
               categoryOptions={categoryOptions}
+              services={services}
               onSubmit={async (payload, iconFile, removeIcon) => {
                 if (!editingService) {
                   return;

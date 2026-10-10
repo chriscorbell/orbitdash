@@ -27,6 +27,9 @@ function service(name: string, extra: Partial<Service> = {}): Service {
     check_target: null,
     check_interval: 60,
     check_ignore_tls: false,
+    external_url: null,
+    links: [],
+    tags: [],
     ...extra,
   };
 }
@@ -58,6 +61,7 @@ function renderPalette(initialQuery = "", search = DEFAULT_DASHBOARD_SETTINGS.se
     <CommandPalette
       open
       initialQuery={initialQuery}
+      linkTarget="internal"
       services={services}
       actions={actions}
       search={search}

@@ -1,4 +1,12 @@
-import { memo, useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import {
   closestCenter,
   DndContext,
@@ -28,14 +36,23 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BoardColumns } from "@/components/board/BoardColumns";
+import { BulkActionBar } from "@/components/board/BulkActionBar";
+import { SelectToggle } from "@/components/board/SelectToggle";
 import { ServiceActionsMenu } from "@/components/board/ServiceActionsMenu";
+import { useBulkServiceActions } from "@/components/board/useBulkServiceActions";
 import { IconButton } from "@/components/common/IconButton";
 import { ServiceCardFace } from "@/components/ServiceCard";
 import { moveItem, type BoardGroup, type ServiceMove } from "@/lib/board-groups";
 import { cardListClassName, estimateCategoryHeight } from "@/lib/board-layout";
+import {
+  groupSelectionState,
+  toggleGroupSelection,
+  toggleSelection,
+} from "@/lib/board-selection";
+import type { LinkTarget } from "@/lib/link-target";
 import { cn } from "@/lib/utils";
 import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
-import type { Service } from "@shared/types";
+import type { Category, Service } from "@shared/types";
 import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 
 const CATEGORY_PREFIX = "category:";
@@ -84,9 +101,25 @@ function findContainer(containers: Containers, id: UniqueIdentifier): string | u
   return Object.keys(containers).find((key) => containers[key].includes(value));
 }
 
+/** The selected cards, and the last one toggled, where a shift-click range starts. */
+interface Selection {
+  anchor: string | null;
+  ids: ReadonlySet<string>;
+}
+
+const NO_SELECTION: Selection = { anchor: null, ids: new Set() };
+
+/** Selection checkboxes show on hover or focus until something is selected, then on every card. */
+const REVEAL_TOGGLE =
+  "opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 pointer-coarse:opacity-100";
+
 export interface EditableBoardProps {
+  /** Every category, empty ones included, for the bulk bar's Move menu. */
+  categories: readonly Category[];
   density: CardDensity;
   groups: readonly BoardGroup[];
+  /** Which URL the card menus open, as on the cards outside edit mode. */
+  linkTarget: LinkTarget;
   mode: BoardMode;
   renamingKey: string | null;
   onAddService: (group: BoardGroup) => void;
@@ -102,12 +135,15 @@ export interface EditableBoardProps {
 
 /**
  * The board in edit mode. Cards drag within and between categories, categories drag by their
- * handle, names edit in place, and every category ends with an add tile. Loaded on demand, so
+ * handle, names edit in place, and every category ends with an add tile. Cards can also be
+ * selected (shift-click for a run, or a whole category) for the bulk bar. Loaded on demand, so
  * dnd-kit only downloads when someone edits.
  */
 export function EditableBoard({
+  categories,
   density,
   groups,
+  linkTarget,
   mode,
   renamingKey,
   onAddService,
@@ -143,6 +179,44 @@ export function EditableBoard({
     () => groups.filter((group) => group.categoryId !== null).map((group) => categoryId(group.key)),
     [groups]
   );
+
+  const [selection, setSelection] = useState<Selection>(NO_SELECTION);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const bulk = useBulkServiceActions();
+  // Board order, for shift-click ranges.
+  const orderedIds = useMemo(
+    () => groups.flatMap((group) => group.services.map((service) => service.id)),
+    [groups]
+  );
+  // Services deleted or moved away elsewhere drop out of the selection by themselves.
+  const selectedIds = useMemo(
+    () => [...selection.ids].filter((id) => servicesById.has(id)),
+    [selection.ids, servicesById]
+  );
+  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selecting = selectedIds.length > 0;
+
+  const toggleService = useCallback(
+    (id: string, range: boolean) =>
+      setSelection((current) => ({
+        anchor: id,
+        ids: toggleSelection(current.ids, id, { anchor: current.anchor, order: orderedIds, range }),
+      })),
+    [orderedIds]
+  );
+  const toggleGroup = useCallback(
+    (ids: string[]) =>
+      setSelection((current) => ({ anchor: null, ids: toggleGroupSelection(current.ids, ids) })),
+    []
+  );
+  const clearSelection = useCallback(() => setSelection(NO_SELECTION), []);
+
+  /** Clears the selection after a bulk action, moving focus off the bar that goes with it. */
+  const finishBulk = async (action: Promise<boolean>) => {
+    if (!(await action)) return;
+    setSelection(NO_SELECTION);
+    boardRef.current?.focus({ preventScroll: true });
+  };
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -336,6 +410,17 @@ export function EditableBoard({
   const activeCategory = drag?.type === "category" ? groupsByKey.get(drag.key) : undefined;
 
   return (
+    <div
+      ref={boardRef}
+      // Takes focus after a bulk action removes the bar, so keyboard users stay on the board.
+      tabIndex={-1}
+      className="outline-none"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && selecting && !drag && !event.defaultPrevented) {
+          clearSelection();
+        }
+      }}
+    >
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetection}
@@ -367,8 +452,11 @@ export function EditableBoard({
               isDropTarget={
                 drag?.type === "category" && drag.overKey === group.key && drag.key !== group.key
               }
+              linkTarget={linkTarget}
               listClassName={cardListClassName(mode, density)}
               renaming={renamingKey === group.key}
+              selected={selected}
+              selecting={selecting}
               serviceIds={containers[group.key] ?? []}
               servicesById={servicesById}
               suppressClickRef={suppressClickRef}
@@ -379,6 +467,8 @@ export function EditableBoard({
               onEditService={onEditService}
               onRenameCategory={onRenameCategory}
               onRenamingKeyChange={onRenamingKeyChange}
+              onToggleGroup={toggleGroup}
+              onToggleService={toggleService}
             />
           )}
         />
@@ -401,6 +491,18 @@ export function EditableBoard({
         ) : null}
       </DragOverlay>
     </DndContext>
+      {selecting && (
+        <BulkActionBar
+          busy={bulk.busy}
+          categories={categories}
+          count={selectedIds.length}
+          onChecks={(change) => void bulk.setChecks(selectedIds, change)}
+          onClear={clearSelection}
+          onDelete={() => void finishBulk(bulk.remove(selectedIds))}
+          onMove={(category) => void finishBulk(bulk.move(selectedIds, category))}
+        />
+      )}
+    </div>
   );
 }
 
@@ -410,8 +512,12 @@ interface EditableCategoryProps {
   density: CardDensity;
   group: BoardGroup;
   isDropTarget: boolean;
+  linkTarget: LinkTarget;
   listClassName: string;
   renaming: boolean;
+  selected: ReadonlySet<string>;
+  /** Something is selected, so every checkbox shows. */
+  selecting: boolean;
   serviceIds: string[];
   servicesById: Map<string, Service>;
   suppressClickRef: React.RefObject<boolean>;
@@ -422,6 +528,8 @@ interface EditableCategoryProps {
   onEditService: (service: Service) => void;
   onRenameCategory: (id: string, name: string) => void;
   onRenamingKeyChange: (key: string | null) => void;
+  onToggleGroup: (ids: string[]) => void;
+  onToggleService: (id: string, range: boolean) => void;
 }
 
 function EditableCategory({
@@ -429,8 +537,11 @@ function EditableCategory({
   density,
   group,
   isDropTarget,
+  linkTarget,
   listClassName,
   renaming,
+  selected,
+  selecting,
   serviceIds,
   servicesById,
   suppressClickRef,
@@ -441,6 +552,8 @@ function EditableCategory({
   onEditService,
   onRenameCategory,
   onRenamingKeyChange,
+  onToggleGroup,
+  onToggleService,
 }: EditableCategoryProps) {
   const isCategory = group.categoryId !== null;
   const { attributes, isDragging, listeners, setActivatorNodeRef, setNodeRef } = useSortable({
@@ -460,7 +573,15 @@ function EditableCategory({
         isDropTarget && "ring-2 ring-brand/60 ring-offset-4 ring-offset-background"
       )}
     >
-      <div className="flex min-h-8 items-center gap-1">
+      <div className="group flex min-h-8 items-center gap-1">
+        {serviceIds.length > 0 && (
+          <SelectToggle
+            checked={groupSelectionState(selected, serviceIds)}
+            label={`Select all in ${group.name}`}
+            className={cn("mr-1", !selecting && REVEAL_TOGGLE)}
+            onToggle={() => onToggleGroup(serviceIds)}
+          />
+        )}
         {isCategory && (
           <button
             ref={setActivatorNodeRef}
@@ -520,11 +641,15 @@ function EditableCategory({
               <SortableService
                 key={id}
                 density={density}
+                linkTarget={linkTarget}
+                selected={selected.has(id)}
+                selecting={selecting}
                 service={service}
                 suppressClickRef={suppressClickRef}
                 onDelete={onDeleteService}
                 onDuplicate={onDuplicateService}
                 onEdit={onEditService}
+                onToggle={onToggleService}
               />
             ) : null;
           })}
@@ -587,20 +712,28 @@ function CategoryNameInput({
 
 interface SortableServiceProps {
   density: CardDensity;
+  linkTarget: LinkTarget;
+  selected: boolean;
+  selecting: boolean;
   service: Service;
   suppressClickRef: React.RefObject<boolean>;
   onDelete: (service: Service) => void;
   onDuplicate: (service: Service) => void;
   onEdit: (service: Service) => void;
+  onToggle: (id: string, range: boolean) => void;
 }
 
 const SortableService = memo(function SortableService({
   density,
+  linkTarget,
+  selected,
+  selecting,
   service,
   suppressClickRef,
   onDelete,
   onDuplicate,
   onEdit,
+  onToggle,
 }: SortableServiceProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: service.id,
@@ -615,30 +748,45 @@ const SortableService = memo(function SortableService({
     listeners?.onKeyDown?.(event);
   };
 
+  // Shift-, Ctrl- or Cmd-click selects instead of opening the editor, as in a file manager.
+  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (suppressClickRef.current) return;
+    if (event.shiftKey || event.metaKey || event.ctrlKey) onToggle(service.id, event.shiftKey);
+    else onEdit(service);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn("group relative", isDragging && "opacity-30")}
     >
+      <SelectToggle
+        checked={selected}
+        label={`Select ${service.name}`}
+        className={cn(
+          "absolute -top-1.5 -left-1.5 z-10",
+          !selecting && !selected && REVEAL_TOGGLE
+        )}
+        onToggle={(range) => onToggle(service.id, range)}
+      />
       <div
         {...attributes}
         {...listeners}
         aria-label={`${service.name}. Press Enter to edit or Space to move.`}
         className="cursor-grab rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
-        onClick={() => {
-          if (!suppressClickRef.current) onEdit(service);
-        }}
+        onClick={handleClick}
         onKeyDown={handleKeyDown}
       >
         <ServiceCardFace
           service={service}
           density={density}
-          className={density === "tiles" ? undefined : "pr-6"}
+          className={cn(density !== "tiles" && "pr-6", selected && "ring-2 ring-brand/60")}
         />
       </div>
       <ServiceActionsMenu
         className={MENU_POSITION[density]}
+        linkTarget={linkTarget}
         service={service}
         onDelete={onDelete}
         onDuplicate={onDuplicate}

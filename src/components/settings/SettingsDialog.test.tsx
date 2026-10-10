@@ -42,6 +42,7 @@ function renderHeader(overrides: Partial<DialogProps> = {}) {
   const props: DialogProps = {
     appearance: DEFAULT_DASHBOARD_SETTINGS.appearance,
     density: "comfortable",
+    linkPreference: "auto",
     mode: "columns",
     search: DEFAULT_DASHBOARD_SETTINGS.search,
     statsPosition: "top",
@@ -53,6 +54,7 @@ function renderHeader(overrides: Partial<DialogProps> = {}) {
     onAppearancePreview: vi.fn(),
     onDensityChange: vi.fn(),
     onEditLayout: vi.fn(),
+    onLinkPreferenceChange: vi.fn(),
     onModeChange: vi.fn(),
     onSearchChange: vi.fn(),
     onStatsPositionChange: vi.fn(),

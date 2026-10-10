@@ -18,11 +18,13 @@ import { WebSearchSettings } from "@/components/settings/WebSearchSettings";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import { DashboardImportSettings } from "@/components/settings/DashboardImportSettings";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
+import { resolveLinkTarget } from "@/lib/link-target";
 import type {
   BoardMode,
   CardDensity,
   DashboardAppearanceSettings,
   DashboardSearchSettings,
+  LinkPreference,
   StatsPosition,
 } from "@shared/dashboard-settings";
 import {
@@ -48,6 +50,7 @@ interface SettingsDialogProps {
   account?: SettingsAccount;
   appearance: DashboardAppearanceSettings;
   density: CardDensity;
+  linkPreference: LinkPreference;
   mode: BoardMode;
   open: boolean;
   search: DashboardSearchSettings;
@@ -62,6 +65,7 @@ interface SettingsDialogProps {
   onAppearancePreview: (appearance: Partial<DashboardAppearanceSettings> | null) => void;
   onDensityChange: (density: CardDensity) => void;
   onEditLayout: () => void;
+  onLinkPreferenceChange: (preference: LinkPreference) => void;
   onModeChange: (mode: BoardMode) => void;
   onSearchChange: (search: Partial<DashboardSearchSettings>) => void;
   onOpenChange: (open: boolean) => void;
@@ -201,6 +205,12 @@ const STATS_POSITION_OPTIONS: readonly ChoiceOption<StatsPosition>[] = [
   { value: "bottom", label: "Below services" },
 ];
 
+const LINK_PREFERENCE_OPTIONS: readonly ChoiceOption<LinkPreference>[] = [
+  { value: "auto", label: "Auto" },
+  { value: "internal", label: "Internal" },
+  { value: "external", label: "External" },
+];
+
 function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
   return <h3 className="text-muted-foreground text-xs font-medium">{children}</h3>;
 }
@@ -238,6 +248,7 @@ export function SettingsDialog({
   account,
   appearance,
   density,
+  linkPreference,
   mode,
   open,
   search,
@@ -251,6 +262,7 @@ export function SettingsDialog({
   onAppearancePreview,
   onDensityChange,
   onEditLayout,
+  onLinkPreferenceChange,
   onModeChange,
   onSearchChange,
   onOpenChange,
@@ -362,6 +374,14 @@ export function SettingsDialog({
                 options={DENSITY_OPTIONS}
                 value={density}
                 onChange={onDensityChange}
+              />
+              <SettingsChoiceRow
+                id="link-preference"
+                title="Service links"
+                description={`Which URL opens for services with an external one. Auto uses ${resolveLinkTarget("auto", window.location.hostname)} on this address.`}
+                options={LINK_PREFERENCE_OPTIONS}
+                value={linkPreference}
+                onChange={onLinkPreferenceChange}
               />
               <SettingsChoiceRow
                 id="stats-position"

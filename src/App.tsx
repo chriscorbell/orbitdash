@@ -19,6 +19,7 @@ import { useLiveQueries } from "@/hooks/useLiveQueries";
 import { usePaletteShortcuts } from "@/hooks/usePaletteShortcuts";
 import { useServices } from "@/hooks/useServices";
 import { uniqueCategoryName } from "@/lib/board-groups";
+import { resolveLinkTarget } from "@/lib/link-target";
 import { useAppliedAppearance } from "@/lib/theme";
 import { navigate, usePathname } from "@/lib/router";
 import { toastError } from "@/lib/toast";
@@ -87,7 +88,9 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     [appearancePreview, settings.appearance]
   );
   useAppliedAppearance(appearance);
-  const { density, mode, statsPosition, showServices, showStats, showStatsPage } = settings.layout;
+  const { density, linkPreference, mode, statsPosition, showServices, showStats, showStatsPage } =
+    settings.layout;
+  const linkTarget = resolveLinkTarget(linkPreference, window.location.hostname);
   const pathname = usePathname();
   const page = showStatsPage && pathname === "/stats" ? "stats" : "services";
 
@@ -262,6 +265,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
               error={servicesError}
               density={density}
               mode={mode}
+              linkTarget={linkTarget}
               editing={editing}
               readOnly={!canEdit}
               renamingKey={renamingKey}
@@ -301,6 +305,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             onOpenChange={setSettingsOpen}
             appearance={appearance}
             density={density}
+            linkPreference={linkPreference}
             mode={mode}
             statsPosition={statsPosition}
             settingsError={settingsError}
@@ -311,6 +316,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             onAppearancePreview={setAppearancePreview}
             onDensityChange={(value) => updateLayout({ density: value })}
             onEditLayout={startEditing}
+            onLinkPreferenceChange={(value) => updateLayout({ linkPreference: value })}
             search={settings.search}
             onSearchChange={updateSearch}
             onModeChange={(value) => updateLayout({ mode: value })}
@@ -329,6 +335,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             open={palette.open}
             initialQuery={palette.query}
             services={services}
+            linkTarget={linkTarget}
             actions={paletteActions}
             search={settings.search}
             onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}

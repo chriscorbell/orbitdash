@@ -43,6 +43,9 @@ const existingService: Service = {
   check_target: null,
   check_interval: 60,
   check_ignore_tls: false,
+  external_url: null,
+  links: [],
+  tags: [],
 };
 
 beforeEach(() => {

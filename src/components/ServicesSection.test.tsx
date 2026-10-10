@@ -115,6 +115,9 @@ const baseService: Service = {
   check_target: null,
   check_interval: 60,
   check_ignore_tls: false,
+  external_url: null,
+  links: [],
+  tags: [],
 };
 
 function renderServicesSection(
@@ -130,6 +133,7 @@ function renderServicesSection(
         error={null}
         density="comfortable"
         mode="columns"
+        linkTarget="internal"
         editing={false}
         renamingKey={null}
         addOpen={false}

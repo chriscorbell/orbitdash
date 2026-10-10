@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ServiceCategoryField } from "@/components/services/ServiceCategoryField";
 import { ServiceDialogActions } from "@/components/services/ServiceDialogActions";
 import { ServiceIconField } from "@/components/services/ServiceIconField";
+import { ServiceLinksField } from "@/components/services/ServiceLinksField";
 import { ServiceStatusCheckField } from "@/components/services/ServiceStatusCheckField";
+import { ServiceTagsField } from "@/components/services/ServiceTagsField";
 import {
   isServiceDialogSubmittable,
   prepareServicePayload,
@@ -30,6 +32,8 @@ interface ServiceDialogProps {
   defaultCategory?: string | null;
   onSubmit: (payload: CreateServicePayload, iconFile?: File, removeIcon?: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
+  /** Every service, for suggesting the tags already in use. */
+  services?: readonly Service[];
 }
 
 type ServiceDialogBodyProps = Omit<ServiceDialogProps, "open">;
@@ -41,8 +45,13 @@ function ServiceDialogBody({
   defaultCategory,
   onSubmit,
   onDelete,
+  services = [],
 }: ServiceDialogBodyProps) {
   const isEdit = !!service;
+  const tagSuggestions = useMemo(
+    () => [...new Set(services.flatMap((entry) => entry.tags))].sort(),
+    [services]
+  );
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -56,10 +65,13 @@ function ServiceDialogBody({
     handleRemoveIcon,
     setCheck,
     setDescription,
+    setExternalUrl,
+    setLinks,
     setName,
     setNewCategory,
     setOpenInNewTab,
     setSelectedCategory,
+    setTags,
     setUrl,
     storedIconSourceUrl,
   } = useServiceDialogState({
@@ -75,13 +87,17 @@ function ServiceDialogBody({
     checkMethod,
     checkTarget,
     description,
+    externalUrl,
     iconPreview,
     iconUrl,
+    links,
     name,
     newCategory,
     openInNewTab,
     removeIcon,
     selectedCategory,
+    tagDraft,
+    tags,
     url,
   } = formState;
   const canSubmit = isServiceDialogSubmittable(formState);
@@ -183,6 +199,26 @@ function ServiceDialogBody({
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor={fieldIds.externalUrlInputId} className="font-semibold">
+            External URL
+          </Label>
+          <Input
+            id={fieldIds.externalUrlInputId}
+            name="externalUrl"
+            autoComplete="off"
+            spellCheck={false}
+            aria-describedby={`${fieldIds.externalUrlInputId}-hint`}
+            value={externalUrl}
+            onChange={(event) => setExternalUrl(event.target.value)}
+            placeholder="https://jellyfin.example.com"
+            className="font-normal"
+          />
+          <p id={`${fieldIds.externalUrlInputId}-hint`} className="text-xs text-muted-foreground">
+            Opens instead of the URL when this dashboard is reached from outside your network.
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor={fieldIds.descriptionInputId} className="font-semibold">
             Description
           </Label>
@@ -208,6 +244,14 @@ function ServiceDialogBody({
           selectedCategory={selectedCategory}
         />
 
+        <ServiceTagsField
+          draft={tagDraft}
+          inputId={fieldIds.tagsInputId}
+          suggestions={tagSuggestions}
+          tags={tags}
+          onChange={setTags}
+        />
+
         <ServiceIconField
           fileInputId={fieldIds.iconFileInputId}
           fileInputRef={fileInputRef}
@@ -220,6 +264,8 @@ function ServiceDialogBody({
           onRemoveIcon={handleRemoveIcon}
           serviceName={name}
         />
+
+        <ServiceLinksField links={links} onChange={setLinks} />
 
         <ServiceStatusCheckField
           fieldIds={fieldIds}
@@ -251,6 +297,7 @@ export function ServiceDialog({
   defaultCategory,
   onSubmit,
   onDelete,
+  services,
 }: ServiceDialogProps) {
   const dialogStateKey = `${service?.id ?? "new"}:${defaultCategory ?? ""}:${categoryOptions.join("|")}`;
 
@@ -265,6 +312,7 @@ export function ServiceDialog({
           defaultCategory={defaultCategory}
           onSubmit={onSubmit}
           onDelete={onDelete}
+          services={services}
         />
       ) : null}
     </Dialog>
