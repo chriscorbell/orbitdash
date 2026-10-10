@@ -8,7 +8,13 @@ import {
   type DockerClient,
   type DockerEndpoint,
 } from "./client";
-import { cpuPercent, parseContainer, parseStats, type CpuSample } from "./containers";
+import {
+  cpuPercent,
+  discoveryLabels,
+  parseContainer,
+  parseStats,
+  type CpuSample,
+} from "./containers";
 
 const LIST_INTERVAL_MS = 30_000;
 const STATS_INTERVAL_MS = 15_000;
@@ -58,6 +64,7 @@ export function createDockerMonitor({
     updatedAt: null,
   };
   const stats = new Map<string, Stats>();
+  const labels = new Map<string, Record<string, string>>();
   const cpuSamples = new Map<string, CpuSample>();
   let running = false;
   let lifecycle = new AbortController();
@@ -90,10 +97,16 @@ export function createDockerMonitor({
     if (!client) return;
     try {
       const list = await client.getJson("/containers/json?all=1", lifecycle.signal);
-      const containers = (Array.isArray(list) ? list : [])
+      const entries = Array.isArray(list) ? list : [];
+      const containers = entries
         .map(parseContainer)
         .filter((entry) => entry !== null)
         .sort((a, b) => a.name.localeCompare(b.name));
+      labels.clear();
+      for (const entry of entries) {
+        const parsed = parseContainer(entry);
+        if (parsed) labels.set(parsed.id, discoveryLabels(entry));
+      }
       const ids = new Set(containers.map((container) => container.id));
       for (const id of [...stats.keys()]) if (!ids.has(id)) stats.delete(id);
       for (const id of [...cpuSamples.keys()]) if (!ids.has(id)) cpuSamples.delete(id);
@@ -210,6 +223,12 @@ export function createDockerMonitor({
       debounce = null;
     },
     snapshot: () => snapshot,
+    /** Each container with the labels discovery reads. */
+    labeled: () =>
+      snapshot.containers.map((container) => ({
+        container,
+        labels: labels.get(container.id) ?? {},
+      })),
     /** For tests: run the periodic work now. */
     refreshForTesting: async () => {
       await refresh();

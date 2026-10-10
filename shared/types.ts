@@ -519,3 +519,24 @@ export interface IntegrationReading {
   error: string | null;
   updatedAt: number;
 }
+
+/** A running container that could become a service, from GET /api/discovery. */
+export interface DiscoverySuggestion {
+  /** The container's name, which stays the same when compose recreates it. */
+  key: string;
+  name: string;
+  /** A link from the container's labels. */
+  url: string | null;
+  /** Otherwise its published web port; the browser links it on the host it was opened from. */
+  port: number | null;
+  iconUrl: string | null;
+  category: string | null;
+  description: string | null;
+  source: "labels" | "port";
+}
+
+export interface DiscoveryResponse {
+  suggestions: DiscoverySuggestion[];
+  /** How many were dismissed, so they can be brought back. */
+  dismissed: number;
+}

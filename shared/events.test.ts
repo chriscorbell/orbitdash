@@ -41,6 +41,7 @@ describe("configScopeForMutation", () => {
     expect(configScopeForMutation("/api/settings/devices/abc")).toBe("settings");
     expect(configScopeForMutation("/api/backup/import")).toBe("all");
     expect(configScopeForMutation("/api/integrations/services/abc")).toBe("settings");
+    expect(configScopeForMutation("/api/discovery/dismiss")).toBe("settings");
     expect(configScopeForMutation("/api/widgets/agenda/feeds/abc")).toBe("settings");
     expect(configScopeForMutation("/api/widgets/weather")).toBeNull();
     expect(configScopeForMutation("/api/import/apply")).toBe("layout");

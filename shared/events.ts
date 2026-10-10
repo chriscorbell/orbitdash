@@ -111,7 +111,11 @@ export function configScopeForMutation(path: string): ConfigScope | null {
   if (path.startsWith("/api/backup")) return null;
   if (path.startsWith("/api/settings/category-order")) return "layout";
   if (path.startsWith("/api/settings") || path.startsWith("/api/alerts")) return "settings";
-  if (path.startsWith("/api/widgets/agenda/feeds") || path.startsWith("/api/integrations")) {
+  if (
+    path.startsWith("/api/widgets/agenda/feeds") ||
+    path.startsWith("/api/discovery") ||
+    path.startsWith("/api/integrations")
+  ) {
     return "settings";
   }
   if (path.startsWith("/api/services") || path.startsWith("/api/categories")) return "layout";

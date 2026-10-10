@@ -15,6 +15,8 @@ import * as miniTools from "@/lib/api/service-tools";
 import * as miniWidgets from "@/lib/api/widgets";
 import * as fullStatus from "@shared/status-schemas";
 import * as miniStatus from "@/lib/api/status";
+import * as miniDocker from "@/lib/api/docker";
+import * as miniDiscovery from "@/lib/api/discovery";
 
 const serviceStatus = {
   id: "svc",
@@ -235,6 +237,55 @@ const pairs = [
     invalid: [
       { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
     ],
+  },
+  {
+    name: "docker snapshot",
+    mini: miniDocker.dockerSnapshotSchema,
+    full: fullHost.dockerSnapshotSchema,
+    valid: {
+      configured: true,
+      available: true,
+      error: null,
+      containers: [
+        {
+          id: "abc",
+          name: "web",
+          image: "nginx",
+          state: "exited",
+          status: "Exited (0) 1 hour ago",
+          health: "unhealthy",
+          createdAt: 1,
+          ports: [{ privatePort: 53, publicPort: 53, protocol: "udp" }],
+          composeProject: "media",
+          cpuPercent: null,
+          memoryBytes: null,
+          memoryLimitBytes: null,
+        },
+      ],
+      updatedAt: null,
+    },
+    invalid: [{ configured: true, available: "yes", error: null, containers: [], updatedAt: null }],
+  },
+  {
+    name: "discovery",
+    mini: miniDiscovery.discoveryResponseSchema,
+    full: fullHost.discoveryResponseSchema,
+    valid: {
+      suggestions: [
+        {
+          key: "web",
+          name: "Web",
+          url: "http://web.lan/",
+          port: null,
+          iconUrl: "https://cdn/x.svg",
+          category: "Infra",
+          description: "Front door",
+          source: "labels",
+        },
+      ],
+      dismissed: 2,
+    },
+    invalid: [{ suggestions: [], dismissed: "2" }],
   },
   {
     name: "service inspection",
