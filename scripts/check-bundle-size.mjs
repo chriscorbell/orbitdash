@@ -71,6 +71,8 @@ const budgets = [
     maxRawKb: 48,
     maxGzipKb: 16,
   },
+  // Not part of the page; the browser fetches it on its own and checks it for updates.
+  { label: "service worker", file: "sw.js", maxRawKb: 8, maxGzipKb: 3 },
 ];
 
 // Chunks that must only load on demand. If index.html references one, the
@@ -81,13 +83,23 @@ const lazyOnlyPrefixes = [
   "EditableBoard-",
   "StatsPage-",
   "CommandPalette-",
+  // Service worker setup, loaded after the page has.
+  "pwa-",
 ];
 
 function formatKb(bytes) {
   return `${(bytes / 1024).toFixed(2)} kB`;
 }
 
-function findAsset(prefix, extension) {
+function findAsset({ file, prefix, extension }) {
+  if (file) {
+    const filePath = path.join(distDir, file);
+    if (!existsSync(filePath)) {
+      throw new Error(`Could not find built file ${file}`);
+    }
+    return filePath;
+  }
+
   const files = readdirSync(distAssetsDir);
   const fileName = files.find((file) => file.startsWith(prefix) && file.endsWith(extension));
 
@@ -124,7 +136,7 @@ function main() {
   console.log("Bundle size report:");
 
   for (const budget of budgets) {
-    const assetPath = findAsset(budget.prefix, budget.extension);
+    const assetPath = findAsset(budget);
     const { rawBytes, gzipBytes, brotliBytes } = measureAsset(assetPath);
     const rawLimitBytes = budget.maxRawKb * 1024;
     const gzipLimitBytes = budget.maxGzipKb * 1024;

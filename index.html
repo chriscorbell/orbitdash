@@ -5,7 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="/orbitdash.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0e1116" />
+    <meta name="theme-color" content="#0a0c10" />
     <script>
       // Apply the saved theme, title and custom CSS before first paint so nothing flashes.
       (function () {
@@ -33,6 +33,13 @@
       })();
     </script>
     <title>orbitdash</title>
+    <!-- Installable app. use-credentials lets the manifest load behind an auth proxy. -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="orbitdash" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   </head>
   <body>
     <div id="root"></div>
