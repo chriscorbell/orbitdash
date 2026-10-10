@@ -1,7 +1,10 @@
-import type { MetricSample } from "./types";
+import type { HostSnapshot, MetricSample } from "./types";
 
-/** Topics a client can subscribe to on GET /api/events?topics=... */
-export const EVENT_TOPICS = ["metrics", "config"] as const;
+/**
+ * Topics a client can subscribe to on GET /api/events?topics=... `metrics` carries the small
+ * per-tick sample; `host` carries the full HostSnapshot from the same tick, for views that need it.
+ */
+export const EVENT_TOPICS = ["metrics", "config", "host"] as const;
 export type EventTopic = (typeof EVENT_TOPICS)[number];
 
 /** What a config change touched, so clients refetch only what they need. */
@@ -12,6 +15,11 @@ export interface MetricsEvent {
   type: "metrics";
 }
 
+export interface HostEvent {
+  snapshot: HostSnapshot;
+  type: "host";
+}
+
 export interface ConfigChangedEvent {
   /** The tab that made the change, so it can ignore its own echo. */
   origin: string | null;
@@ -19,10 +27,11 @@ export interface ConfigChangedEvent {
   type: "config.changed";
 }
 
-export type ServerEvent = ConfigChangedEvent | MetricsEvent;
+export type ServerEvent = ConfigChangedEvent | HostEvent | MetricsEvent;
 
 export const TOPIC_BY_EVENT_TYPE: Record<ServerEvent["type"], EventTopic> = {
   "config.changed": "config",
+  host: "host",
   metrics: "metrics",
 };
 

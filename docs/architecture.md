@@ -22,13 +22,37 @@ and repeatable instead of relying on one large startup-only schema block.
 ### One Event Stream
 
 The server pushes live data over a single server-sent event stream, `GET /api/events`, filtered by
-topic (`metrics`, `config`). SSE fits because updates only flow one way. Every successful mutation
-publishes a `config.changed` event naming what changed (`layout`, `settings`, or `all`) and the tab
-that made it, so other tabs and devices refresh without a reload and the originating tab can ignore
-its own echo. In the browser, `src/lib/live/event-stream.ts` keeps one connection per tab that
-subscribes to exactly the topics with listeners and closes while the tab is hidden; metrics
-sampling on the server speeds up to once a second only while some stream includes `metrics`. The
-older `/api/metrics/stream` endpoint remains for compatibility.
+topic (`metrics`, `host`, `config`). SSE fits because updates only flow one way. Every successful
+mutation publishes a `config.changed` event naming what changed (`layout`, `settings`, or `all`)
+and the tab that made it, so other tabs and devices refresh without a reload and the originating
+tab can ignore its own echo. In the browser, `src/lib/live/event-stream.ts` keeps one connection
+per tab that subscribes to exactly the topics with listeners and closes while the tab is hidden;
+metrics sampling on the server speeds up to once a second only while some stream includes
+`metrics` or `host`. The older `/api/metrics/stream` endpoint remains for compatibility.
+
+### Host Metrics
+
+The collector in `server/host/` reads `/proc` and `/sys` directly, so it needs no agent, no child
+processes on Linux, and no privileges. It is layered so almost all of it is pure:
+
+- `host-fs.ts` is the only code that touches the filesystem. A `HostFs` reads host paths, and with
+  `ORBITDASH_HOST_ROOT` set it reads them under that root, so a container with the host's `/`
+  mounted read-only sees the host. Unreadable files come back as null, never as exceptions.
+- `procfs.ts` and `sysfs.ts` parse file contents and decide which filesystems, disks and network
+  interfaces count as real. Tests feed them fixture strings or a fake `HostFs`.
+- `collector.ts` keeps the previous reading's counters and turns them into CPU usage and disk and
+  network rates. A rate is null for the first reading and when a counter goes backwards. Where
+  `/proc` is missing (macOS, restricted containers) it falls back to Node's `os` figures for CPU,
+  load and memory and leaves the rest empty. Temperatures are re-read at most every 5 seconds,
+  because some sensors (NVMe drives) are slow to answer.
+
+Each tick produces one versioned `HostSnapshot` (per-core CPU, load, frequency, temperatures,
+memory, filesystems, disk I/O, network) and derives the small `MetricSample` (`cpu`, `ram`, `disk`
+percentages) from it. Samples keep feeding the live strip through `/api/metrics` and the `metrics`
+topic; the snapshot is served separately by `GET /api/metrics/host` and the `host` topic, so the
+per-second payload only grows for views that ask for the detail. Some host facts depend on the
+reader's namespace: `/proc/net` and `/proc/self/mounts` describe the container, so the collector
+reads PID 1's (`/proc/1/net/dev`, `/proc/1/mounts`), which are the host's through a host root.
 
 ### Shared Types And Schemas
 

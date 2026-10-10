@@ -1,9 +1,21 @@
 import { buildApiUrl } from "@/lib/api/client";
-import type { ConfigChangedEvent, EventTopic, MetricsEvent, ServerEvent } from "@shared/events";
+import type {
+  ConfigChangedEvent,
+  EventTopic,
+  HostEvent,
+  MetricsEvent,
+  ServerEvent,
+} from "@shared/events";
 
 export type ConnectionEvent = "open" | "error" | "resumed";
 
-type EventForTopic<T extends EventTopic> = T extends "metrics" ? MetricsEvent : ConfigChangedEvent;
+interface EventsByTopic {
+  config: ConfigChangedEvent;
+  host: HostEvent;
+  metrics: MetricsEvent;
+}
+
+type EventForTopic<T extends EventTopic> = EventsByTopic[T];
 
 interface EventSourceLike {
   addEventListener(type: string, listener: (event: MessageEvent<string>) => void): void;
@@ -28,6 +40,7 @@ export interface EventStream {
 
 const EVENT_TYPES: Record<EventTopic, ServerEvent["type"]> = {
   config: "config.changed",
+  host: "host",
   metrics: "metrics",
 };
 

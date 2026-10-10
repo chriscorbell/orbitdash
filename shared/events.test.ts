@@ -12,6 +12,7 @@ describe("parseEventTopics", () => {
   it("keeps known topics once, in the order given", () => {
     expect(parseEventTopics("config")).toEqual(["config"]);
     expect(parseEventTopics(" config , metrics,config,nope")).toEqual(["config", "metrics"]);
+    expect(parseEventTopics("host,metrics")).toEqual(["host", "metrics"]);
   });
 });
 

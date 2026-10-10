@@ -2,15 +2,15 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { parseEventTopics } from "@shared/events";
 import { subscribeEvents } from "../events";
-import { subscribe as subscribeMetrics } from "../metrics";
+import { subscribe as subscribeMetrics, subscribeSnapshots } from "../metrics";
 
 const eventsRouter = new Hono();
 
 export const KEEP_ALIVE_MS = 15_000;
 
 /**
- * GET /api/events?topics=metrics,config — one SSE stream per tab. The metrics collector only
- * samples every second while some stream includes the metrics topic.
+ * GET /api/events?topics=metrics,config,host — one SSE stream per tab. The metrics collector only
+ * samples every second while some stream includes the metrics or host topic.
  */
 eventsRouter.get("/", (c) => {
   const topics = parseEventTopics(c.req.query("topics"));
@@ -29,6 +29,9 @@ eventsRouter.get("/", (c) => {
       subscribeEvents(topics, (event) => send(event.type, event)),
       ...(topics.includes("metrics")
         ? [subscribeMetrics((sample) => send("metrics", { type: "metrics", sample }))]
+        : []),
+      ...(topics.includes("host")
+        ? [subscribeSnapshots((snapshot) => send("host", { type: "host", snapshot }))]
         : []),
     ];
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { getRecentSamples, subscribe } from "../metrics";
+import { getLatestSnapshot, getRecentSamples, subscribe } from "../metrics";
 import { jsonError } from "../api-response";
 import { getValidationMessage, metricsQuerySchema } from "@shared/server-schemas";
 
@@ -16,6 +16,12 @@ metricsRouter.get("/", (c) => {
 
   const samples = getRecentSamples(result.data.window);
   return c.json({ samples });
+});
+
+/** GET /api/metrics/host — the latest full HostSnapshot; live ones arrive on the `host` topic. */
+metricsRouter.get("/host", (c) => {
+  c.header("Cache-Control", "no-store");
+  return c.json(getLatestSnapshot());
 });
 
 /** GET /api/metrics/stream — SSE endpoint */
