@@ -6,6 +6,7 @@ import * as mini from "@/lib/api/schemas";
 import * as full from "@shared/schemas";
 import { dashboardSettingsResponseSchema as fullSettings } from "@shared/dashboard-settings-schemas";
 import * as fullHost from "@shared/host-schemas";
+import { authSessionSchema as fullAuthSession } from "@shared/auth-schemas";
 import * as fullImport from "@shared/import-schemas";
 import * as fullStatus from "@shared/status-schemas";
 import * as miniStatus from "@/lib/api/status";
@@ -135,8 +136,28 @@ const settings = {
   search: { engine: "custom", customUrl: "https://searx.example.com/?q=%s" },
 };
 
+const authSession = {
+  authenticated: true,
+  canEdit: true,
+  guest: "view",
+  mode: "proxy",
+  user: "chris@example.com",
+};
+
 /** Each pair must agree: the browser's zod/mini schema and the shared full-zod schema. */
 const pairs = [
+  {
+    name: "auth session",
+    mini: mini.authSessionSchema,
+    full: fullAuthSession,
+    valid: authSession,
+    invalid: [
+      { ...authSession, mode: "basic" },
+      { ...authSession, guest: "edit" },
+      { ...authSession, user: undefined },
+      { ...authSession, canEdit: "yes" },
+    ],
+  },
   {
     name: "service",
     mini: mini.serviceSchema,

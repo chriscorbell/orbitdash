@@ -129,3 +129,11 @@ export const systemInfoSchema = z.object({
 });
 
 export type SystemInfo = z.infer<typeof systemInfoSchema>;
+
+export const authSessionSchema = z.object({
+  authenticated: z.boolean(),
+  canEdit: z.boolean(),
+  guest: z.enum(["none", "view"]),
+  mode: z.enum(["none", "password", "proxy"]),
+  user: z.nullable(z.string()),
+});

@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryWrapper } from "@/test/query";
 import type { UseCategoriesResult } from "@/hooks/useCategories";
+import type { AuthSession } from "@shared/auth";
 import type { Service } from "@shared/types";
 
 interface MockServicesProps {
@@ -14,6 +15,7 @@ interface MockServicesProps {
 }
 
 interface MockSettingsProps {
+  account?: { mode: string; user: string | null; onSignOut?: () => void };
   open: boolean;
   onShowServicesSectionChange: (visible: boolean) => void;
   onShowStatsSectionChange: (visible: boolean) => void;
@@ -78,6 +80,7 @@ vi.mock("@/components/settings/settings-preload", () => ({
   }),
   loadSettingsDialog: async () => ({
     SettingsDialog: ({
+      account,
       open,
       onShowServicesSectionChange,
       onShowStatsSectionChange,
@@ -85,6 +88,11 @@ vi.mock("@/components/settings/settings-preload", () => ({
     }: MockSettingsProps) =>
       open ? (
         <div role="dialog" aria-label="Settings">
+          {account && (
+            <button type="button" onClick={account.onSignOut}>
+              Sign out as {account.user ?? account.mode}
+            </button>
+          )}
           <button type="button" onClick={() => onShowServicesSectionChange(false)}>
             Hide services
           </button>
@@ -193,9 +201,17 @@ const serviceStub: Service = {
   check_ignore_tls: false,
 };
 
-function renderApp() {
-  return render(<App />, { wrapper: createQueryWrapper().wrapper });
+function renderApp(props: Parameters<typeof App>[0] = {}) {
+  return render(<App {...props} />, { wrapper: createQueryWrapper().wrapper });
 }
+
+const guest: AuthSession = {
+  authenticated: false,
+  canEdit: false,
+  guest: "view",
+  mode: "password",
+  user: null,
+};
 
 function isBefore(first: Element, second: Element) {
   return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -343,5 +359,62 @@ describe("App", () => {
     const palette = await screen.findByRole("dialog", { name: "Palette" });
     await user.click(within(palette).getByRole("button", { name: "Edit layout" }));
     expect(screen.getByTestId("editing").textContent).toBe("true");
+  });
+  it("shows guests a read-only dashboard with a sign-in button", async () => {
+    const user = userEvent.setup();
+    const onSignIn = vi.fn();
+    renderApp({ auth: guest, onSignIn });
+    await screen.findByTestId("services-section");
+
+    for (const name of ["Add service", "Edit layout", "Open settings"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(onSignIn).toHaveBeenCalled();
+  });
+
+  it("keeps changes out of the palette for guests", async () => {
+    const user = userEvent.setup();
+    renderApp({ auth: guest });
+    await screen.findByTestId("services-section");
+
+    await user.click(screen.getByRole("button", { name: "Search services and commands" }));
+    const palette = await screen.findByRole("dialog", { name: "Palette" });
+    expect(within(palette).getByRole("button", { name: "Go to Stats" })).toBeTruthy();
+    for (const name of ["Add service", "Edit layout", "Open settings", "Use light theme"]) {
+      expect(within(palette).queryByRole("button", { name })).toBeNull();
+    }
+  });
+
+  it("offers no sign-in button to proxy guests", async () => {
+    renderApp({ auth: { ...guest, mode: "proxy" } });
+    await screen.findByTestId("services-section");
+
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+  });
+
+  it("leaves edit mode when the session can no longer edit", async () => {
+    const user = userEvent.setup();
+    const signedIn: AuthSession = { ...guest, authenticated: true, canEdit: true, user: "admin" };
+    const view = renderApp({ auth: signedIn });
+
+    await user.click(screen.getByRole("button", { name: "Edit layout" }));
+    expect(screen.getByTestId("editing").textContent).toBe("true");
+
+    view.rerender(<App auth={guest} />);
+    expect(screen.getByTestId("editing").textContent).toBe("false");
+  });
+
+  it("signs out from settings", async () => {
+    const user = userEvent.setup();
+    const onSignOut = vi.fn();
+    renderApp({
+      auth: { ...guest, authenticated: true, canEdit: true, user: "admin" },
+      onSignOut,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    await user.click(await screen.findByRole("button", { name: "Sign out as admin" }));
+    expect(onSignOut).toHaveBeenCalled();
   });
 });

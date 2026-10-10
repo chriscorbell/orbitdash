@@ -1,6 +1,5 @@
 import { buildApiUrl, jsonBody, request, requestJson } from "@/lib/api/client";
 import { serviceSchema, servicesResponseSchema } from "@/lib/api/schemas";
-import { buildServiceFormData } from "@shared/service-form-data";
 import type {
   CreateServicePayload,
   MoveServicePayload,
@@ -8,12 +7,20 @@ import type {
   UpdateServicePayload,
 } from "@shared/types";
 
+// Only saving from the service dialog builds this form, so it loads with the first save instead of
+// with the page (the offline worker has it precached in production).
+const loadServiceFormData = () => import("@shared/service-form-data");
+
 export function fetchServices(): Promise<Service[]> {
   return requestJson("/api/services", {}, "Failed to fetch services", servicesResponseSchema);
 }
 
 /** Create a new service (with optional icon file upload) */
-export function createService(payload: CreateServicePayload, iconFile?: File): Promise<Service> {
+export async function createService(
+  payload: CreateServicePayload,
+  iconFile?: File
+): Promise<Service> {
+  const { buildServiceFormData } = await loadServiceFormData();
   const formData = buildServiceFormData(payload, {
     iconFile,
     includeDefaultOpenInNewTab: true,
@@ -27,12 +34,13 @@ export function createService(payload: CreateServicePayload, iconFile?: File): P
   );
 }
 
-export function updateService(
+export async function updateService(
   id: string,
   payload: UpdateServicePayload,
   iconFile?: File,
   removeIcon?: boolean
 ): Promise<Service> {
+  const { buildServiceFormData } = await loadServiceFormData();
   const formData = buildServiceFormData(payload, {
     allowEmptyFields: true,
     iconFile,

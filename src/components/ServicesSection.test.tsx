@@ -195,6 +195,15 @@ describe("ServicesSection", () => {
     expect(onAddOpenChange).toHaveBeenCalledWith(true);
   });
 
+  it("shows guests the board without ways to add, and never loads the service dialogs", () => {
+    dialogProps.length = 0;
+    renderServicesSection({ categories: categoriesStub({ categories: [] }), readOnly: true });
+
+    expect(screen.getByText("No services yet")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Add your first service/ })).toBeNull();
+    expect(dialogProps).toEqual([]);
+  });
+
   describe("in edit mode", () => {
     async function renderEditing(
       overrides: Partial<React.ComponentProps<typeof ServicesSection>> = {}

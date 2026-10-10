@@ -28,8 +28,11 @@ vi.mock("@/lib/api/system", () => ({
 
 afterEach(() => cleanup());
 
-function renderHeader(options: { editing?: boolean; canEditLayout?: boolean } = {}) {
+function renderHeader(
+  options: { editing?: boolean; canEdit?: boolean; canEditLayout?: boolean; signIn?: boolean } = {}
+) {
   const props = {
+    canEdit: options.canEdit,
     editing: options.editing ?? false,
     canEditLayout: options.canEditLayout ?? true,
     onAddService: vi.fn(),
@@ -39,6 +42,7 @@ function renderHeader(options: { editing?: boolean; canEditLayout?: boolean } = 
     onOpenSettings: vi.fn(),
     onOpenPalette: vi.fn(),
     onPreloadPalette: vi.fn(),
+    onSignIn: options.signIn ? vi.fn() : undefined,
   };
   render(<AppHeader {...props} />, { wrapper: createQueryWrapper().wrapper });
   return props;
@@ -94,5 +98,20 @@ describe("AppHeader", () => {
 
     expect(props.onNewCategory).toHaveBeenCalledTimes(1);
     expect(props.onDoneEditing).toHaveBeenCalledTimes(1);
+  });
+  it("gives guests a sign-in button instead of add, edit and settings", async () => {
+    const user = userEvent.setup();
+    const props = renderHeader({ canEdit: false, signIn: true });
+
+    for (const name of ["Add service", "Edit layout", "Open settings"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+    expect(screen.getByRole("button", { name: "Search services and commands" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(props.onSignIn).toHaveBeenCalled();
+
+    cleanup();
+    renderHeader({ canEdit: false });
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
   });
 });

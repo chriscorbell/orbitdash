@@ -62,6 +62,8 @@ version before creating the matching tag.
 - Import services from Homepage, Dashy, Homer, Homarr or browser bookmarks, with a preview to pick from
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
 - Deleting a service can be undone for 30 minutes
+- Optional sign-in with a password or your sign-in proxy (Authelia, Authentik, Tailscale Serve),
+  with an optional read-only view for guests
 - Installable as an app on phones and desktops, and opens with your last known services while the
   server is unreachable (needs https, see below)
 
@@ -114,6 +116,141 @@ Browsers only allow installing a web app, and keeping it available offline, over
 The installed app opens full screen. When the server can't be reached, it still opens with the last
 services, categories and settings it saw; live stats come back once the server does. Over plain
 http everything else works the same, just not installed or offline.
+
+## Authentication
+
+orbitdash is open by default, which suits a dashboard that only your own network can reach. To
+require a sign-in, set `ORBITDASH_AUTH`:
+
+- `password`: one shared password; each browser that signs in gets a session cookie.
+- `proxy`: a reverse proxy that already signs people in (Authelia, Authentik, Tailscale Serve)
+  names the user in a header, and orbitdash trusts it from that proxy only.
+
+Auth is set only through environment variables, so nothing in the dashboard can turn it off.
+orbitdash refuses to start with an incomplete or contradictory setup (password mode without a
+password, proxy mode without trusted proxies, a password while auth is off) and logs what to fix.
+
+| Variable                    | Default       | Purpose                                                                                                                                                                               |
+| --------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORBITDASH_AUTH`            | `none`        | `none`, `password` or `proxy`                                                                                                                                                         |
+| `ORBITDASH_PASSWORD`        | unset         | Password mode: the password. Hashed with argon2id when the server starts                                                                                                              |
+| `ORBITDASH_PASSWORD_HASH`   | unset         | Password mode: an argon2id hash to use instead of the plain password (set one of the two)                                                                                             |
+| `ORBITDASH_SESSION_DAYS`    | `30`          | How long a sign-in lasts without use, 1 to 400; using the dashboard extends it                                                                                                        |
+| `ORBITDASH_GUEST`           | `none`        | `view` lets anyone see the dashboard read-only; changes need a sign-in                                                                                                                |
+| `ORBITDASH_PROXY_HEADER`    | `Remote-User` | Proxy mode: the header that names the user                                                                                                                                            |
+| `ORBITDASH_TRUSTED_PROXIES` | unset         | IPs or CIDR ranges (IPv4 or IPv6, comma-separated) of your reverse proxies. Required in proxy mode; in password mode it lets orbitdash read `X-Forwarded-For` and `X-Forwarded-Proto` |
+
+With auth on, every `/api` route needs a session (or the proxy's user), including the live event
+stream, icons, wallpapers and backups. The health checks (`/healthz`, `/readyz`, `/api/health`) and
+the sign-in routes stay open, and so do the page and its scripts, so the sign-in screen can load.
+With `ORBITDASH_GUEST=view`, anyone can read the dashboard and a Sign in button appears in the
+header; adding, editing, settings and backups still need a sign-in.
+
+### Password
+
+```yaml
+services:
+  orbitdash:
+    container_name: orbitdash
+    image: ghcr.io/chriscorbell/orbitdash:latest
+    restart: unless-stopped
+    ports:
+      - "7770:3000"
+    environment:
+      - ORBITDASH_AUTH=password
+      # Every $ in the hash is doubled, because Compose treats $ as the start of a variable.
+      - ORBITDASH_PASSWORD_HASH=$$argon2id$$v=19$$m=65536,t=2,p=1$$...
+      # - ORBITDASH_GUEST=view
+    volumes:
+      - ./orbitdash-data:/data
+```
+
+Create the hash with the image itself. It asks for the password twice without showing it, so the
+password stays out of your shell history, and prints the hash plus a copy with every `$` doubled
+for `docker-compose.yml`:
+
+```bash
+docker run --rm -it ghcr.io/chriscorbell/orbitdash:latest bun server/cli/hash-password.ts
+# or, with orbitdash already running:
+docker exec -it orbitdash bun server/cli/hash-password.ts
+# or, from a checkout of this repository:
+bun run hash-password
+```
+
+`ORBITDASH_PASSWORD=...` works too; orbitdash then hashes it at startup and never stores it in
+plain text. Changing the password and restarting signs every browser out.
+
+Sessions are random 32-byte tokens in an `HttpOnly`, `SameSite=Lax` cookie, marked `Secure` over
+https (directly, or when a trusted proxy sends `X-Forwarded-Proto: https`). The database stores only
+a SHA-256 of each token. Signing out ends the session on the server. After 5 wrong passwords from
+one address within 15 minutes, that address has to wait (the sign-in screen shows how long).
+Failed attempts are logged with the client's address, never with the password.
+
+### Behind a sign-in proxy
+
+orbitdash trusts the user header only on connections from an address in
+`ORBITDASH_TRUSTED_PROXIES`, judged by the connection itself, not by `X-Forwarded-For`. The same
+header from anywhere else is ignored and logged as `auth.proxy_header_ignored` with the address it
+came from, which also tells you the right address when the list is wrong. Keep that list tight:
+anything that can connect from a trusted address can claim to be anyone. Don't let clients reach
+orbitdash around the proxy from such an address, for example by publishing the port only on
+`127.0.0.1` or not at all.
+
+Authelia or Authentik, with forward auth in front of orbitdash (Traefik, Caddy or nginx):
+
+```yaml
+services:
+  orbitdash:
+    container_name: orbitdash
+    image: ghcr.io/chriscorbell/orbitdash:latest
+    restart: unless-stopped
+    # No published port: only the reverse proxy, on the same network, reaches orbitdash.
+    networks:
+      proxy:
+        ipv4_address: 172.30.0.10
+    environment:
+      - ORBITDASH_AUTH=proxy
+      # Authelia sends Remote-User; Authentik's proxy outpost sends X-authentik-username.
+      - ORBITDASH_PROXY_HEADER=Remote-User
+      # The reverse proxy's fixed address on that network.
+      - ORBITDASH_TRUSTED_PROXIES=172.30.0.2
+    volumes:
+      - ./orbitdash-data:/data
+
+networks:
+  proxy:
+    external: true
+```
+
+Have the reverse proxy copy the header from the auth response onto the request, which also replaces
+any value a client sent: Traefik's `authResponseHeaders`, Caddy's `copy_headers` in
+`forward_auth`, or `auth_request_set` with `proxy_set_header` in nginx.
+
+Tailscale Serve sends `Tailscale-User-Login` for people on your tailnet and strips that header from
+what clients send. It proxies to `127.0.0.1` on the host, so the simplest setup runs orbitdash on
+the host network, where those connections arrive from `127.0.0.1`:
+
+```yaml
+services:
+  orbitdash:
+    container_name: orbitdash
+    image: ghcr.io/chriscorbell/orbitdash:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PORT=7770
+      - ORBITDASH_AUTH=proxy
+      - ORBITDASH_PROXY_HEADER=Tailscale-User-Login
+      - ORBITDASH_TRUSTED_PROXIES=127.0.0.1
+      # Optional: people reaching port 7770 directly, outside Tailscale, can look but not edit.
+      # - ORBITDASH_GUEST=view
+    volumes:
+      - ./orbitdash-data:/data
+```
+
+Then run `tailscale serve --bg 7770` on the host. Funnel (public) traffic carries no identity, so it
+gets the sign-in screen, or the read-only view with guest access on. The signed-in user's name is
+shown in Settings.
 
 ## Data Persistence
 
