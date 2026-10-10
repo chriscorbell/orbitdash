@@ -32,12 +32,17 @@ export const serviceSchema = z.object({
 
 export const servicesResponseSchema = z.array(serviceSchema);
 
-export const categoryOrderResponseSchema = z.object({ order: z.array(z.string()) });
-
-export const renameCategoryResponseSchema = z.object({
-  services: servicesResponseSchema,
-  order: z.array(z.string()),
+export const categorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: z.number(),
+  created_at: z.number(),
+  updated_at: z.number(),
 });
+
+export const categoriesResponseSchema = z.object({ categories: z.array(categorySchema) });
+
+export const successResponseSchema = z.object({ success: z.literal(true) });
 
 export const snapshotSchema = z.object({
   createdAt: z.string(),

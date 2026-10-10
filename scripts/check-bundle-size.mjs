@@ -21,7 +21,7 @@ const budgets = [
     maxRawKb: 230,
     maxGzipKb: 72,
   },
-  { label: "vendor", prefix: "vendor-", extension: ".js", maxRawKb: 180, maxGzipKb: 56 },
+  { label: "vendor", prefix: "vendor-", extension: ".js", maxRawKb: 110, maxGzipKb: 34 },
   {
     label: "validation",
     prefix: "validation-",
@@ -44,6 +44,13 @@ const budgets = [
     maxGzipKb: 8,
   },
   {
+    label: "editable board",
+    prefix: "EditableBoard-",
+    extension: ".js",
+    maxRawKb: 44,
+    maxGzipKb: 14,
+  },
+  {
     label: "drag and drop",
     prefix: "drag-drop-",
     extension: ".js",
@@ -54,7 +61,7 @@ const budgets = [
 
 // Chunks that must only load on demand. If index.html references one, the
 // entry imports it statically and its lazy() boundary has been defeated.
-const lazyOnlyPrefixes = ["drag-drop-", "SettingsDialog-"];
+const lazyOnlyPrefixes = ["drag-drop-", "SettingsDialog-", "EditableBoard-"];
 
 function formatKb(bytes) {
   return `${(bytes / 1024).toFixed(2)} kB`;

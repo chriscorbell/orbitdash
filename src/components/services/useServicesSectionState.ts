@@ -1,95 +1,64 @@
 import { useCallback, useMemo, useState } from "react";
-import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
-import type { RenameCategoryResponse, Service } from "@shared/types";
-import type { ServiceGroup } from "@/components/services/CategorySectionList";
-import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+import type { UseCategoriesResult } from "@/hooks/useCategories";
+import { buildBoardGroups, type BoardGroup, type ServiceMove } from "@/lib/board-groups";
 import { toast, toastError } from "@/lib/toast";
-
-const UNCATEGORIZED_KEY = "uncategorized";
+import type { Service } from "@shared/types";
 
 interface UseServicesSectionStateOptions {
-  categoryOrder: UseCategoryOrderResult;
+  categories: UseCategoriesResult;
+  editing: boolean;
   error: string | null;
   loading: boolean;
-  onDelete: (id: string) => Promise<void>;
   search: string;
-  onRestore: (id: string) => Promise<Service>;
-  onDuplicate: (id: string) => Promise<Service>;
-  onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
   services: Service[];
+  onAddOpenChange: (open: boolean) => void;
+  onDelete: (id: string) => Promise<void>;
+  onDuplicate: (id: string) => Promise<Service>;
+  onMove: (move: ServiceMove) => Promise<Service>;
+  onRestore: (id: string) => Promise<Service>;
+}
+
+function matchesSearch(service: Service, query: string) {
+  return (
+    service.name.toLowerCase().includes(query) ||
+    service.description?.toLowerCase().includes(query) ||
+    service.category?.toLowerCase().includes(query) ||
+    service.url.toLowerCase().includes(query)
+  );
 }
 
 export function useServicesSectionState({
-  categoryOrder,
+  categories,
+  editing,
   error,
   loading,
-  onDelete,
   search,
-  onRestore,
-  onDuplicate,
-  onRenameCategory,
   services,
+  onAddOpenChange,
+  onDelete,
+  onDuplicate,
+  onMove,
+  onRestore,
 }: UseServicesSectionStateOptions) {
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [renameCategoryTarget, setRenameCategoryTarget] = useState<string | null>(null);
-
-  const {
-    error: categoryOrderError,
-    hasNamedCategories,
-    isReorderMode,
-    visibleCategoryOrder,
-  } = categoryOrder;
+  const [addCategory, setAddCategory] = useState<string | null>(null);
+  const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<BoardGroup | null>(null);
 
   const filteredServices = useMemo(() => {
-    if (!search.trim()) {
-      return services;
-    }
-
-    const query = search.toLowerCase();
-    return services.filter(
-      (service) =>
-        service.name.toLowerCase().includes(query) ||
-        service.description?.toLowerCase().includes(query) ||
-        service.category?.toLowerCase().includes(query) ||
-        service.url.toLowerCase().includes(query)
-    );
+    const query = search.trim().toLowerCase();
+    return query ? services.filter((service) => matchesSearch(service, query)) : services;
   }, [search, services]);
 
-  const groupedServices = useMemo(() => {
-    const groups = new Map<string, ServiceGroup>();
+  // Edit mode shows empty categories too, as places to drop cards and add new ones.
+  const groups = useMemo(
+    () => buildBoardGroups(categories.categories, filteredServices, { includeEmpty: editing }),
+    [categories.categories, editing, filteredServices]
+  );
 
-    for (const service of filteredServices) {
-      const name = service.category?.trim() || UNCATEGORIZED_CATEGORY;
-      const group = groups.get(name) ?? {
-        key: service.category_id ?? UNCATEGORIZED_KEY,
-        name,
-        services: [],
-      };
-      group.services.push(service);
-      groups.set(name, group);
-    }
-
-    return visibleCategoryOrder
-      .filter((category) => groups.has(category))
-      .map((category) => groups.get(category)!);
-  }, [filteredServices, visibleCategoryOrder]);
-
-  const categoryOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const options: string[] = [];
-
-    for (const service of services) {
-      const category = service.category?.trim();
-      if (!category || seen.has(category)) {
-        continue;
-      }
-
-      seen.add(category);
-      options.push(category);
-    }
-
-    return options.sort((left, right) => left.localeCompare(right));
-  }, [services]);
+  const categoryOptions = useMemo(
+    () => categories.categories.map((category) => category.name),
+    [categories.categories]
+  );
 
   /**
    * Deletes right away and offers Undo, which restores it from the server's trash. Throws when the
@@ -115,6 +84,15 @@ export function useServicesSectionState({
     [onDelete, onRestore]
   );
 
+  const handleDeleteCard = useCallback(
+    (service: Service) => {
+      handleDelete(service).catch((deleteError) =>
+        toastError(deleteError, "Couldn't delete the service")
+      );
+    },
+    [handleDelete]
+  );
+
   const handleDuplicate = useCallback(
     async (service: Service) => {
       try {
@@ -127,33 +105,87 @@ export function useServicesSectionState({
     [onDuplicate]
   );
 
-  const handleRenameCategoryConfirm = async (to: string) => {
-    if (!renameCategoryTarget) {
-      return;
-    }
+  const handleMove = useCallback(
+    (move: ServiceMove) => {
+      onMove(move).catch((moveError) => toastError(moveError, "Couldn't move the service"));
+    },
+    [onMove]
+  );
 
-    const response = await onRenameCategory(renameCategoryTarget, to);
-    categoryOrder.applyOrder(response.order);
-    toast({ title: `Renamed ${renameCategoryTarget} to ${to.trim()}`, tone: "success" });
-    setRenameCategoryTarget(null);
-  };
+  const handleAddToGroup = useCallback(
+    (group: BoardGroup) => {
+      setAddCategory(group.categoryId === null ? null : group.name);
+      onAddOpenChange(true);
+    },
+    [onAddOpenChange]
+  );
+
+  const { remove: removeCategory, rename, reorder } = categories;
+
+  const deleteCategory = useCallback(
+    async (group: BoardGroup) => {
+      if (group.categoryId === null) return;
+      try {
+        await removeCategory(group.categoryId);
+        toast({ title: `Deleted ${group.name}` });
+      } catch (deleteError) {
+        toastError(deleteError, "Couldn't delete the category");
+      }
+    },
+    [removeCategory]
+  );
+
+  // Empty categories go at once; ones with services ask first, since those services move out.
+  const handleDeleteCategory = useCallback(
+    (group: BoardGroup) => {
+      if (group.services.length === 0) void deleteCategory(group);
+      else setDeleteCategoryTarget(group);
+    },
+    [deleteCategory]
+  );
+
+  const handleRenameCategory = useCallback(
+    (id: string, name: string) => {
+      rename(id, name).catch((renameError) =>
+        toastError(renameError, "Couldn't rename the category")
+      );
+    },
+    [rename]
+  );
+
+  const handleReorderCategories = useCallback(
+    (ids: string[]) => {
+      reorder(ids).catch((reorderError) =>
+        toastError(reorderError, "Couldn't save the category order")
+      );
+    },
+    [reorder]
+  );
+
+  const initialLoading =
+    (loading && services.length === 0) || (categories.loading && categories.error === null);
 
   return {
+    addCategory,
     categoryOptions,
-    categoryOrderError,
+    deleteCategory,
+    deleteCategoryTarget,
     editingService,
     filteredServices,
-    groupedServices,
+    groups,
+    handleAddToGroup,
     handleDelete,
+    handleDeleteCard,
+    handleDeleteCategory,
     handleDuplicate,
-    handleRenameCategoryConfirm,
-    hasNamedCategories,
-    isReorderMode,
-    renameCategoryTarget,
+    handleMove,
+    handleRenameCategory,
+    handleReorderCategories,
+    setAddCategory,
+    setDeleteCategoryTarget,
     setEditingService,
-    setRenameCategoryTarget,
     showInitialError: !loading && error !== null && services.length === 0,
-    showInitialLoading: loading && services.length === 0,
+    showInitialLoading: initialLoading,
     showInlineError: error !== null && services.length > 0,
   };
 }

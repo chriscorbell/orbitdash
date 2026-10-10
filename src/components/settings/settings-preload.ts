@@ -1,9 +1,12 @@
-// The settings dialog only matters once someone opens it, and its sortable category list pulls in
-// dnd-kit, so both load on demand. Hovering or focusing the settings button starts the download.
+// These only matter once someone asks for them, so they load on demand. Hovering or focusing the
+// button that opens one starts the download early.
 export const loadSettingsDialog = () => import("@/components/settings/SettingsDialog");
-export const loadCategoryOrderList = () => import("@/components/services/CategoryOrderList");
+export const loadEditableBoard = () => import("@/components/board/EditableBoard");
 
 export function preloadSettingsDialog() {
   void loadSettingsDialog();
-  void loadCategoryOrderList();
+}
+
+export function preloadEditableBoard() {
+  void loadEditableBoard();
 }

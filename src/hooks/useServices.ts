@@ -1,20 +1,11 @@
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  CreateServicePayload,
-  RenameCategoryResponse,
-  Service,
-  UpdateServicePayload,
-} from "@shared/types";
-import { renameCategory as renameCategoryRequest } from "@/lib/api/categories";
+import type { CreateServicePayload, Service, UpdateServicePayload } from "@shared/types";
 import * as api from "@/lib/api/services";
+import { applyServiceMove, compareServices, type ServiceMove } from "@/lib/board-groups";
 import { queryKeys } from "@/lib/query-client";
 
 /** Services keep their saved position within a category; grouping happens in the view. */
-function compareServices(left: Service, right: Service) {
-  return left.position - right.position || left.name.localeCompare(right.name);
-}
-
 function sortServices(services: readonly Service[]) {
   return [...services].sort(compareServices);
 }
@@ -60,7 +51,7 @@ export function useServices() {
     onSuccess: (service) => {
       setServices((current) => [...current, service]);
       // A new category may have been created along the way.
-      void queryClient.invalidateQueries({ queryKey: queryKeys.categoryOrder });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.categories });
     },
   });
 
@@ -69,7 +60,7 @@ export function useServices() {
       api.updateService(id, payload, iconFile, removeIcon),
     onSuccess: (service) => {
       setServices((current) => current.map((entry) => (entry.id === service.id ? service : entry)));
-      void queryClient.invalidateQueries({ queryKey: queryKeys.categoryOrder });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.categories });
     },
   });
 
@@ -97,19 +88,26 @@ export function useServices() {
     },
   });
 
-  const renameMutation = useMutation({
-    mutationFn: ({ from, to }: { from: string; to: string }) => renameCategoryRequest({ from, to }),
-    onSuccess: (response: RenameCategoryResponse) => {
-      setServices(() => response.services);
-      queryClient.setQueryData(queryKeys.categoryOrder, { order: response.order });
+  // Shows the move at once, rolls back if the server refuses, then takes the server's positions.
+  const moveMutation = useMutation({
+    mutationFn: (move: ServiceMove) =>
+      api.moveService(move.id, { category_id: move.categoryId, index: move.index }),
+    onMutate: (move) => {
+      const previous = queryClient.getQueryData<Service[]>(queryKeys.services);
+      setServices((current) => applyServiceMove(current, move));
+      return previous;
     },
+    onError: (_error, _move, previous) => {
+      queryClient.setQueryData(queryKeys.services, previous);
+    },
+    onSettled: () => refetchServices(),
   });
 
   const { mutateAsync: createAsync } = createMutation;
   const { mutateAsync: updateAsync } = updateMutation;
   const { mutateAsync: duplicateAsync } = duplicateMutation;
   const { mutateAsync: removeAsync } = removeMutation;
-  const { mutateAsync: renameAsync } = renameMutation;
+  const { mutateAsync: moveAsync } = moveMutation;
   const { mutateAsync: restoreAsync } = restoreMutation;
 
   const create = useCallback(
@@ -124,10 +122,7 @@ export function useServices() {
   const duplicate = useCallback((id: string) => duplicateAsync(id), [duplicateAsync]);
   const remove = useCallback((id: string) => removeAsync(id), [removeAsync]);
   const restore = useCallback((id: string) => restoreAsync(id), [restoreAsync]);
-  const renameCategory = useCallback(
-    (from: string, to: string) => renameAsync({ from, to }),
-    [renameAsync]
-  );
+  const move = useCallback((serviceMove: ServiceMove) => moveAsync(serviceMove), [moveAsync]);
   const reload = useCallback(async () => {
     await query.refetch();
   }, [query]);
@@ -141,7 +136,7 @@ export function useServices() {
     duplicate,
     remove,
     restore,
-    renameCategory,
+    move,
     reload,
   };
 }

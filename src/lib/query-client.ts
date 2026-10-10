@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
 export const queryKeys = {
-  categoryOrder: ["category-order"] as const,
+  categories: ["categories"] as const,
   services: ["services"] as const,
   settings: (deviceId: string) => ["settings", deviceId] as const,
   settingsRoot: ["settings"] as const,

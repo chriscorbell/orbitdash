@@ -13,6 +13,7 @@ vi.mock("@/lib/api/services", () => ({
   restoreService: vi.fn(),
   duplicateService: vi.fn(),
   fetchServices: vi.fn(),
+  moveService: vi.fn(),
   updateService: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ const updateServiceMock = vi.mocked(servicesApi.updateService);
 const deleteServiceMock = vi.mocked(servicesApi.deleteService);
 const duplicateServiceMock = vi.mocked(servicesApi.duplicateService);
 const restoreServiceMock = vi.mocked(servicesApi.restoreService);
+const moveServiceMock = vi.mocked(servicesApi.moveService);
 
 const existingService: Service = {
   id: "svc-1",
@@ -176,5 +178,61 @@ describe("useServices", () => {
     });
     await waitFor(() => expect(result.current.services).toEqual([existingService]));
     expect(fetchServicesMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("moves a service at once, then takes the server's order", async () => {
+    const other = { ...existingService, id: "svc-2", name: "Other", position: 1 };
+    fetchServicesMock.mockResolvedValue([existingService, other]);
+    let resolveMove!: (service: Service) => void;
+    moveServiceMock.mockReturnValue(new Promise((resolve) => (resolveMove = resolve)));
+
+    const { result } = renderHook(() => useServices(), { wrapper: createQueryWrapper().wrapper });
+    await waitFor(() => expect(result.current.services).toHaveLength(2));
+
+    let moved!: Promise<Service>;
+    act(() => {
+      moved = result.current.move({
+        id: "svc-2",
+        categoryId: "cat-infra",
+        categoryName: "Infra",
+        index: 0,
+      });
+    });
+
+    await waitFor(() =>
+      expect(result.current.services.map((service) => service.id)).toEqual(["svc-2", "svc-1"])
+    );
+    expect(moveServiceMock).toHaveBeenCalledWith("svc-2", { category_id: "cat-infra", index: 0 });
+
+    fetchServicesMock.mockResolvedValue([
+      { ...other, position: 0 },
+      { ...existingService, position: 1 },
+    ]);
+    await act(async () => {
+      resolveMove({ ...other, position: 0 });
+      await moved;
+    });
+    await waitFor(() => expect(fetchServicesMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("rolls a refused move back", async () => {
+    const other = { ...existingService, id: "svc-2", name: "Other", position: 1 };
+    fetchServicesMock.mockResolvedValue([existingService, other]);
+    moveServiceMock.mockRejectedValue(new Error("nope"));
+
+    const { result } = renderHook(() => useServices(), { wrapper: createQueryWrapper().wrapper });
+    await waitFor(() => expect(result.current.services).toHaveLength(2));
+
+    await act(async () => {
+      await expect(
+        result.current.move({ id: "svc-2", categoryId: null, categoryName: null, index: 0 })
+      ).rejects.toThrow("nope");
+    });
+
+    await waitFor(() =>
+      expect(result.current.services.find((service) => service.id === "svc-2")?.category_id).toBe(
+        "cat-infra"
+      )
+    );
   });
 });

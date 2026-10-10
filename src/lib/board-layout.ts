@@ -1,4 +1,4 @@
-import type { CardDensity } from "@shared/dashboard-settings";
+import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 
 /** Narrowest a category column may get in the columns layout, in pixels. */
 export const COLUMN_MIN_WIDTH: Record<CardDensity, number> = {
@@ -62,4 +62,22 @@ export function distributeIntoColumns<T>(
   }
 
   return columns;
+}
+
+/** Cards fill each row of a category in the rows layout (and when nothing is categorized). */
+export const ROW_GRID: Record<CardDensity, string> = {
+  compact: "grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2",
+  comfortable: "grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3",
+  tiles: "grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-3",
+};
+
+/** Cards stack inside a category column in the columns layout. */
+export const COLUMN_STACK: Record<CardDensity, string> = {
+  compact: "flex flex-col gap-1.5",
+  comfortable: "flex flex-col gap-2",
+  tiles: "grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2",
+};
+
+export function cardListClassName(mode: BoardMode, density: CardDensity) {
+  return mode === "columns" ? COLUMN_STACK[density] : ROW_GRID[density];
 }

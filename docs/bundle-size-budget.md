@@ -16,7 +16,7 @@ matches, so group priority decides where shared packages land:
    Full Zod never loads in the browser: forms validate with plain checks and the server validates
    everything again. The app's own schemas ship in the entry, so this chunk's hash only
    changes when Zod does.
-3. `drag-drop`: dnd-kit. Only the lazily loaded settings `CategoryOrderList` imports it.
+3. `drag-drop`: dnd-kit. Only the lazily loaded `EditableBoard` (edit mode) imports it.
 4. `icons`: lucide-react.
 5. `vendor`: everything else in `node_modules` that the first render needs (Radix, Floating UI,
    tailwind-merge). The `$initial` tag keeps packages used only by lazy chunks, like the Select
@@ -25,7 +25,7 @@ matches, so group priority decides where shared packages land:
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*` and `SettingsDialog-*` must never be loaded up front. If React lands in one of them again,
+`drag-drop-*`, `SettingsDialog-*` and `EditableBoard-*` must never be loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
@@ -34,14 +34,15 @@ happens.
 
 | Asset group           | Budget raw | Budget gzip | Current baseline                             |
 | --------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`          |      62 kB |       20 kB | about 57 kB raw / 19.0 kB gzip / 16.9 kB br  |
-| `index-*.css`         |      76 kB |       13 kB | about 73 kB raw / 12.3 kB gzip / 10.7 kB br  |
+| `index-*.js`          |      62 kB |       20 kB | about 55 kB raw / 18.7 kB gzip / 16.6 kB br  |
+| `index-*.css`         |      76 kB |       13 kB | about 76 kB raw / 12.6 kB gzip / 10.8 kB br  |
 | `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
-| `vendor-*.js`         |     180 kB |       56 kB | about 172 kB raw / 53.5 kB gzip / 47.1 kB br |
+| `vendor-*.js`         |     110 kB |       34 kB | about 96 kB raw / 29.0 kB gzip / 26.0 kB br  |
 | `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
 | `ServiceDialog-*.js`  |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
-| `SettingsDialog-*.js` |      24 kB |        8 kB | about 11 kB raw / 3.8 kB gzip / 3.3 kB br    |
-| `drag-drop-*.js`      |      48 kB |       16 kB | about 43 kB raw / 14.1 kB gzip / 12.7 kB br  |
+| `SettingsDialog-*.js` |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
+| `EditableBoard-*.js`  |      44 kB |       14 kB | about 38 kB raw / 12.0 kB gzip / 10.8 kB br  |
+| `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
 
 Sizes are in KiB, as printed by the check script.
 
@@ -60,10 +61,15 @@ The check reads the built files in `dist/assets` and fails if:
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*` or `SettingsDialog-*` chunk
+- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*` or `EditableBoard-*` chunk
 
 ## History
 
+- Edit mode moved card menus and drag and drop into a lazy `EditableBoard-*` chunk, loaded when
+  the Edit layout button is hovered, focused or clicked. Outside edit mode cards are plain links, so
+  the Radix dropdown menu left the first paint and `vendor-*` fell from about 163 kB / 51 kB to
+  96 kB / 29 kB; its budget came down from 180 kB / 56 kB to 110 kB / 34 kB. dnd-kit now also brings
+  its mouse and touch sensors and drag overlay, so `drag-drop-*` grew to about 47 kB.
 - Board layouts added column packing, card densities and icon plates to the entry, and the
   settings dialog moved into its own lazy `SettingsDialog-*` chunk, loaded when the settings button
   is hovered, focused or clicked. The entry fell to about 57 kB / 19 kB, so its budget came back

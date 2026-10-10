@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CategorySectionList } from "./CategorySectionList";
+import { CategorySectionList, ServiceGrid } from "./CategorySectionList";
 import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 import type { Service } from "@shared/types";
 
@@ -37,18 +37,22 @@ function renderCategoryList(
 ) {
   return render(
     <CategorySectionList
-      grouped={[
-        { key: "cat-monitoring", name: monitoringName, services: [monitoringService] },
-        { key: "cat-storage", name: "Storage", services: [storageService] },
+      groups={[
+        {
+          key: "cat-monitoring",
+          categoryId: "cat-monitoring",
+          name: monitoringName,
+          services: [monitoringService],
+        },
+        {
+          key: "cat-storage",
+          categoryId: "cat-storage",
+          name: "Storage",
+          services: [storageService],
+        },
       ]}
       density={options.density ?? "comfortable"}
       mode={options.mode ?? "columns"}
-      hasNamedCategories
-      services={[monitoringService, storageService]}
-      onDelete={vi.fn()}
-      onDuplicate={vi.fn()}
-      onEdit={vi.fn()}
-      onRenameCategory={vi.fn()}
     />
   );
 }
@@ -128,17 +132,7 @@ describe("CategorySectionList", () => {
 
   it("keeps the uncategorized-only grid free of disclosure controls", () => {
     render(
-      <CategorySectionList
-        grouped={[]}
-        density="comfortable"
-        mode="columns"
-        hasNamedCategories={false}
-        services={[{ ...monitoringService, category: null }]}
-        onDelete={vi.fn()}
-        onDuplicate={vi.fn()}
-        onEdit={vi.fn()}
-        onRenameCategory={vi.fn()}
-      />
+      <ServiceGrid density="comfortable" services={[{ ...monitoringService, category: null }]} />
     );
 
     expect(screen.queryByRole("button", { name: /category/ })).toBeNull();

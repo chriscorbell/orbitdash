@@ -1,7 +1,12 @@
-import { buildApiUrl, request, requestJson } from "@/lib/api/client";
+import { buildApiUrl, jsonBody, request, requestJson } from "@/lib/api/client";
 import { serviceSchema, servicesResponseSchema } from "@/lib/api/schemas";
 import { buildServiceFormData } from "@shared/service-form-data";
-import type { CreateServicePayload, Service, UpdateServicePayload } from "@shared/types";
+import type {
+  CreateServicePayload,
+  MoveServicePayload,
+  Service,
+  UpdateServicePayload,
+} from "@shared/types";
 
 export function fetchServices(): Promise<Service[]> {
   return requestJson("/api/services", {}, "Failed to fetch services", servicesResponseSchema);
@@ -61,6 +66,16 @@ export function restoreService(id: string): Promise<Service> {
     `/api/services/${id}/restore`,
     { method: "POST" },
     "Failed to restore service",
+    serviceSchema
+  );
+}
+
+/** Moves a service to a category (null = uncategorized) at an index; the server renumbers. */
+export function moveService(id: string, payload: MoveServicePayload): Promise<Service> {
+  return requestJson(
+    `/api/services/${id}/move`,
+    jsonBody("POST", payload),
+    "Failed to move service",
     serviceSchema
   );
 }
