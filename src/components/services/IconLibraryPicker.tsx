@@ -84,24 +84,71 @@ const CREDIT = (
   </p>
 );
 
+/** The icon the service's own page links to, hidden if it doesn't load. */
+function SiteIconChoice({
+  url,
+  selected,
+  onSelect,
+}: {
+  url: string;
+  selected: boolean;
+  onSelect: (url: string) => void;
+}) {
+  const [broken, setBroken] = useState<string | null>(null);
+  if (broken === url) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Use the site's own icon"
+      aria-pressed={selected}
+      title="The site's own icon"
+      onClick={() => onSelect(url)}
+      className={cn(
+        "group flex min-w-0 flex-col items-center gap-1 rounded-lg border p-1.5 transition-[background-color,border-color,box-shadow] hover:border-brand/50 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        selected ? "border-brand bg-brand-soft" : "border-border border-dashed"
+      )}
+    >
+      <img
+        src={url}
+        alt=""
+        decoding="async"
+        onError={() => setBroken(url)}
+        className="h-8 w-8 object-contain transition-transform duration-150 group-hover:scale-105"
+      />
+    </button>
+  );
+}
+
 /** A few icons that match the service's name, offered before the user goes looking. */
 export function IconSuggestions({
   name,
+  siteIconUrl = null,
   selectedUrl,
   onSelect,
 }: {
   name: string;
+  /** The icon the service's page links to, offered first. */
+  siteIconUrl?: string | null;
   selectedUrl: string;
   onSelect: (url: string) => void;
 }) {
-  const { data } = useIconLibrary(name, 6);
+  const { data } = useIconLibrary(name, siteIconUrl ? 5 : 6);
   const entries = data?.entries ?? [];
-  if (entries.length === 0) return null;
+  if (entries.length === 0 && !siteIconUrl) return null;
 
   return (
     <div className="space-y-1.5 animate-in fade-in-0 duration-200">
-      <p className="text-xs text-muted-foreground">Suggested for “{name.trim()}”</p>
+      <p className="text-xs text-muted-foreground">
+        {name.trim().length >= 2 ? `Suggested for “${name.trim()}”` : "Suggested"}
+      </p>
       <div className="grid grid-cols-6 gap-1.5">
+        {siteIconUrl && (
+          <SiteIconChoice
+            url={siteIconUrl}
+            selected={siteIconUrl === selectedUrl}
+            onSelect={onSelect}
+          />
+        )}
         {entries.map((entry) => (
           <IconChoice
             key={entry.id}

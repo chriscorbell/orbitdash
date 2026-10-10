@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,9 @@ import { ServiceCategoryField } from "@/components/services/ServiceCategoryField
 import { ServiceDialogActions } from "@/components/services/ServiceDialogActions";
 import { ServiceIconField } from "@/components/services/ServiceIconField";
 import { ServiceStatusCheckField } from "@/components/services/ServiceStatusCheckField";
+import { ServiceUrlAssist } from "@/components/services/ServiceUrlAssist";
+import { inspectServiceUrl } from "@/lib/api/service-tools";
+import { normalizeServiceUrl } from "@shared/urls";
 import {
   isServiceDialogSubmittable,
   prepareServicePayload,
@@ -62,6 +66,7 @@ function ServiceDialogBody({
     setSelectedCategory,
     setUrl,
     storedIconSourceUrl,
+    suggestName,
   } = useServiceDialogState({
     categoryOptions,
     defaultCategory,
@@ -85,6 +90,24 @@ function ServiceDialogBody({
     url,
   } = formState;
   const canSubmit = isServiceDialogSubmittable(formState);
+
+  // Reading a new link's page fills in an empty name and offers the site's icon.
+  const inspection = useMutation({ mutationFn: inspectServiceUrl });
+  const [inspectedUrl, setInspectedUrl] = useState(() =>
+    service ? normalizeServiceUrl(service.url) : null
+  );
+  const inspect = (value: string) => {
+    const normalized = normalizeServiceUrl(value);
+    if (!normalized || normalized === inspectedUrl) return;
+    setInspectedUrl(normalized);
+    inspection.mutate(normalized, {
+      onSuccess: (result) => {
+        if (result.name) suggestName(result.name);
+      },
+    });
+  };
+  const normalizedUrl = normalizeServiceUrl(url);
+  const pageInfo = inspection.data?.url === normalizedUrl ? inspection.data : null;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -128,7 +151,9 @@ function ServiceDialogBody({
       <DialogHeader>
         <DialogTitle>{isEdit ? "Edit Service" : "Add Service"}</DialogTitle>
         <DialogDescription>
-          Add the service details, optional category, and icon source.
+          {isEdit
+            ? "Change the service's details, category and icon."
+            : "Paste a link to fill in the name and suggest an icon."}
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -158,12 +183,26 @@ function ServiceDialogBody({
             autoComplete="url"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
+            onBlur={(event) => inspect(event.target.value)}
+            onPaste={(event) => {
+              if (!url.trim()) inspect(event.clipboardData.getData("text/plain"));
+            }}
             placeholder="https://example.com"
             className="font-normal"
             required
           />
-          <div className="flex justify-end">
-            <div className="flex items-center gap-2">
+          <div className="flex items-start justify-between gap-3">
+            <ServiceUrlAssist
+              url={url}
+              check={{
+                check_method: checkMethod,
+                check_target: checkTarget.trim() || null,
+                check_ignore_tls: checkIgnoreTls,
+              }}
+              inspecting={inspection.isPending && inspection.variables === normalizedUrl}
+              inspection={pageInfo}
+            />
+            <div className="flex shrink-0 items-center gap-2 pt-1.5">
               <Label
                 id={`${fieldIds.newTabInputId}-label`}
                 htmlFor={fieldIds.newTabInputId}
@@ -219,6 +258,7 @@ function ServiceDialogBody({
           onIconUrlChange={handleIconUrlChange}
           onRemoveIcon={handleRemoveIcon}
           serviceName={name}
+          siteIconUrl={pageInfo?.iconUrl ?? null}
         />
 
         <ServiceStatusCheckField

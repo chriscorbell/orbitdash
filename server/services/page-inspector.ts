@@ -63,16 +63,35 @@ function iconSize(sizes: string | undefined): number {
   return Math.max(0, ...[...sizes.matchAll(/(\d+)x(\d+)/gi)].map((match) => Number(match[1])));
 }
 
+/** Page names apps put in front of their own name, as in "Dashboard - Grafana". */
+const GENERIC_PAGE_NAMES = new Set([
+  "admin",
+  "dashboard",
+  "home",
+  "index",
+  "log in",
+  "login",
+  "main",
+  "overview",
+  "settings",
+  "sign in",
+  "signin",
+  "start",
+  "status",
+  "welcome",
+]);
+
 /**
- * "Dashboard - Grafana" -> "Grafana": app pages often put the app's name last after a separator.
- * Plain titles pass through.
+ * The app's name in a page title: "Pi-hole - raspberrypi" -> "Pi-hole", but "Dashboard - Grafana"
+ * -> "Grafana", skipping the generic page names apps often lead with.
  */
 export function nameFromTitle(title: string): string {
   const parts = title
-    .split(/\s+[-|–—·:]\s+/)
+    .split(/\s+[-|–—·•:]\s+/)
     .map((part) => part.trim())
     .filter(Boolean);
-  return (parts.length > 1 ? parts[parts.length - 1] : title).slice(0, MAX_NAME_LENGTH);
+  const name = parts.find((part) => !GENERIC_PAGE_NAMES.has(part.toLowerCase())) ?? title;
+  return name.slice(0, MAX_NAME_LENGTH);
 }
 
 export interface PageMetadata {

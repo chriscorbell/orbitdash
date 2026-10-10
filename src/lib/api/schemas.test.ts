@@ -10,6 +10,8 @@ import * as fullHost from "@shared/host-schemas";
 import { authSessionSchema as fullAuthSession } from "@shared/auth-schemas";
 import * as fullImport from "@shared/import-schemas";
 import * as fullWidgets from "@shared/widget-schemas";
+import * as fullTools from "@shared/service-tools-schemas";
+import * as miniTools from "@/lib/api/service-tools";
 import * as miniWidgets from "@/lib/api/widgets";
 import * as fullStatus from "@shared/status-schemas";
 import * as miniStatus from "@/lib/api/status";
@@ -232,6 +234,35 @@ const pairs = [
     invalid: [
       { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
     ],
+  },
+  {
+    name: "service inspection",
+    mini: miniTools.serviceInspectionSchema,
+    full: fullTools.serviceInspectionSchema,
+    valid: {
+      url: "http://nas.lan/",
+      reachable: false,
+      error: "Connection refused",
+      name: null,
+      iconUrl: "http://nas.lan/favicon.ico",
+      selfSigned: true,
+    },
+    invalid: [
+      { url: "x", reachable: "yes", error: null, name: null, iconUrl: null, selfSigned: false },
+    ],
+  },
+  {
+    name: "service test result",
+    mini: miniTools.serviceTestResultSchema,
+    full: fullTools.serviceTestResultSchema,
+    valid: {
+      target: "http://x/",
+      state: "degraded",
+      latencyMs: 2400,
+      statusCode: 200,
+      error: null,
+    },
+    invalid: [{ target: "x", state: "unknown", latencyMs: null, statusCode: null, error: null }],
   },
   {
     name: "weather report",

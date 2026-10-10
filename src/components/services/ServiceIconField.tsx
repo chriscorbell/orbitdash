@@ -30,6 +30,8 @@ interface ServiceIconFieldProps {
   onRemoveIcon: () => void;
   /** The service's name, used to suggest library icons. */
   serviceName?: string;
+  /** The icon the service's own page links to, if reading it found one. */
+  siteIconUrl?: string | null;
 }
 
 export function ServiceIconField({
@@ -43,6 +45,7 @@ export function ServiceIconField({
   onIconUrlChange,
   onRemoveIcon,
   serviceName = "",
+  siteIconUrl = null,
 }: ServiceIconFieldProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const pickFromLibrary = (url: string) => {
@@ -141,9 +144,10 @@ export function ServiceIconField({
         />
       ) : (
         !iconPreview &&
-        serviceName.trim().length >= 2 && (
+        (serviceName.trim().length >= 2 || siteIconUrl) && (
           <IconSuggestions
             name={serviceName}
+            siteIconUrl={siteIconUrl}
             selectedUrl={iconUrl.trim()}
             onSelect={onIconUrlChange}
           />
