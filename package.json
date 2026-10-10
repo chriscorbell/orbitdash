@@ -1,7 +1,7 @@
 {
   "name": "orbitdash",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "packageManager": "bun@1.4.2",
   "type": "module",
   "scripts": {
@@ -28,7 +28,7 @@
     "test:watch": "vitest --watch",
     "test:coverage": "npm run test:coverage:shared && npm run test:coverage:frontend && npm run test:coverage:server",
     "test:coverage:shared": "vitest --run shared --coverage --coverage.reporter=text",
-    "test:coverage:frontend": "vitest --run src --coverage --coverage.reporter=text --coverage.include='src/{App.tsx,components/{ServiceCard,ServiceDialog,ServicesSection,auth/AuthGate,auth/SignInScreen,header/AppHeader,settings/SettingsDialog,services/CategorySectionList,services/ServiceStatusCheckField,status/ServiceStatus}.tsx,components/status/{useServiceStatus,status-format}.ts,hooks/{useAuthSession,useCategoryOrder,useDashboardSettings,useMetrics,useServices}.ts,lib/{api/client,live/metrics-store,board-layout,icon-tone,pwa}.ts,sw/{precache,respond,routes,strategies}.ts}' --coverage.thresholds.statements=75 --coverage.thresholds.branches=55 --coverage.thresholds.functions=70 --coverage.thresholds.lines=75",
+    "test:coverage:frontend": "vitest --run src --coverage --coverage.reporter=text --coverage.include='src/{App.tsx,components/{ServiceCard,ServiceDialog,ServicesSection,auth/AuthGate,auth/SignInScreen,header/AppHeader,settings/SettingsDialog,settings/notifications/NotificationSettings,settings/notifications/ChannelDialog,services/CategorySectionList,services/ServiceStatusCheckField,status/ServiceStatus}.tsx,components/status/{useServiceStatus,status-format}.ts,hooks/{useAuthSession,useCategoryOrder,useDashboardSettings,useMetrics,useNotifications,useServices}.ts,lib/{api/client,live/metrics-store,board-layout,icon-tone,notifications,pwa}.ts,sw/{precache,respond,routes,strategies}.ts}' --coverage.thresholds.statements=75 --coverage.thresholds.branches=55 --coverage.thresholds.functions=70 --coverage.thresholds.lines=75",
     "test:coverage:server": "bun test server --coverage && node scripts/check-lcov-coverage.mjs coverage/server/lcov.info 75 80"
   },
   "dependencies": {

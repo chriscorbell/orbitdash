@@ -16,6 +16,8 @@ import * as miniTools from "@/lib/api/service-tools";
 import * as miniWidgets from "@/lib/api/widgets";
 import * as fullStatus from "@shared/status-schemas";
 import * as miniStatus from "@/lib/api/status";
+import * as fullNotifications from "@shared/notification-schemas";
+import * as miniNotifications from "@/lib/api/notifications";
 import * as miniDocker from "@/lib/api/docker";
 import * as miniDiscovery from "@/lib/api/discovery";
 import * as miniIntegrations from "@/lib/api/integrations";
@@ -162,6 +164,53 @@ const settings = {
   },
 };
 
+const channelBase = {
+  id: "c1",
+  name: "Phone",
+  events: { status: true, alerts: false },
+  createdAt: 1,
+  updatedAt: 2,
+};
+
+const notificationChannels = [
+  {
+    ...channelBase,
+    type: "ntfy",
+    config: { server: "https://ntfy.sh", topic: "••••erts", token: null, priority: 4, tags: ["a"] },
+  },
+  { ...channelBase, type: "gotify", config: { server: "https://g", token: "••••", priority: 8 } },
+  { ...channelBase, type: "discord", config: { webhookUrl: "https://discord.com/••••" } },
+  {
+    ...channelBase,
+    type: "webhook",
+    config: { url: "https://h/••••", headers: [{ name: "Authorization", value: "••••" }] },
+  },
+];
+
+const notificationDelivery = {
+  id: 3,
+  channelId: "c1",
+  channelName: "Phone",
+  channelType: "ntfy",
+  event: "service.down",
+  title: "Jellyfin is down",
+  ok: false,
+  attempts: 3,
+  error: "HTTP 502",
+  sentAt: 4,
+};
+
+const notificationsResponse = {
+  channels: notificationChannels,
+  options: {
+    downDelayMinutes: 2,
+    quietHours: { enabled: true, start: "22:00", end: "07:00" },
+    timeZone: null,
+  },
+  deliveries: [notificationDelivery],
+  serverTimeZone: "Etc/UTC",
+};
+
 const authSession = {
   authenticated: true,
   canEdit: true,
@@ -229,6 +278,42 @@ const pairs = [
       { ...statusHistory, range: "7d" },
       { ...statusHistory, uptime: undefined },
       { ...statusHistory, buckets: [{ ts: 0, checks: 1, failures: 0, latencyMs: null }] },
+    ],
+  },
+  {
+    name: "notifications",
+    mini: miniNotifications.notificationsResponseSchema,
+    full: fullNotifications.notificationsResponseSchema,
+    valid: notificationsResponse,
+    invalid: [
+      { ...notificationsResponse, serverTimeZone: undefined },
+      { ...notificationsResponse, channels: [{ ...notificationChannels[0], type: "email" }] },
+      {
+        ...notificationsResponse,
+        channels: [{ ...notificationChannels[1], config: { server: "https://g" } }],
+      },
+      { ...notificationsResponse, deliveries: [{ ...notificationDelivery, event: "other" }] },
+      { ...notificationsResponse, options: { downDelayMinutes: 2 } },
+    ],
+  },
+  {
+    name: "notification channel",
+    mini: miniNotifications.notificationChannelSchema,
+    full: fullNotifications.notificationChannelSchema,
+    valid: notificationChannels[3],
+    invalid: [
+      { ...notificationChannels[3], config: { url: "x", headers: [{ name: "A" }] } },
+      { ...notificationChannels[2], events: { status: "yes", alerts: true } },
+    ],
+  },
+  {
+    name: "notification test result",
+    mini: miniNotifications.notificationTestResultSchema,
+    full: fullNotifications.notificationTestResultSchema,
+    valid: { ok: false, error: "HTTP 401: unauthorized", delivery: notificationDelivery },
+    invalid: [
+      { ok: false, error: null },
+      { ok: true, error: null, delivery: { ...notificationDelivery, ok: "yes" } },
     ],
   },
   {

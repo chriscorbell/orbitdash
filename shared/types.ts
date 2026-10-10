@@ -459,6 +459,109 @@ export interface ImportResult {
   snapshot: string | null; // the snapshot taken before importing
 }
 
+/** Where notifications go. */
+export type NotificationChannelType = "ntfy" | "gotify" | "discord" | "webhook";
+
+/** Which kinds of events a channel receives. */
+export interface NotificationEventToggles {
+  status: boolean; // a service went down or came back
+  alerts: boolean; // a metric alert fired or resolved
+}
+
+export interface NtfyChannelConfig {
+  server: string; // e.g. https://ntfy.sh
+  topic: string; // secret: on a public server, knowing the topic is enough to read it
+  token: string | null; // secret: an access token, sent as a Bearer token
+  priority: number; // 1-5, for problems; recoveries never go above 3 (ntfy's default)
+  tags: string[];
+}
+
+export interface GotifyChannelConfig {
+  server: string;
+  token: string; // secret: the application token
+  priority: number; // 0-10, for problems; recoveries never go above 5
+}
+
+export interface DiscordChannelConfig {
+  webhookUrl: string; // secret: the URL carries the webhook's token
+}
+
+export interface WebhookHeader {
+  name: string;
+  value: string; // secret
+}
+
+export interface WebhookChannelConfig {
+  url: string; // secret: tokens often travel in the path or query
+  headers: WebhookHeader[];
+}
+
+interface NotificationChannelBase {
+  id: string;
+  name: string;
+  events: NotificationEventToggles; // both off pauses the channel
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * A notification channel. API responses replace every secret (marked in the config types) with a
+ * mask such as "••••a1b2"; the real values never leave the server.
+ */
+export type NotificationChannel = NotificationChannelBase &
+  (
+    | { type: "ntfy"; config: NtfyChannelConfig }
+    | { type: "gotify"; config: GotifyChannelConfig }
+    | { type: "discord"; config: DiscordChannelConfig }
+    | { type: "webhook"; config: WebhookChannelConfig }
+  );
+
+/** A daily window, in the notification time zone, when messages are held back. */
+export interface QuietHours {
+  enabled: boolean;
+  start: string; // "22:00"
+  end: string; // "07:00"; earlier than start means the window crosses midnight
+}
+
+export interface NotificationOptions {
+  /** How long a service must stay down before anyone is told; 0 sends as soon as it is down. */
+  downDelayMinutes: number;
+  quietHours: QuietHours;
+  timeZone: string | null; // IANA name for quiet hours and times in messages; null: the server's
+}
+
+export type NotificationEvent =
+  "service.down" | "service.recovered" | "alert.firing" | "alert.resolved" | "summary" | "test";
+
+/** One message sent (or not) to one channel. */
+export interface NotificationDelivery {
+  id: number;
+  channelId: string;
+  channelName: string;
+  channelType: NotificationChannelType;
+  event: NotificationEvent;
+  title: string;
+  ok: boolean;
+  attempts: number;
+  error: string | null; // a short reason, never a URL or a token
+  sentAt: number;
+}
+
+/** Response shape for GET /api/notifications */
+export interface NotificationsResponse {
+  channels: NotificationChannel[];
+  options: NotificationOptions;
+  deliveries: NotificationDelivery[]; // newest first
+  serverTimeZone: string;
+}
+
+/** Response shape for the test endpoints. */
+export interface NotificationTestResult {
+  ok: boolean;
+  error: string | null; // may include the receiving service's own short explanation
+  delivery: NotificationDelivery | null; // null for a channel that isn't saved yet
+}
+
 export type ContainerState =
   "created" | "running" | "paused" | "restarting" | "removing" | "exited" | "dead";
 
