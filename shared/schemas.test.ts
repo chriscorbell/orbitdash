@@ -39,6 +39,13 @@ describe("serviceCreateSchema", () => {
     });
   });
 
+  it("defaults schemeless LAN addresses to http", () => {
+    expect(serviceCreateSchema.parse({ name: "Jellyfin", url: "10.0.0.20:8096" }).url).toBe(
+      "http://10.0.0.20:8096/"
+    );
+    expect(serviceUpdateSchema.parse({ url: " nas:5000 " }).url).toBe("http://nas:5000/");
+  });
+
   it("converts empty optional text fields and icon URLs to null", () => {
     expect(
       serviceCreateSchema.parse({
