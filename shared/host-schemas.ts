@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { HostSnapshot, SystemInfo } from "./types";
+import type { HostSnapshot, MetricHistory, MetricHistoryRange, SystemInfo } from "./types";
 
 /** Bumped when HostSnapshot changes in a way older clients can't read. */
 export const HOST_SNAPSHOT_VERSION = 1;
@@ -64,3 +64,33 @@ export const systemInfoSchema = z.object({
   platform: z.string(),
   uptimeSeconds: z.number(),
 }) satisfies z.ZodType<SystemInfo>;
+
+/** Every range GET /api/metrics/history accepts, shortest first. */
+export const METRIC_HISTORY_RANGES = [
+  "1h",
+  "24h",
+  "7d",
+  "30d",
+] as const satisfies readonly MetricHistoryRange[];
+
+const historyValues = z.array(z.number().nullable());
+const historySeries = z.object({ avg: historyValues, max: historyValues });
+
+export const metricHistorySchema = z.object({
+  range: z.enum(METRIC_HISTORY_RANGES),
+  resolutionMs: z.number(),
+  from: z.number(),
+  to: z.number(),
+  ts: z.array(z.number()),
+  series: z.object({
+    cpu: historySeries,
+    memory: historySeries,
+    disk: historySeries,
+    load1: historySeries,
+    temperature: historySeries,
+    netRx: historySeries,
+    netTx: historySeries,
+    diskRead: historySeries,
+    diskWrite: historySeries,
+  }),
+}) satisfies z.ZodType<MetricHistory>;

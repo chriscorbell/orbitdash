@@ -1,7 +1,10 @@
 import { SectionStateCard } from "@/components/common/SectionStateCard";
+import { BoardSkeleton } from "@/components/services/BoardSkeleton";
+import type { CardDensity } from "@shared/dashboard-settings";
 
 interface ServicesSectionFeedbackProps {
   categoriesError: string | null;
+  density: CardDensity;
   error: string | null;
   onRetry: () => void;
   showInitialError: boolean;
@@ -11,6 +14,7 @@ interface ServicesSectionFeedbackProps {
 
 export function ServicesSectionFeedback({
   categoriesError,
+  density,
   error,
   onRetry,
   showInitialError,
@@ -37,13 +41,7 @@ export function ServicesSectionFeedback({
         />
       )}
 
-      {showInitialLoading && (
-        <SectionStateCard
-          tone="loading"
-          title="Loading services"
-          description="Fetching your saved services and category layout."
-        />
-      )}
+      {showInitialLoading && <BoardSkeleton density={density} />}
 
       {showInitialError && error && (
         <SectionStateCard

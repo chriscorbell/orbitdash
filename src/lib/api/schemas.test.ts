@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as metricMini from "@/lib/api/metric-schemas";
 import * as mini from "@/lib/api/schemas";
 import * as full from "@shared/schemas";
 import { dashboardSettingsResponseSchema as fullSettings } from "@shared/dashboard-settings-schemas";
@@ -38,6 +39,26 @@ const hostSnapshot = {
   network: [{ name: "eth0", rxBytesPerSec: 100, txBytesPerSec: null }],
 };
 
+const historySeries = { avg: [10.5, null], max: [22, null] };
+const metricHistory = {
+  range: "24h",
+  resolutionMs: 300_000,
+  from: 0,
+  to: 600_000,
+  ts: [0, 300_000],
+  series: {
+    cpu: historySeries,
+    memory: historySeries,
+    disk: historySeries,
+    load1: historySeries,
+    temperature: historySeries,
+    netRx: historySeries,
+    netTx: historySeries,
+    diskRead: historySeries,
+    diskWrite: historySeries,
+  },
+};
+
 const systemInfo = {
   cpuCount: 4,
   cpuModel: null,
@@ -64,14 +85,24 @@ const service = {
 };
 
 const settings = {
-  appearance: { accent: "mint", theme: "system" },
+  appearance: {
+    accent: "mint",
+    theme: "system",
+    title: "Homelab",
+    wallpaper: "wallpaper-0123456789abcdef.png",
+    wallpaperBlur: 4,
+    wallpaperDim: 30,
+    customCss: "",
+  },
   layout: {
     mode: "columns",
     density: "comfortable",
     statsPosition: "bottom",
     showServices: true,
     showStats: false,
+    showStatsPage: true,
   },
+  search: { engine: "custom", customUrl: "https://searx.example.com/?q=%s" },
 };
 
 /** Each pair must agree: the browser's zod/mini schema and the shared full-zod schema. */
@@ -121,7 +152,7 @@ const pairs = [
   },
   {
     name: "host snapshot",
-    mini: mini.hostSnapshotSchema,
+    mini: metricMini.hostSnapshotSchema,
     full: fullHost.hostSnapshotSchema,
     valid: hostSnapshot,
     invalid: [
@@ -139,6 +170,18 @@ const pairs = [
     invalid: [
       { ...systemInfo, osName: undefined },
       { ...systemInfo, uptimeSeconds: "60" },
+    ],
+  },
+  {
+    name: "metric history",
+    mini: metricMini.metricHistorySchema,
+    full: fullHost.metricHistorySchema,
+    valid: metricHistory,
+    invalid: [
+      { ...metricHistory, range: "2h" },
+      { ...metricHistory, ts: undefined },
+      { ...metricHistory, series: { ...metricHistory.series, netTx: undefined } },
+      { ...metricHistory, series: { ...metricHistory.series, cpu: { avg: ["1"], max: [1] } } },
     ],
   },
 ];

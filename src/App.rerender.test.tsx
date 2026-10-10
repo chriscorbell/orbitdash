@@ -36,6 +36,10 @@ vi.mock("@/components/header/AppHeader", () => ({ AppHeader: () => <header /> })
 vi.mock("@/components/settings/settings-preload", () => ({
   preloadSettingsDialog: vi.fn(),
   preloadEditableBoard: vi.fn(),
+  preloadStatsPage: vi.fn(),
+  preloadCommandPalette: vi.fn(),
+  loadCommandPalette: async () => ({ CommandPalette: () => null }),
+  loadStatsPage: async () => ({ StatsPage: () => null }),
   loadEditableBoard: async () => ({ EditableBoard: () => null }),
   loadSettingsDialog: async () => ({ SettingsDialog: () => null }),
 }));

@@ -65,14 +65,31 @@ const layoutSchema = z.object({
   statsPosition: z.enum(["top", "bottom"]),
   showServices: z.boolean(),
   showStats: z.boolean(),
+  showStatsPage: z.boolean(),
 });
 
 const appearanceSchema = z.object({
   accent: z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]),
   theme: z.enum(["dark", "light", "system"]),
+  title: z.string(),
+  wallpaper: z.nullable(z.string()),
+  wallpaperBlur: z.number(),
+  wallpaperDim: z.number(),
+  customCss: z.string(),
 });
 
-const settingsSchema = z.object({ appearance: appearanceSchema, layout: layoutSchema });
+export const wallpaperUploadSchema = z.object({ filename: z.string() });
+
+const searchSchema = z.object({
+  engine: z.enum(["duckduckgo", "google", "bing", "brave", "custom"]),
+  customUrl: z.string(),
+});
+
+const settingsSchema = z.object({
+  appearance: appearanceSchema,
+  layout: layoutSchema,
+  search: searchSchema,
+});
 
 export const dashboardSettingsResponseSchema = z.object({
   device: z.nullable(
@@ -82,6 +99,7 @@ export const dashboardSettingsResponseSchema = z.object({
       overrides: z.object({
         appearance: z.optional(z.partial(appearanceSchema)),
         layout: z.optional(z.partial(layoutSchema)),
+        search: z.optional(z.partial(searchSchema)),
       }),
     })
   ),
@@ -104,58 +122,3 @@ export const systemInfoSchema = z.object({
 });
 
 export type SystemInfo = z.infer<typeof systemInfoSchema>;
-
-const nullableNumber = z.nullable(z.number());
-
-export const hostSnapshotSchema = z.object({
-  version: z.literal(1),
-  ts: z.number(),
-  intervalMs: nullableNumber,
-  cpu: z.object({
-    usage: nullableNumber,
-    cores: z.array(
-      z.object({ id: z.number(), usage: nullableNumber, frequencyMhz: nullableNumber })
-    ),
-    load: z.nullable(z.object({ one: z.number(), five: z.number(), fifteen: z.number() })),
-    frequencyMhz: nullableNumber,
-    temperatureCelsius: nullableNumber,
-  }),
-  memory: z.nullable(
-    z.object({
-      totalBytes: z.number(),
-      usedBytes: z.number(),
-      availableBytes: z.number(),
-      cachedBytes: nullableNumber,
-      swapTotalBytes: nullableNumber,
-      swapUsedBytes: nullableNumber,
-    })
-  ),
-  temperatures: z.array(
-    z.object({
-      id: z.string(),
-      chip: z.string(),
-      label: z.nullable(z.string()),
-      celsius: z.number(),
-    })
-  ),
-  filesystems: z.array(
-    z.object({
-      mountpoint: z.string(),
-      device: z.string(),
-      type: z.string(),
-      totalBytes: z.number(),
-      usedBytes: z.number(),
-      availableBytes: z.number(),
-    })
-  ),
-  disks: z.array(
-    z.object({
-      name: z.string(),
-      readBytesPerSec: nullableNumber,
-      writeBytesPerSec: nullableNumber,
-    })
-  ),
-  network: z.array(
-    z.object({ name: z.string(), rxBytesPerSec: nullableNumber, txBytesPerSec: nullableNumber })
-  ),
-});

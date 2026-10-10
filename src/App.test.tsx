@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryWrapper } from "@/test/query";
@@ -11,7 +11,6 @@ interface MockServicesProps {
   addOpen: boolean;
   editing: boolean;
   renamingKey: string | null;
-  search: string;
 }
 
 interface MockSettingsProps {
@@ -26,12 +25,11 @@ vi.mock("@/components/Footer", () => ({
 }));
 
 vi.mock("@/components/ServicesSection", () => ({
-  ServicesSection: ({ addOpen, editing, renamingKey, search }: MockServicesProps) => (
+  ServicesSection: ({ addOpen, editing, renamingKey }: MockServicesProps) => (
     <section data-testid="services-section">
       <span data-testid="add-open">{String(addOpen)}</span>
       <span data-testid="editing">{String(editing)}</span>
       <span data-testid="renaming">{renamingKey ?? ""}</span>
-      <span data-testid="search">{search}</span>
     </section>
   ),
 }));
@@ -40,7 +38,44 @@ vi.mock("@/components/ServicesSection", () => ({
 vi.mock("@/components/settings/settings-preload", () => ({
   preloadSettingsDialog: vi.fn(),
   preloadEditableBoard: vi.fn(),
+  preloadStatsPage: vi.fn(),
   loadEditableBoard: async () => ({ EditableBoard: () => null }),
+  preloadCommandPalette: vi.fn(),
+  loadCommandPalette: async () => ({
+    CommandPalette: ({
+      open,
+      initialQuery,
+      actions,
+      onOpenChange,
+    }: {
+      open: boolean;
+      initialQuery: string;
+      actions: Array<{ id: string; label: string; run: () => void }>;
+      onOpenChange: (open: boolean) => void;
+    }) =>
+      open ? (
+        <div role="dialog" aria-label="Palette">
+          <span data-testid="palette-query">{initialQuery}</span>
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => {
+                onOpenChange(false);
+                action.run();
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null,
+  }),
+  loadStatsPage: async () => ({
+    StatsPage: ({ themeKey }: { themeKey: string }) => (
+      <div data-testid="stats-page">{themeKey}</div>
+    ),
+  }),
   loadSettingsDialog: async () => ({
     SettingsDialog: ({
       open,
@@ -180,6 +215,7 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("App", () => {
@@ -205,12 +241,9 @@ describe("App", () => {
     });
   });
 
-  it("passes the header's search and add action to the services", async () => {
+  it("passes the header's add action to the services", async () => {
     const user = userEvent.setup();
     renderApp();
-
-    await user.type(screen.getByRole("searchbox", { name: "Search services" }), "jelly");
-    expect(screen.getByTestId("search").textContent).toBe("jelly");
 
     await user.click(screen.getByRole("button", { name: "Add service" }));
     expect(screen.getByTestId("add-open").textContent).toBe("true");
@@ -233,11 +266,9 @@ describe("App", () => {
     const user = userEvent.setup();
     renderApp();
 
-    await user.type(screen.getByRole("searchbox", { name: "Search services" }), "jelly");
     await user.click(screen.getByRole("button", { name: "Edit layout" }));
 
     expect(screen.getByTestId("editing").textContent).toBe("true");
-    expect(screen.getByTestId("search").textContent).toBe("");
 
     await user.click(screen.getByRole("button", { name: "New category" }));
     const categories = vi.mocked(useCategories).mock.results.at(-1)!.value as UseCategoriesResult;
@@ -260,5 +291,46 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "New category" }));
 
     expect(await screen.findByText("Couldn't create the category")).toBeTruthy();
+  });
+
+  it("opens the Stats page from its tab and comes back to services", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(await screen.findByRole("link", { name: "Stats" }));
+    expect((await screen.findByTestId("stats-page")).textContent).toBe("dark-ice");
+    expect(screen.queryByTestId("services-section")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add service" })).toBeNull();
+    expect(window.location.pathname).toBe("/stats");
+
+    await user.click(screen.getByRole("link", { name: "Services" }));
+    expect(await screen.findByTestId("services-section")).toBeTruthy();
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("opens the palette by typing anywhere or with Ctrl+K, and runs its actions", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByTestId("services-section");
+
+    await user.keyboard("j");
+    expect((await screen.findByTestId("palette-query")).textContent).toBe("j");
+    await user.click(screen.getByRole("button", { name: "Use light theme" }));
+    expect(screen.queryByRole("dialog", { name: "Palette" })).toBeNull();
+
+    await user.keyboard("{Control>}k{/Control}");
+    expect((await screen.findByTestId("palette-query")).textContent).toBe("");
+    await user.click(screen.getByRole("button", { name: "Go to Stats" }));
+    expect(await screen.findByTestId("stats-page")).toBeTruthy();
+  });
+
+  it("opens the palette from the header search field", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole("button", { name: "Search services and commands" }));
+    const palette = await screen.findByRole("dialog", { name: "Palette" });
+    await user.click(within(palette).getByRole("button", { name: "Edit layout" }));
+    expect(screen.getByTestId("editing").textContent).toBe("true");
   });
 });

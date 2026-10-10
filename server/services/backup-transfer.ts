@@ -2,11 +2,13 @@ import fs from "fs";
 import path from "path";
 import { z } from "zod";
 import { CATEGORY_ORDER_SETTING_KEY, mergeCategoryOrder } from "@shared/category-order";
+import { WALLPAPER_FILENAME_PATTERN } from "@shared/dashboard-settings";
 import { normalizeServiceUrl } from "@shared/urls";
 import { apiFail, apiOk, type ApiResult } from "../api-response";
 import { getDataDir, getDb } from "../db";
 import { createSnapshot } from "./backup-snapshots";
 import { detectIconExt, getIconsDir, MAX_ICON_BYTES } from "./icon-storage";
+import { listReferencedWallpapers, saveWallpaper, wallpaperPath } from "./wallpaper-storage";
 
 export const BACKUP_FORMAT = "orbitdash-backup";
 export const BACKUP_VERSION = 2;
@@ -51,12 +53,19 @@ const backupIconSchema = z.object({
   data: z.string(),
 });
 
+const backupWallpaperSchema = z.object({
+  filename: z.string().regex(WALLPAPER_FILENAME_PATTERN, "wallpaper filename is not allowed"),
+  data: z.string(),
+});
+
 const documentFields = {
   format: z.literal(BACKUP_FORMAT, { error: "not an orbitdash backup file" }),
   exportedAt: z.string(),
   appVersion: z.string().optional(),
   settings: z.record(z.string(), z.string()),
   icons: z.array(backupIconSchema),
+  // Added after version 2 shipped, so older files simply have none.
+  wallpapers: z.array(backupWallpaperSchema).default([]),
 };
 
 function rejectDuplicateIds(label: string, ids: string[], ctx: z.RefinementCtx) {
@@ -166,6 +175,14 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
     }
   }
 
+  const wallpapers: BackupDocument["wallpapers"] = [];
+  for (const filename of listReferencedWallpapers()) {
+    const filePath = wallpaperPath(filename);
+    if (filePath && fs.existsSync(filePath)) {
+      wallpapers.push({ filename, data: fs.readFileSync(filePath).toString("base64") });
+    }
+  }
+
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -175,6 +192,7 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
     services: rows.map((row) => ({ ...row, open_in_new_tab: Boolean(row.open_in_new_tab) })),
     settings: Object.fromEntries(settings.map((setting) => [setting.key, setting.value])),
     icons,
+    wallpapers,
   };
 }
 
@@ -329,6 +347,12 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
     fs.renameSync(iconsDir, replacedDir);
     fs.renameSync(stagingDir, iconsDir);
     fs.rmSync(replacedDir, { recursive: true, force: true });
+
+    // Wallpapers are named by their content, so they are added next to any existing ones and
+    // unused ones are left to the cleanup job.
+    for (const wallpaper of document.wallpapers) {
+      saveWallpaper(Buffer.from(wallpaper.data, "base64"));
+    }
 
     return apiOk({
       icons: icons.size,

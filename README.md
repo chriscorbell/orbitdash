@@ -46,14 +46,16 @@ version before creating the matching tag.
 
 ## Features
 
-- Live CPU/RAM/Disk metrics with charts
-- Simple service links with icons and categories
+- Live CPU, memory and disk usage in a compact strip with sparklines
+- A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
+- Simple service links with icons and categories; dark icons get a light plate automatically
 - Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
-- Inline search and filtering
+- A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
 - UI-native service management (no config file needed)
-- Toggle between 3, 4 and 5 column grids for service links
-- Layout settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
-- Reorder category sections with a shared saved layout
+- Categories as balanced columns or stacked rows, with compact, card or tile styles
+- Edit mode: drag cards and categories, rename categories in place, add services to a category
+- A wallpaper with blur and dim, your own dashboard name, an accent-colored favicon, and custom CSS
+- Settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
 - Collapse category sections with saved per-browser state
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
 - Deleting a service can be undone for 30 minutes
@@ -116,6 +118,7 @@ All data is stored under `/data` inside the container:
 
 - `orbitdash.db` (SQLite database)
 - `icons/` (uploaded/downloaded service icons)
+- `wallpapers/` (uploaded wallpapers; ones no setting uses are cleaned up after an hour)
 - `backups/` (automatic snapshots, the newest 7 by default; see `ORBITDASH_BACKUP_KEEP`)
 
 The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.
@@ -159,6 +162,12 @@ It collects:
 one every second. `GET /api/system` returns the hostname, OS, kernel, CPU model and uptime.
 Anything that can't be read on a platform (macOS, or a restricted container) is left out rather
 than failing.
+
+orbitdash also keeps history, even when nobody has the dashboard open. It stores CPU, memory,
+disk, load, CPU temperature, network and disk I/O at 1-minute resolution for 48 hours and
+15-minute resolution for 90 days, which comes to about 2 MB in the data directory.
+`GET /api/metrics/history?range=1h|24h|7d|30d` returns the average and peak of each metric per
+point: 1-minute points for `1h`, 5-minute points for `24h`, and 15-minute points for `7d` and `30d`.
 
 ### Seeing the host from Docker
 
@@ -258,6 +267,7 @@ and the service dialog submit path. The current canonical rules are:
 - category and description fields are trimmed and normalized to `null` when empty
 - the `Uncategorized` section cannot be manually included in saved category ordering
 - metrics `window` must be a positive integer and is bounded to 60 seconds (the sample retention period)
+- metric history `range` must be `1h`, `24h`, `7d` or `30d` (default `1h`)
 
 ## Contributing
 

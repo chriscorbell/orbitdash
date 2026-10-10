@@ -54,6 +54,36 @@ per-second payload only grows for views that ask for the detail. Some host facts
 reader's namespace: `/proc/net` and `/proc/self/mounts` describe the container, so the collector
 reads PID 1's (`/proc/1/net/dev`, `/proc/1/mounts`), which are the host's through a host root.
 
+### Metric History
+
+The live view stays in memory: the last minute of samples, one a second while someone watches.
+History lives in `server/history/` and keeps nine metrics: CPU, memory and main-disk percentages,
+the 1-minute load, the CPU temperature, network receive and send rates summed over counted
+interfaces, and disk read and write rates summed over physical disks. Each one is kept as a
+time-weighted average and a maximum per bucket.
+
+- **Sampling.** Every collector tick feeds history: once a second while a live stream is open,
+  every 10 seconds otherwise. That idle tick already ran for the strip's buffer, so history adds no
+  extra reads of the host. Each sample counts for the time since the previous one (capped at 10
+  seconds), so a minute that is partly watched isn't dominated by its 1-second samples. The max
+  is the highest sample, so it reads a little higher when the minute was watched.
+- **Rollup.** `rollup.ts` holds the math as pure functions: bucket boundaries, merging,
+  retention cutoffs, range plans, and the response builder. `recorder.ts` keeps the current
+  minute in memory. A job writes each finished minute about 2 seconds after it ends, in one
+  transaction that also rebuilds that minute's quarter hour from its stored minutes.
+- **Storage.** There are two tables keyed by bucket start in milliseconds:
+  `metric_history_1m`, kept 48 hours, and `metric_history_15m`, kept 90 days. An hourly job
+  prunes them. At full retention they hold about 11,500 rows, roughly 2 MB.
+- **Restarts.** Shutdown writes the minute in progress. If the next process starts within the
+  same minute, it merges its samples into that row rather than replacing it. Rows are only ever
+  upserted by bucket start, and a minute leaves memory only once its transaction commits, so no
+  sample is counted twice. A crash loses at most the unwritten minute, which then shows as a gap.
+- **Reading.** `GET /api/metrics/history?range=` serves `1h` as 1-minute points, `24h` as
+  5-minute points (regrouped from minute rows, 288 points), and `7d` and `30d` as 15-minute
+  points. Minutes not yet written are merged in, so the current minute shows up. The response is
+  columnar (`ts` plus `avg`/`max` arrays per metric), which is the shape uPlot takes. Buckets with
+  no data are left out, and one all-null entry marks each gap so a line chart breaks there.
+
 ### Installable App And Offline Shell
 
 orbitdash ships a web app manifest (`public/manifest.webmanifest`, icons in `public/icons/` made by

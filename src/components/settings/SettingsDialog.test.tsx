@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState, type ComponentProps } from "react";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { DEFAULT_DASHBOARD_SETTINGS } from "@shared/dashboard-settings";
 
 type DialogProps = Omit<ComponentProps<typeof SettingsDialog>, "open" | "onOpenChange">;
 
@@ -31,21 +32,26 @@ afterEach(() => {
 
 function renderHeader(overrides: Partial<DialogProps> = {}) {
   const props: DialogProps = {
-    appearance: { accent: "ice", theme: "dark" },
+    appearance: DEFAULT_DASHBOARD_SETTINGS.appearance,
     density: "comfortable",
     mode: "columns",
+    search: DEFAULT_DASHBOARD_SETTINGS.search,
     statsPosition: "top",
     settingsScope: "all",
     showServicesSection: true,
     showStatsSection: true,
+    showStatsPage: true,
     onAppearanceChange: vi.fn(),
+    onAppearancePreview: vi.fn(),
     onDensityChange: vi.fn(),
     onEditLayout: vi.fn(),
     onModeChange: vi.fn(),
+    onSearchChange: vi.fn(),
     onStatsPositionChange: vi.fn(),
     onSettingsScopeChange: vi.fn(),
     onShowServicesSectionChange: vi.fn(),
     onShowStatsSectionChange: vi.fn(),
+    onShowStatsPageChange: vi.fn(),
     ...overrides,
   };
 

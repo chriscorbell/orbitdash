@@ -10,12 +10,17 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { AppearanceSettingsSection } from "@/components/settings/AppearanceSettingsSection";
+import { CustomCssSettings } from "@/components/settings/CustomCssSettings";
+import { DashboardTitleField } from "@/components/settings/DashboardTitleField";
+import { WallpaperSettings } from "@/components/settings/WallpaperSettings";
+import { WebSearchSettings } from "@/components/settings/WebSearchSettings";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
 import type {
   BoardMode,
   CardDensity,
   DashboardAppearanceSettings,
+  DashboardSearchSettings,
   StatsPosition,
 } from "@shared/dashboard-settings";
 import {
@@ -33,20 +38,26 @@ interface SettingsDialogProps {
   density: CardDensity;
   mode: BoardMode;
   open: boolean;
+  search: DashboardSearchSettings;
   statsPosition: StatsPosition;
   settingsError?: string | null;
   settingsScope: SettingsScope;
   showServicesSection: boolean;
   showStatsSection: boolean;
+  showStatsPage: boolean;
   onAppearanceChange: (appearance: Partial<DashboardAppearanceSettings>) => void;
+  /** Shows unsaved appearance (wallpaper sliders) on the page while it is adjusted. */
+  onAppearancePreview: (appearance: Partial<DashboardAppearanceSettings> | null) => void;
   onDensityChange: (density: CardDensity) => void;
   onEditLayout: () => void;
   onModeChange: (mode: BoardMode) => void;
+  onSearchChange: (search: Partial<DashboardSearchSettings>) => void;
   onOpenChange: (open: boolean) => void;
   onStatsPositionChange: (position: StatsPosition) => void;
   onSettingsScopeChange: (scope: SettingsScope) => void;
   onShowServicesSectionChange: (enabled: boolean) => void;
   onShowStatsSectionChange: (enabled: boolean) => void;
+  onShowStatsPageChange: (enabled: boolean) => void;
 }
 
 interface SettingsToggleRowProps {
@@ -187,20 +198,25 @@ export function SettingsDialog({
   density,
   mode,
   open,
+  search,
   statsPosition,
   settingsError = null,
   settingsScope,
   showServicesSection,
   showStatsSection,
+  showStatsPage,
   onAppearanceChange,
+  onAppearancePreview,
   onDensityChange,
   onEditLayout,
   onModeChange,
+  onSearchChange,
   onOpenChange,
   onStatsPositionChange,
   onSettingsScopeChange,
   onShowServicesSectionChange,
   onShowStatsSectionChange,
+  onShowStatsPageChange,
 }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -246,6 +262,15 @@ export function SettingsDialog({
           <section className="space-y-3">
             <SettingsSectionLabel>Appearance</SettingsSectionLabel>
             <AppearanceSettingsSection appearance={appearance} onChange={onAppearanceChange} />
+            <DashboardTitleField
+              title={appearance.title}
+              onChange={(title) => onAppearanceChange({ title })}
+            />
+            <WallpaperSettings
+              appearance={appearance}
+              onChange={onAppearanceChange}
+              onPreview={onAppearancePreview}
+            />
           </section>
 
           {/* Visibility */}
@@ -265,6 +290,13 @@ export function SettingsDialog({
                 description="Show CPU, memory and disk usage"
                 checked={showStatsSection}
                 onCheckedChange={onShowStatsSectionChange}
+              />
+              <SettingsToggleRow
+                id="show-stats-page"
+                title="Stats page"
+                description="Show the Stats tab with charts and history"
+                checked={showStatsPage}
+                onCheckedChange={onShowStatsPageChange}
               />
             </div>
           </section>
@@ -316,6 +348,19 @@ export function SettingsDialog({
                 </Button>
               </div>
             </div>
+          </section>
+
+          <section className="space-y-3">
+            <SettingsSectionLabel>Search</SettingsSectionLabel>
+            <WebSearchSettings search={search} onChange={onSearchChange} />
+          </section>
+
+          <section className="space-y-3">
+            <SettingsSectionLabel>Advanced</SettingsSectionLabel>
+            <CustomCssSettings
+              customCss={appearance.customCss}
+              onChange={(customCss) => onAppearanceChange({ customCss })}
+            />
           </section>
 
           <section className="space-y-3">

@@ -13,6 +13,17 @@ export type StatsPosition = (typeof STATS_POSITION_OPTIONS)[number];
 export const ACCENT_OPTIONS = ["ice", "mint", "amber", "rose", "violet", "graphite"] as const;
 export type AccentPreset = (typeof ACCENT_OPTIONS)[number];
 
+/** Uploaded wallpapers are content-addressed: `wallpaper-<16 hex>.<ext>`. */
+export const WALLPAPER_FILENAME_PATTERN = /^wallpaper-[a-f0-9]{16}\.(png|jpg|gif|webp|avif)$/;
+export const WALLPAPER_BLUR_MAX = 32;
+export const WALLPAPER_DIM_MAX = 90;
+export const TITLE_MAX_LENGTH = 60;
+export const CUSTOM_CSS_MAX_LENGTH = 20_000;
+
+export const SEARCH_ENGINE_OPTIONS = ["duckduckgo", "google", "bing", "brave", "custom"] as const;
+export type SearchEngine = (typeof SEARCH_ENGINE_OPTIONS)[number];
+export const SEARCH_URL_MAX_LENGTH = 500;
+
 export interface DashboardLayoutSettings {
   /** Categories side by side as columns, or stacked as rows of cards. */
   mode: BoardMode;
@@ -20,16 +31,36 @@ export interface DashboardLayoutSettings {
   statsPosition: StatsPosition;
   showServices: boolean;
   showStats: boolean;
+  /** The Stats page and its tab in the header. */
+  showStatsPage: boolean;
 }
 
 export interface DashboardAppearanceSettings {
   accent: AccentPreset;
   theme: ThemePreference;
+  /** Shown in the header and the browser tab; empty means "orbitdash". */
+  title: string;
+  /** Uploaded image filename, or null for none. */
+  wallpaper: string | null;
+  /** Wallpaper blur in pixels. */
+  wallpaperBlur: number;
+  /** How much the wallpaper is dimmed toward the background color, in percent. */
+  wallpaperDim: number;
+  /** Extra CSS applied after the app's own styles. */
+  customCss: string;
+}
+
+export interface DashboardSearchSettings {
+  /** Where the command palette sends a query that matches no service. */
+  engine: SearchEngine;
+  /** For "custom": an http(s) URL with %s where the query goes, e.g. a SearXNG instance. */
+  customUrl: string;
 }
 
 export interface DashboardSettings {
   appearance: DashboardAppearanceSettings;
   layout: DashboardLayoutSettings;
+  search: DashboardSearchSettings;
 }
 
 export type DashboardSettingsPatch = {
@@ -40,6 +71,11 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
   appearance: {
     accent: "ice",
     theme: "dark",
+    title: "",
+    wallpaper: null,
+    wallpaperBlur: 0,
+    wallpaperDim: 40,
+    customCss: "",
   },
   layout: {
     mode: "columns",
@@ -47,6 +83,11 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
     statsPosition: "top",
     showServices: true,
     showStats: true,
+    showStatsPage: true,
+  },
+  search: {
+    engine: "duckduckgo",
+    customUrl: "",
   },
 };
 
@@ -57,6 +98,29 @@ const oneOf =
   (value) =>
     options.includes(value);
 const isBoolean: Validator = (value) => typeof value === "boolean";
+const isIntegerBetween =
+  (min: number, max: number): Validator =>
+  (value) =>
+    Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
+const isStringUpTo =
+  (maxLength: number): Validator =>
+  (value) =>
+    typeof value === "string" && value.length <= maxLength;
+/** Empty, or an http(s) URL template with a %s placeholder for the query. */
+export function isSearchUrlTemplate(value: unknown): boolean {
+  if (typeof value !== "string" || value.length > SEARCH_URL_MAX_LENGTH) return false;
+  if (value === "") return true;
+  if (!value.includes("%s")) return false;
+  try {
+    const url = new URL(value.replace("%s", "query"));
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const isWallpaper: Validator = (value) =>
+  value === null || (typeof value === "string" && WALLPAPER_FILENAME_PATTERN.test(value));
 
 /** Which values each field accepts; anything else falls back to the default when read. */
 const FIELD_VALIDATORS: {
@@ -65,6 +129,11 @@ const FIELD_VALIDATORS: {
   appearance: {
     accent: oneOf(ACCENT_OPTIONS),
     theme: oneOf(THEME_OPTIONS),
+    title: isStringUpTo(TITLE_MAX_LENGTH),
+    wallpaper: isWallpaper,
+    wallpaperBlur: isIntegerBetween(0, WALLPAPER_BLUR_MAX),
+    wallpaperDim: isIntegerBetween(0, WALLPAPER_DIM_MAX),
+    customCss: isStringUpTo(CUSTOM_CSS_MAX_LENGTH),
   },
   layout: {
     mode: oneOf(BOARD_MODE_OPTIONS),
@@ -72,6 +141,11 @@ const FIELD_VALIDATORS: {
     statsPosition: oneOf(STATS_POSITION_OPTIONS),
     showServices: isBoolean,
     showStats: isBoolean,
+    showStatsPage: isBoolean,
+  },
+  search: {
+    engine: oneOf(SEARCH_ENGINE_OPTIONS),
+    customUrl: isSearchUrlTemplate,
   },
 };
 
@@ -143,6 +217,7 @@ export function mergeDashboardSettings(
   return {
     appearance: { ...base.appearance, ...patch?.appearance },
     layout: { ...base.layout, ...patch?.layout },
+    search: { ...base.search, ...patch?.search },
   };
 }
 
@@ -179,4 +254,33 @@ export function mergeSettingsPatches(
 
 export function isEmptySettingsPatch(patch: DashboardSettingsPatch | null | undefined): boolean {
   return !patch || SECTIONS.every((section) => Object.keys(patch[section] ?? {}).length === 0);
+}
+
+/** Every wallpaper a stored settings document or device override points at. */
+export function referencedWallpapers(documents: readonly unknown[]): Set<string> {
+  const names = new Set<string>();
+  for (const document of documents) {
+    if (!isRecord(document)) continue;
+    // A device document keeps its settings under `overrides`.
+    const source = isRecord(document.overrides) ? document.overrides : document;
+    const wallpaper = parseDashboardSettingsPatch(source).appearance?.wallpaper;
+    if (wallpaper) names.add(wallpaper);
+  }
+  return names;
+}
+
+const SEARCH_URLS: Record<Exclude<SearchEngine, "custom">, string> = {
+  bing: "https://www.bing.com/search?q=%s",
+  brave: "https://search.brave.com/search?q=%s",
+  duckduckgo: "https://duckduckgo.com/?q=%s",
+  google: "https://www.google.com/search?q=%s",
+};
+
+/** The web search URL for a query, falling back to DuckDuckGo when a custom URL isn't set. */
+export function buildSearchUrl(search: DashboardSearchSettings, query: string): string {
+  const template =
+    search.engine === "custom"
+      ? search.customUrl || SEARCH_URLS.duckduckgo
+      : SEARCH_URLS[search.engine];
+  return template.replace("%s", encodeURIComponent(query.trim()));
 }

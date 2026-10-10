@@ -2,7 +2,13 @@
 
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyAppearance, useAppliedAppearance } from "@/lib/theme";
+import {
+  applyAppearance,
+  applyDocumentAppearance,
+  faviconDataUrl,
+  useAppliedAppearance,
+} from "@/lib/theme";
+import { DEFAULT_DASHBOARD_SETTINGS } from "@shared/dashboard-settings";
 
 function mockMatchMedia(prefersDark: boolean) {
   const listeners = new Set<() => void>();
@@ -61,7 +67,8 @@ describe("useAppliedAppearance", () => {
   it("re-applies when the OS theme changes, only while following the system", () => {
     const media = mockMatchMedia(false);
     const { rerender, unmount } = renderHook(
-      ({ theme }: { theme: "system" | "dark" }) => useAppliedAppearance({ theme, accent: "ice" }),
+      ({ theme }: { theme: "system" | "dark" }) =>
+        useAppliedAppearance({ ...DEFAULT_DASHBOARD_SETTINGS.appearance, theme, accent: "ice" }),
       { initialProps: { theme: "system" as "system" | "dark" } }
     );
 
@@ -72,5 +79,39 @@ describe("useAppliedAppearance", () => {
     rerender({ theme: "dark" });
     expect(media.listenerCount).toBe(0);
     unmount();
+  });
+});
+
+describe("applyDocumentAppearance", () => {
+  afterEach(() => {
+    document.getElementById("orbitdash-custom-css")?.remove();
+    document.querySelector('link[rel="icon"]')?.remove();
+  });
+
+  it("names the tab, tints the favicon and falls back to orbitdash", () => {
+    applyDocumentAppearance({ accent: "mint", customCss: "", title: "  Homelab " });
+    expect(document.title).toBe("Homelab");
+    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')!;
+    expect(icon.href).toBe(faviconDataUrl("mint"));
+    expect(decodeURIComponent(icon.href)).toContain('fill="#3fbe90"');
+
+    applyDocumentAppearance({ accent: "rose", customCss: "", title: "" });
+    expect(document.title).toBe("orbitdash");
+    expect(document.querySelectorAll('link[rel="icon"]')).toHaveLength(1);
+  });
+
+  it("adds custom CSS last in the head, updates it, and removes it when cleared", () => {
+    applyDocumentAppearance({ accent: "ice", customCss: "body { color: red; }", title: "" });
+    const style = document.getElementById("orbitdash-custom-css")!;
+    expect(style.textContent).toBe("body { color: red; }");
+    expect(document.head.lastElementChild).toBe(style);
+
+    document.head.appendChild(document.createElement("style"));
+    applyDocumentAppearance({ accent: "ice", customCss: "body { color: blue; }", title: "" });
+    expect(document.head.lastElementChild).toBe(style);
+    expect(style.textContent).toBe("body { color: blue; }");
+
+    applyDocumentAppearance({ accent: "ice", customCss: "   ", title: "" });
+    expect(document.getElementById("orbitdash-custom-css")).toBeNull();
   });
 });

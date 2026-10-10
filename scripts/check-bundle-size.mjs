@@ -6,13 +6,13 @@ const distDir = path.resolve(process.cwd(), "dist");
 const distAssetsDir = path.join(distDir, "assets");
 
 const budgets = [
-  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 62, maxGzipKb: 20 },
+  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 68, maxGzipKb: 23 },
   {
     label: "entry css",
     prefix: "index-",
     extension: ".css",
-    maxRawKb: 76,
-    maxGzipKb: 13,
+    maxRawKb: 90,
+    maxGzipKb: 15,
   },
   {
     label: "react vendor",
@@ -51,6 +51,20 @@ const budgets = [
     maxGzipKb: 14,
   },
   {
+    label: "stats page",
+    prefix: "StatsPage-",
+    extension: ".js",
+    maxRawKb: 74,
+    maxGzipKb: 30,
+  },
+  {
+    label: "command palette",
+    prefix: "CommandPalette-",
+    extension: ".js",
+    maxRawKb: 10,
+    maxGzipKb: 4,
+  },
+  {
     label: "drag and drop",
     prefix: "drag-drop-",
     extension: ".js",
@@ -63,7 +77,13 @@ const budgets = [
 
 // Chunks that must only load on demand. If index.html references one, the
 // entry imports it statically and its lazy() boundary has been defeated.
-const lazyOnlyPrefixes = ["drag-drop-", "SettingsDialog-", "EditableBoard-"];
+const lazyOnlyPrefixes = [
+  "drag-drop-",
+  "SettingsDialog-",
+  "EditableBoard-",
+  "StatsPage-",
+  "CommandPalette-",
+];
 
 function formatKb(bytes) {
   return `${(bytes / 1024).toFixed(2)} kB`;

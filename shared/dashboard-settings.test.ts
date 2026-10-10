@@ -14,6 +14,9 @@ import {
   mergeSettingsPatches,
   parseDashboardSettings,
   parseDashboardSettingsPatch,
+  referencedWallpapers,
+  buildSearchUrl,
+  isSearchUrlTemplate,
 } from "./dashboard-settings";
 
 describe("parseDashboardSettings", () => {
@@ -27,7 +30,7 @@ describe("parseDashboardSettings", () => {
   it("reads appearance and falls back for unknown themes and accents", () => {
     expect(
       parseDashboardSettings({ appearance: { theme: "light", accent: "teal" } }).appearance
-    ).toEqual({ theme: "light", accent: "ice" });
+    ).toEqual({ ...DEFAULT_DASHBOARD_SETTINGS.appearance, theme: "light", accent: "ice" });
   });
 
   it("keeps valid fields and replaces only the invalid ones", () => {
@@ -49,6 +52,7 @@ describe("parseDashboardSettings", () => {
         statsPosition: "bottom",
         showServices: true,
         showStats: true,
+        showStatsPage: true,
       },
     });
   });
@@ -163,5 +167,82 @@ describe("devices", () => {
       stored: false,
     };
     expect(dashboardSettingsResponseSchema.parse(response)).toEqual(response);
+  });
+});
+
+describe("appearance extras", () => {
+  it("keeps a valid title, wallpaper, blur, dim and custom CSS", () => {
+    const appearance = {
+      title: "Homelab",
+      wallpaper: "wallpaper-0123456789abcdef.webp",
+      wallpaperBlur: 8,
+      wallpaperDim: 55,
+      customCss: "body { letter-spacing: 0.01em; }",
+    };
+    expect(parseDashboardSettings({ appearance }).appearance).toMatchObject(appearance);
+    expect(dashboardSettingsPatchSchema.parse({ appearance })).toEqual({ appearance });
+  });
+
+  it("falls back for values outside their limits", () => {
+    const parsed = parseDashboardSettings({
+      appearance: {
+        title: "x".repeat(61),
+        wallpaper: "/etc/passwd",
+        wallpaperBlur: 40,
+        wallpaperDim: 12.5,
+        customCss: 42,
+      },
+    }).appearance;
+    expect(parsed).toEqual(DEFAULT_DASHBOARD_SETTINGS.appearance);
+    expect(parseDashboardSettings({ appearance: { wallpaper: null } }).appearance.wallpaper).toBe(
+      null
+    );
+  });
+
+  it("finds the wallpapers stored settings and device overrides use", () => {
+    expect(
+      referencedWallpapers([
+        { appearance: { wallpaper: "wallpaper-aaaaaaaaaaaaaaaa.png" } },
+        { name: "TV", overrides: { appearance: { wallpaper: "wallpaper-bbbbbbbbbbbbbbbb.jpg" } } },
+        { appearance: { wallpaper: null } },
+        { appearance: { wallpaper: "not-ours.png" } },
+        null,
+        "broken",
+      ])
+    ).toEqual(new Set(["wallpaper-aaaaaaaaaaaaaaaa.png", "wallpaper-bbbbbbbbbbbbbbbb.jpg"]));
+  });
+});
+
+describe("web search", () => {
+  it("accepts empty or http(s) templates with a placeholder", () => {
+    expect(isSearchUrlTemplate("")).toBe(true);
+    expect(isSearchUrlTemplate("https://searx.example.com/search?q=%s")).toBe(true);
+    expect(isSearchUrlTemplate("http://10.0.0.5:8080/?q=%s")).toBe(true);
+    expect(isSearchUrlTemplate("https://example.com/search")).toBe(false);
+    expect(isSearchUrlTemplate("javascript:alert(%s)")).toBe(false);
+    expect(isSearchUrlTemplate("not a url %s")).toBe(false);
+    expect(isSearchUrlTemplate(`https://example.com/?q=%s&pad=${"x".repeat(500)}`)).toBe(false);
+    expect(isSearchUrlTemplate(42)).toBe(false);
+  });
+
+  it("builds search URLs for each engine and encodes the query", () => {
+    expect(buildSearchUrl({ engine: "duckduckgo", customUrl: "" }, " cat & dog ")).toBe(
+      "https://duckduckgo.com/?q=cat%20%26%20dog"
+    );
+    expect(buildSearchUrl({ engine: "google", customUrl: "" }, "x")).toBe(
+      "https://www.google.com/search?q=x"
+    );
+    expect(
+      buildSearchUrl({ engine: "custom", customUrl: "https://searx.lan/search?q=%s" }, "x")
+    ).toBe("https://searx.lan/search?q=x");
+    expect(buildSearchUrl({ engine: "custom", customUrl: "" }, "x")).toBe(
+      "https://duckduckgo.com/?q=x"
+    );
+  });
+
+  it("reads stored search settings leniently", () => {
+    expect(
+      parseDashboardSettings({ search: { engine: "altavista", customUrl: "ftp://x/%s" } }).search
+    ).toEqual(DEFAULT_DASHBOARD_SETTINGS.search);
   });
 });

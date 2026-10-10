@@ -1,16 +1,19 @@
+import { LOGO_CIRCLE, LOGO_PATHS, LOGO_VIEW_BOX } from "@/lib/logo-shapes";
+
 /** The orbitdash mark, drawn in currentColor so it works on light and dark backgrounds. */
 export function Logo({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 17.92 19.99"
+      viewBox={LOGO_VIEW_BOX}
       className={className}
       fill="currentColor"
       role="img"
       aria-label="orbitdash"
     >
-      <circle cx="8.93" cy="11" r="4" />
-      <path d="M.99,13s.08,0,.13,0c.55-.07.94-.57.87-1.12-.4-3.16,1.4-6.2,4.37-7.36.84,1.42,2.68,1.9,4.1,1.06,1.42-.84,1.9-2.68,1.06-4.1C10.67.05,8.83-.42,7.41.42c-.76.45-1.29,1.22-1.43,2.09C1.96,3.89-.53,7.91,0,12.13c.06.5.49.87.99.88Z" />
-      <path d="M14.55,3.98c-.44-.34-1.06-.26-1.4.18-.33.43-.26,1.04.15,1.39,3.02,2.4,3.53,6.79,1.13,9.81-2.04,2.57-5.58,3.37-8.53,1.94,0-.1.02-.19.02-.29,0-1.66-1.34-3-2.99-3.01S-.07,15.33-.07,16.99c0,1.66,1.34,3,2.99,3.01.81,0,1.58-.32,2.14-.89,4.48,2.14,9.84.24,11.98-4.24,1.8-3.76.77-8.27-2.49-10.88Z" />
+      <circle {...LOGO_CIRCLE} />
+      {LOGO_PATHS.map((d) => (
+        <path key={d} d={d} />
+      ))}
     </svg>
   );
 }

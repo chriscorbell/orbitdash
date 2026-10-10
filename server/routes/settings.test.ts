@@ -126,14 +126,24 @@ describe("dashboard settings routes", () => {
     const body = (await response.json()) as View;
 
     const defaults: View["settings"] = {
-      appearance: { accent: "ice", theme: "dark" },
+      appearance: {
+        accent: "ice",
+        theme: "dark",
+        title: "",
+        wallpaper: null,
+        wallpaperBlur: 0,
+        wallpaperDim: 40,
+        customCss: "",
+      },
       layout: {
         mode: "columns",
         density: "comfortable",
         statsPosition: "top",
         showServices: true,
         showStats: true,
+        showStatsPage: true,
       },
+      search: { engine: "duckduckgo", customUrl: "" },
     };
     expect(body).toEqual({ device: null, effective: defaults, settings: defaults, stored: false });
   });
@@ -142,11 +152,46 @@ describe("dashboard settings routes", () => {
     const response = await put("/api/settings", {
       appearance: { accent: "violet", theme: "light" },
     });
-    expect(((await response.json()) as View).settings.appearance).toEqual({
+    expect(((await response.json()) as View).settings.appearance).toMatchObject({
       accent: "violet",
       theme: "light",
     });
     expect((await put("/api/settings", { appearance: { accent: "teal" } })).status).toBe(400);
+  });
+
+  it("saves a web search engine and checks custom search URLs", async () => {
+    const search = {
+      engine: "custom",
+      customUrl: "https://searx.example.com/search?q=%s",
+    } as const;
+    const response = await put("/api/settings", { search });
+    expect(((await response.json()) as View).settings.search).toEqual(search);
+    expect(
+      (await put("/api/settings", { search: { customUrl: "https://example.com" } })).status
+    ).toBe(400);
+    expect((await put("/api/settings", { search: { engine: "altavista" } })).status).toBe(400);
+  });
+
+  it("saves a title, a wallpaper with blur and dim, and custom CSS within their limits", async () => {
+    const appearance = {
+      title: "Homelab",
+      wallpaper: "wallpaper-0123456789abcdef.jpg",
+      wallpaperBlur: 12,
+      wallpaperDim: 60,
+      customCss: ".card { border-radius: 4px; }",
+    };
+    const response = await put("/api/settings", { appearance });
+    expect(((await response.json()) as View).settings.appearance).toMatchObject(appearance);
+
+    for (const invalid of [
+      { title: "x".repeat(61) },
+      { wallpaper: "../../etc/passwd" },
+      { wallpaperBlur: 33 },
+      { wallpaperDim: 1.5 },
+      { customCss: "x".repeat(20_001) },
+    ]) {
+      expect((await put("/api/settings", { appearance: invalid })).status).toBe(400);
+    }
   });
 
   it("patches the shared settings", async () => {
