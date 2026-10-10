@@ -452,3 +452,28 @@ export interface DockerSnapshot {
   containers: ContainerInfo[];
   updatedAt: number | null;
 }
+
+/** Response shape for POST /api/service-tools/inspect: what a link's page says about itself. */
+export interface ServiceInspection {
+  /** The link as it will be saved. */
+  url: string;
+  reachable: boolean;
+  /** Why the page couldn't be read, e.g. "Connection refused". */
+  error: string | null;
+  /** A name for the service from the page's metadata or title. */
+  name: string | null;
+  /** The page's best icon (apple-touch-icon, a large icon, or /favicon.ico). */
+  iconUrl: string | null;
+  /** The page only answered once its certificate was accepted as self-signed. */
+  selfSigned: boolean;
+}
+
+/** Response shape for POST /api/service-tools/test: one check, run now. */
+export interface ServiceTestResult {
+  /** What was checked: a URL or host:port. */
+  target: string;
+  state: "up" | "degraded" | "down";
+  latencyMs: number | null;
+  statusCode: number | null;
+  error: string | null;
+}

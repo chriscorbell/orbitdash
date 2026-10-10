@@ -294,6 +294,10 @@ export function useServiceDialogState({
         name,
       }));
     },
+    /** A name found on the link's page, kept only if nothing has been typed yet. */
+    suggestName: (name: string) => {
+      setFormState((current) => (current.name.trim() ? current : { ...current, name }));
+    },
     setNewCategory: (newCategory: string) => {
       setFormState((current) => ({
         ...current,
