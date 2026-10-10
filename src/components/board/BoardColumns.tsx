@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { useElementWidth } from "@/hooks/useElementWidth";
+import { useFlipAnimation } from "@/hooks/useFlipAnimation";
 import { COLUMN_MIN_WIDTH, columnCountForWidth, distributeIntoColumns } from "@/lib/board-layout";
 import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 
@@ -27,6 +28,8 @@ export function BoardColumns<G extends { key: string }>({
   renderGroup,
 }: BoardColumnsProps<G>) {
   const { ref, width } = useElementWidth<HTMLDivElement>();
+  // Categories and cards marked with data-flip-key glide to new spots when the layout changes.
+  const flipRef = useFlipAnimation<HTMLDivElement>();
   const columnCount = columnCountForWidth(
     width,
     COLUMN_MIN_WIDTH[density],
@@ -39,17 +42,19 @@ export function BoardColumns<G extends { key: string }>({
     [columnCount, groups, heightOf, mode]
   );
 
-  if (mode === "rows") {
-    return <div className="space-y-6">{groups.map(renderGroup)}</div>;
-  }
-
   return (
-    <div ref={ref} data-columns={columns.length} className="flex items-start gap-6">
-      {columns.map((column, index) => (
-        <div key={index} className="flex min-w-0 flex-1 flex-col gap-6">
-          {column.map(renderGroup)}
+    <div ref={flipRef}>
+      {mode === "rows" ? (
+        <div className="space-y-6">{groups.map(renderGroup)}</div>
+      ) : (
+        <div ref={ref} data-columns={columns.length} className="flex items-start gap-6">
+          {columns.map((column, index) => (
+            <div key={index} className="flex min-w-0 flex-1 flex-col gap-6">
+              {column.map(renderGroup)}
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

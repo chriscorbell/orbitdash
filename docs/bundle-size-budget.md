@@ -34,8 +34,8 @@ happens.
 
 | Asset group           | Budget raw | Budget gzip | Current baseline                             |
 | --------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`          |      64 kB |       21 kB | about 58 kB raw / 20.0 kB gzip / 17.7 kB br  |
-| `index-*.css`         |      80 kB |       13 kB | about 78 kB raw / 12.8 kB gzip / 11.0 kB br  |
+| `index-*.js`          |      64 kB |       21 kB | about 61 kB raw / 20.9 kB gzip / 18.5 kB br  |
+| `index-*.css`         |      84 kB |       14 kB | about 81 kB raw / 13.4 kB gzip / 11.4 kB br  |
 | `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`         |     110 kB |       34 kB | about 96 kB raw / 29.0 kB gzip / 26.0 kB br  |
 | `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
@@ -65,6 +65,11 @@ The check reads the built files in `dist/assets` and fails if:
 
 ## History
 
+- Phone layouts (bottom-sheet dialogs, two-column grids, larger touch targets) and motion
+  utilities added about 0.6 kB gzip of CSS, so the CSS budget went from 80 kB / 13 kB to
+  84 kB / 14 kB. The CSS is one file shared by the entry and every lazy chunk, which is why lazy UI
+  still counts here. The entry JS (about 20.9 kB gzip) is close to its 21 kB budget; the next JS
+  growth should come with a chunk split rather than a higher budget.
 - Wallpaper, dashboard name, accent favicon and custom CSS added about 1.5 kB gzip to the entry
   (the settings controls themselves load with the lazy settings dialog). With the previous change
   having taken about 22 kB gzip off the first paint, the entry budget went from 62 kB / 20 kB to

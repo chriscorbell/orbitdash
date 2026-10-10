@@ -32,14 +32,14 @@ const CategorySection = memo(function CategorySection({
   const contentId = useId();
 
   return (
-    <section className="space-y-3">
+    <section data-flip-key={`category:${group.key}`} className="space-y-3">
       <h3 className="w-fit max-w-full">
         <button
           type="button"
           aria-controls={contentId}
           aria-expanded={!collapsed}
           aria-label={`${collapsed ? "Expand" : "Collapse"} ${group.name} category`}
-          className="flex min-h-8 max-w-full items-center gap-1.5 rounded-md text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="flex min-h-8 max-w-full items-center gap-1.5 pointer-coarse:min-h-10 rounded-md text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           onClick={() => onToggle(group.key)}
         >
           <ChevronDown
@@ -52,7 +52,15 @@ const CategorySection = memo(function CategorySection({
           </span>
         </button>
       </h3>
-      <div id={contentId} hidden={collapsed} className={collapsed ? "hidden" : listClassName}>
+      <div
+        id={contentId}
+        hidden={collapsed}
+        className={
+          collapsed
+            ? "hidden"
+            : `${listClassName} animate-in fade-in-0 slide-in-from-top-1 duration-200 motion-reduce:animate-none`
+        }
+      >
         {group.services.map((service) => (
           <ServiceCard key={service.id} service={service} density={density} />
         ))}

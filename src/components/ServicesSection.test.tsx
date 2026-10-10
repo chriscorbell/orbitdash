@@ -148,11 +148,11 @@ function renderServicesSection(
 describe("ServicesSection", () => {
   it("shows a loading state before services and categories arrive", () => {
     renderServicesSection({ loading: true });
-    expect(screen.getByText("Loading services")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("Loading services");
 
     cleanup();
-    renderServicesSection({ categories: categoriesStub({ loading: true }) });
-    expect(screen.getByText("Loading services")).toBeTruthy();
+    renderServicesSection({ categories: categoriesStub({ loading: true }), density: "tiles" });
+    expect(screen.getByRole("status").textContent).toBe("Loading services");
   });
 
   it("shows a retryable error state when the initial service load fails", () => {

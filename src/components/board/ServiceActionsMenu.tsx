@@ -35,7 +35,7 @@ export function ServiceActionsMenu({
           size="icon-xs"
           aria-label={`Actions for ${service.name}`}
           className={cn(
-            "absolute rounded-lg bg-background/70 backdrop-blur-sm transition-colors hover:!bg-foreground/15 hover:text-foreground",
+            "absolute rounded-lg bg-background/70 backdrop-blur-sm transition-colors hover:!bg-foreground/15 hover:text-foreground pointer-coarse:size-8",
             className
           )}
           // Keep presses on the menu from starting a drag of the card underneath.
