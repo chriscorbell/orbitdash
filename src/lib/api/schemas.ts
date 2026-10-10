@@ -80,3 +80,12 @@ export const dashboardSettingsResponseSchema = z.object({
 
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export type ImportSummary = z.infer<typeof importSummarySchema>;
+
+export const systemInfoSchema = z.object({
+  cpuCount: z.number(),
+  hostname: z.nullable(z.string()),
+  platform: z.string(),
+  uptimeSeconds: z.number(),
+});
+
+export type SystemInfo = z.infer<typeof systemInfoSchema>;
