@@ -1,5 +1,7 @@
 import { Cpu, HardDrive, MemoryStick, type LucideIcon } from "lucide-react";
+import { AlertList } from "@/components/stats/AlertList";
 import { Sparkline } from "@/components/stats/Sparkline";
+import { useAlerts } from "@/hooks/useAlerts";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useTweenedNumber } from "@/hooks/useTweenedNumber";
 import { formatPercent } from "@/lib/format";
@@ -81,12 +83,19 @@ function ConnectionNote({ status, hasData }: { hasData: boolean; status: string 
 }
 
 /** Live host metrics as a compact row of tiles; the only component that subscribes to samples. */
+/** Firing threshold alerts above the tiles; its own component so samples don't re-render it. */
+function StripAlerts() {
+  const { active } = useAlerts();
+  return <AlertList alerts={active} />;
+}
+
 export function StatsStrip() {
   const { samples, latest, status, error } = useMetrics();
   const history = (key: MetricKey) => samples.map((sample: MetricSample) => sample[key]);
 
   return (
     <section aria-label="Live stats" className="space-y-2">
+      <StripAlerts />
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {METRICS.map(({ key, label, Icon }) => (
           <StatTile

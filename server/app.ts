@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import path from "path";
+import alertsRouter from "./routes/alerts";
 import backupRouter from "./routes/backup";
 import categoriesRouter from "./routes/categories";
 import eventsRouter from "./routes/events";
@@ -122,6 +123,7 @@ app.get("/readyz", (c) => {
   });
 });
 
+app.route("/api/alerts", alertsRouter);
 app.route("/api/backup", backupRouter);
 app.route("/api/categories", categoriesRouter);
 app.route("/api/events", eventsRouter);

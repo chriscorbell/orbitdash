@@ -22,6 +22,10 @@ function SettingsHarness(props: DialogProps) {
   );
 }
 
+vi.mock("@/components/settings/AlertSettings", () => ({
+  AlertSettings: () => <div data-testid="alert-settings" />,
+}));
+
 vi.mock("@/components/settings/BackupSettingsSection", () => ({
   BackupSettingsSection: () => <div data-testid="backup-settings" />,
 }));

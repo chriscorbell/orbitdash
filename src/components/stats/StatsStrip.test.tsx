@@ -6,9 +6,14 @@ import { Sparkline } from "@/components/stats/Sparkline";
 import { StatsStrip } from "@/components/stats/StatsStrip";
 import { sparklineCeiling } from "@/lib/sparkline";
 import type { MetricsState } from "@/lib/live/metrics-store";
+import type { MetricAlert } from "@shared/types";
 
-const metrics = vi.hoisted(() => ({ state: null as unknown as MetricsState }));
+const metrics = vi.hoisted(() => ({
+  state: null as unknown as MetricsState,
+  alerts: [] as MetricAlert[],
+}));
 vi.mock("@/hooks/useMetrics", () => ({ useMetrics: () => metrics.state }));
+vi.mock("@/hooks/useAlerts", () => ({ useAlerts: () => ({ active: metrics.alerts }) }));
 
 function setMetrics(patch: Partial<MetricsState>) {
   metrics.state = {
@@ -82,5 +87,34 @@ describe("Sparkline", () => {
     const [area, line] = container.querySelectorAll("path");
     expect(line.getAttribute("d")).toBe("M0.00,27.20 L50.00,2.00 L100.00,30.00");
     expect(area.getAttribute("d")).toContain("Z");
+  });
+
+  it("shows firing alerts above the tiles, red once well past the threshold", () => {
+    setMetrics({ status: "connected" });
+    const alert: MetricAlert = {
+      id: "a",
+      metric: "cpu",
+      subject: null,
+      threshold: 90,
+      durationSec: 300,
+      value: 97,
+      peak: 99,
+      startedAt: 0,
+      firedAt: 300_000,
+      resolvedAt: null,
+    };
+    metrics.alerts = [
+      alert,
+      { ...alert, id: "b", metric: "disk", subject: "/srv", threshold: 85, value: 86 },
+    ];
+    render(<StatsStrip />);
+
+    const items = screen.getByRole("list", { name: "Active alerts" }).querySelectorAll("li");
+    expect(items[0].textContent).toContain("CPU above 90% for 5 min");
+    expect(items[0].textContent).toContain("now 97%");
+    expect(items[0].className).toContain("destructive");
+    expect(items[1].textContent).toContain("Disk (/srv) above 85% for 5 min");
+    expect(items[1].className).toContain("warning");
+    metrics.alerts = [];
   });
 });
