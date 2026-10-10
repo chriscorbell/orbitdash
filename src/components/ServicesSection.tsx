@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useCallback } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
 import { DeleteServiceDialog } from "@/components/services/DeleteServiceDialog";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
@@ -95,6 +95,13 @@ export function ServicesSection({
     services,
   });
 
+  const handleDuplicateCard = useCallback(
+    (service: Service) => {
+      void handleDuplicate(service);
+    },
+    [handleDuplicate]
+  );
+
   return (
     <div className="space-y-4">
       <ServicesToolbar
@@ -141,9 +148,7 @@ export function ServicesSection({
           hasNamedCategories={hasNamedCategories}
           services={filteredServices}
           onDelete={setDeleteTarget}
-          onDuplicate={(service) => {
-            void handleDuplicate(service);
-          }}
+          onDuplicate={handleDuplicateCard}
           onEdit={setEditingService}
           onRenameCategory={setRenameCategoryTarget}
         />

@@ -106,15 +106,46 @@ function bootstrapLegacyMigrationState(db: Database): void {
   );
 }
 
-export function applyMigrations(db: Database): void {
-  ensureMigrationsTable(db);
-  bootstrapLegacyMigrationState(db);
-
-  const applied = new Set(
+function readAppliedMigrationIds(db: Database): Set<number> {
+  return new Set(
     (
       db.prepare("SELECT id FROM schema_migrations ORDER BY id ASC").all() as Array<{ id: number }>
     ).map((row) => row.id)
   );
+}
+
+function hasAnyTables(db: Database): boolean {
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) as count
+       FROM sqlite_master
+       WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations'`
+    )
+    .get() as { count: number };
+
+  return row.count > 0;
+}
+
+/**
+ * True when the database already holds data and at least one migration still has to run, which is
+ * the moment a pre-migration snapshot is worth taking. A brand-new database returns false.
+ */
+export function needsPreMigrationSnapshot(db: Database): boolean {
+  if (!hasAnyTables(db)) {
+    return false;
+  }
+
+  ensureMigrationsTable(db);
+  bootstrapLegacyMigrationState(db);
+  const applied = readAppliedMigrationIds(db);
+  return migrations.some((migration) => !applied.has(migration.id));
+}
+
+export function applyMigrations(db: Database): void {
+  ensureMigrationsTable(db);
+  bootstrapLegacyMigrationState(db);
+
+  const applied = readAppliedMigrationIds(db);
   const insertMigration = db.prepare(
     "INSERT INTO schema_migrations (id, name, applied_at) VALUES (?, ?, ?)"
   );

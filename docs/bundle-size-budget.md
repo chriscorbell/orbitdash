@@ -33,13 +33,13 @@ happens.
 
 | Asset group          | Budget raw | Budget gzip | Current baseline                             |
 | -------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`         |      55 kB |       16 kB | about 46 kB raw / 13.7 kB gzip / 12.2 kB br  |
-| `index-*.css`        |      70 kB |       12 kB | about 63 kB raw / 10.9 kB gzip / 9.5 kB br   |
-| `react-vendor-*.js`  |     200 kB |       63 kB | about 185 kB raw / 57.6 kB gzip / 49.6 kB br |
-| `vendor-*.js`        |     135 kB |       43 kB | about 119 kB raw / 38.1 kB gzip / 33.4 kB br |
-| `charts-*.js`        |     170 kB |       60 kB | about 156 kB raw / 54.2 kB gzip / 47.6 kB br |
-| `validation-*.js`    |      65 kB |       17 kB | about 63 kB raw / 16.9 kB gzip / 15.0 kB br  |
-| `ServiceDialog-*.js` |     100 kB |       28 kB | about 33 kB raw / 10.3 kB gzip / 9.3 kB br   |
+| `index-*.js`         |      60 kB |       18 kB | about 51 kB raw / 15.2 kB gzip / 13.5 kB br  |
+| `index-*.css`        |      70 kB |       12 kB | about 63 kB raw / 11.1 kB gzip / 9.6 kB br   |
+| `react-vendor-*.js`  |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
+| `vendor-*.js`        |     145 kB |       47 kB | about 127 kB raw / 41.1 kB gzip / 36.1 kB br |
+| `charts-*.js`        |     170 kB |       60 kB | about 156 kB raw / 54.1 kB gzip / 47.6 kB br |
+| `validation-*.js`    |      85 kB |       24 kB | about 82 kB raw / 23.1 kB gzip / 20.5 kB br  |
+| `ServiceDialog-*.js` |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
 | `drag-drop-*.js`     |      48 kB |       16 kB | about 43 kB raw / 14.1 kB gzip / 12.7 kB br  |
 
 Sizes are in KiB, as printed by the check script.
@@ -63,10 +63,17 @@ The check reads the built files in `dist/assets` and fails if:
 
 ## History
 
-- The entry budget was cut from 145 kB raw / 45 kB gzip to 55 kB / 16 kB when third-party UI code
+- The entry budget was cut from 145 kB raw / 45 kB gzip to 60 kB / 18 kB when third-party UI code
   moved into `vendor-*`. The old `manualChunks` setup put React inside `charts-*`, so the entry
-  imported Chart.js and dnd-kit statically and `index.html` preloaded both. React vendor, charts,
-  and drag-and-drop budgets were tightened to match the smaller chunks.
+  imported Chart.js and dnd-kit statically and `index.html` preloaded both. The React vendor,
+  charts, and drag-and-drop budgets were tightened to match the smaller chunks.
+- The validation budget was raised from 65 kB / 17 kB to 85 kB / 24 kB for Zod 4.6. The chunk
+  still holds only Zod, so the growth comes from Zod itself rather than a chunk boundary change:
+  4.6 adds a parse memoizer for cyclic schemas, ships a larger JSON Schema generator, and bundles
+  the English locale by default. Classic schemas wire the JSON Schema processors into every schema
+  constructor, so that code cannot be tree-shaken. Moving the shared schemas to `zod/mini`, which
+  skips the JSON Schema processors and the default memoizer, is the way to shrink this chunk
+  again. React 19.3 grew `react-vendor-*` by about 28 kB raw.
 - Replacing Recharts with Chart.js cut the chart chunk roughly in half.
 - Zod 4 and the schema split moved runtime validation out of the entry bundle.
 

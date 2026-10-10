@@ -104,28 +104,14 @@ function getMacRamUsage(): number {
   return Math.round((used / total) * 10000) / 100;
 }
 
-/** Disk usage as percentage. Uses configured mount or root. */
-function getDiskUsage(): number {
-  const mountPath = process.env.ORBITDASH_DISK_PATH || "/";
-
-  const parse = (result: string, blockSize: number): number => {
-    const lines = result.trim().split("\n");
-    const dataLine = lines[lines.length - 1] || "";
-    const parts = dataLine.trim().split(/\s+/);
-    // parts: [filesystem, total-blocks, used, available, use%, mountpoint]
-    // Use total from parts[1] rather than used+available — the latter ignores
-    // reserved blocks (Linux) and other APFS volumes (macOS), causing under-reporting.
-    const total = parseInt(parts[1], 10) * blockSize;
-    const available = parseInt(parts[3], 10) * blockSize;
-    if (total === 0) return 0;
-    const used = total - available;
-    return Math.round((used / total) * 10000) / 100;
-  };
-
+/** Disk usage as percentage of the configured mount (or root), read with statfs. */
+export function getDiskUsage(mountPath: string = process.env.ORBITDASH_DISK_PATH || "/"): number {
   try {
-    // Use a POSIX-compatible format so the same command works on macOS and Linux.
-    const result = execFileSync("df", ["-Pk", mountPath], { encoding: "utf-8" });
-    return parse(result, 1024);
+    const stats = fs.statfsSync(mountPath);
+    // Count reserved blocks as used (total - available), matching `df`'s Use% column.
+    if (stats.blocks === 0) return 0;
+    const used = stats.blocks - stats.bavail;
+    return Math.round((used / stats.blocks) * 10000) / 100;
   } catch {
     return 0;
   }
@@ -162,28 +148,45 @@ export function subscribe(cb: SseCallback): () => void {
   };
 }
 
-/** Start the collection loop (1 sample per second) */
-let collectionInterval: ReturnType<typeof setInterval> | null = null;
+/** Sampling cadence while someone watches the live stream, and while nobody does. */
+export const ACTIVE_SAMPLE_INTERVAL_MS = 1_000;
+export const IDLE_SAMPLE_INTERVAL_MS = 10_000;
 
+let collectionInterval: ReturnType<typeof setInterval> | null = null;
+let lastSampleAt = 0;
+
+/** One collection tick: samples every tick while subscribed, otherwise every 10 seconds. */
+export function tickCollection(now: number = Date.now()): MetricSample | null {
+  const interval = subscribers.size > 0 ? ACTIVE_SAMPLE_INTERVAL_MS : IDLE_SAMPLE_INTERVAL_MS;
+  // Small tolerance so a 1s timer that fires a few ms early doesn't skip a sample.
+  if (now - lastSampleAt < interval - 50) {
+    return null;
+  }
+
+  lastSampleAt = now;
+  const sample = collectMetrics();
+  storeSample(sample);
+
+  for (const cb of subscribers) {
+    try {
+      cb(sample);
+    } catch {
+      subscribers.delete(cb);
+    }
+  }
+
+  return sample;
+}
+
+/** Start the collection loop */
 export function startCollection(): void {
   if (collectionInterval) return;
 
   // Take an initial reading to prime the CPU diff counters
   collectMetrics();
+  lastSampleAt = 0;
 
-  collectionInterval = setInterval(() => {
-    const sample = collectMetrics();
-    storeSample(sample);
-
-    // Notify SSE subscribers
-    for (const cb of subscribers) {
-      try {
-        cb(sample);
-      } catch {
-        subscribers.delete(cb);
-      }
-    }
-  }, 1000);
+  collectionInterval = setInterval(() => tickCollection(), ACTIVE_SAMPLE_INTERVAL_MS);
 }
 
 export function stopCollection(): void {

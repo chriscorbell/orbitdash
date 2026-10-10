@@ -6,7 +6,7 @@ const distDir = path.resolve(process.cwd(), "dist");
 const distAssetsDir = path.join(distDir, "assets");
 
 const budgets = [
-  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 55, maxGzipKb: 16 },
+  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 60, maxGzipKb: 18 },
   {
     label: "entry css",
     prefix: "index-",
@@ -18,17 +18,17 @@ const budgets = [
     label: "react vendor",
     prefix: "react-vendor-",
     extension: ".js",
-    maxRawKb: 200,
-    maxGzipKb: 63,
+    maxRawKb: 230,
+    maxGzipKb: 72,
   },
-  { label: "vendor", prefix: "vendor-", extension: ".js", maxRawKb: 135, maxGzipKb: 43 },
+  { label: "vendor", prefix: "vendor-", extension: ".js", maxRawKb: 145, maxGzipKb: 47 },
   { label: "charts", prefix: "charts-", extension: ".js", maxRawKb: 170, maxGzipKb: 60 },
   {
     label: "validation",
     prefix: "validation-",
     extension: ".js",
-    maxRawKb: 65,
-    maxGzipKb: 17,
+    maxRawKb: 85,
+    maxGzipKb: 24,
   },
   {
     label: "service dialog",

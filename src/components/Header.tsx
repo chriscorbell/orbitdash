@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 
 // The sortable list pulls in dnd-kit, so it loads on demand. Hovering or
@@ -166,7 +167,7 @@ export function Header({
             </svg>
           </Button>
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Dashboard settings</DialogTitle>
                 <DialogDescription className="sr-only">
@@ -283,6 +284,11 @@ export function Header({
                     )}
                   </section>
                 )}
+
+                <section className="space-y-3">
+                  <SettingsSectionLabel>Data</SettingsSectionLabel>
+                  <BackupSettingsSection />
+                </section>
               </div>
 
               <DialogFooter showCloseButton />

@@ -36,3 +36,23 @@ export const renameCategoryResponseSchema = z.object({
 
 export type MetricSampleInput = z.infer<typeof metricSampleSchema>;
 export type ServiceInput = z.infer<typeof serviceSchema>;
+
+export const snapshotSchema = z.object({
+  createdAt: z.string(),
+  name: z.string(),
+  reason: z.enum(["manual", "nightly", "pre-import", "pre-migration"]),
+  sizeBytes: z.number(),
+});
+
+export const snapshotsResponseSchema = z.object({
+  snapshots: z.array(snapshotSchema),
+});
+
+export const importSummarySchema = z.object({
+  icons: z.number(),
+  services: z.number(),
+  snapshot: z.string(),
+});
+
+export type Snapshot = z.infer<typeof snapshotSchema>;
+export type ImportSummary = z.infer<typeof importSummarySchema>;
