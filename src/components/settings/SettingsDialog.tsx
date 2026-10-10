@@ -16,7 +16,13 @@ import { CategoryOrderSaveStatus } from "@/components/settings/CategoryOrderSave
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
 import { loadCategoryOrderList } from "@/components/settings/settings-preload";
-import type { DashboardAppearanceSettings, StatsPosition } from "@shared/dashboard-settings";
+import type {
+  BoardMode,
+  CardDensity,
+  DashboardAppearanceSettings,
+  StatsPosition,
+} from "@shared/dashboard-settings";
+import { Columns3, LayoutGrid, LayoutList, List, Rows3, type LucideIcon } from "lucide-react";
 
 const CategoryOrderList = lazy(() =>
   loadCategoryOrderList().then((module) => ({ default: module.CategoryOrderList }))
@@ -36,7 +42,8 @@ function CategoryOrderListFallback({ count }: { count: number }) {
 interface SettingsDialogProps {
   appearance: DashboardAppearanceSettings;
   categoryOrder: UseCategoryOrderResult;
-  columnCount: 3 | 4 | 5;
+  density: CardDensity;
+  mode: BoardMode;
   open: boolean;
   statsPosition: StatsPosition;
   settingsError?: string | null;
@@ -44,7 +51,8 @@ interface SettingsDialogProps {
   showServicesSection: boolean;
   showStatsSection: boolean;
   onAppearanceChange: (appearance: Partial<DashboardAppearanceSettings>) => void;
-  onColumnCountChange: (columnCount: 3 | 4 | 5) => void;
+  onDensityChange: (density: CardDensity) => void;
+  onModeChange: (mode: BoardMode) => void;
   onOpenChange: (open: boolean) => void;
   onStatsPositionChange: (position: StatsPosition) => void;
   onSettingsScopeChange: (scope: SettingsScope) => void;
@@ -87,15 +95,99 @@ function SettingsToggleRow({
   );
 }
 
-function ColumnDots({ count }: { count: 3 | 4 | 5 }) {
+interface ChoiceOption<T extends string> {
+  value: T;
+  label: string;
+  icon?: LucideIcon;
+}
+
+interface SettingsChoiceRowProps<T extends string> {
+  description: string;
+  id: string;
+  options: readonly ChoiceOption<T>[];
+  title: string;
+  value: T;
+  onChange: (value: T) => void;
+}
+
+/** A labelled radio group of segmented buttons; arrow keys move the choice like native radios. */
+function SettingsChoiceRow<T extends string>({
+  description,
+  id,
+  options,
+  title,
+  value,
+  onChange,
+}: SettingsChoiceRowProps<T>) {
+  const labelId = `${id}-label`;
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step =
+      event.key === "ArrowRight" || event.key === "ArrowDown"
+        ? 1
+        : event.key === "ArrowLeft" || event.key === "ArrowUp"
+          ? -1
+          : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const current = options.findIndex((option) => option.value === value);
+    const next = (current + step + options.length) % options.length;
+    onChange(options[next].value);
+    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
+  };
+
   return (
-    <div className="flex gap-0.5" aria-hidden="true">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="h-1.5 w-1.5 rounded-sm bg-current" />
-      ))}
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <div className="space-y-0.5">
+        <Label id={labelId}>{title}</Label>
+        <p className="text-muted-foreground text-sm">{description}</p>
+      </div>
+      <div
+        role="radiogroup"
+        aria-labelledby={labelId}
+        className="grid auto-cols-fr grid-flow-col gap-2"
+        onKeyDown={handleKeyDown}
+      >
+        {options.map((option) => {
+          const checked = option.value === value;
+          const Icon = option.icon;
+          return (
+            <Button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              tabIndex={checked ? 0 : -1}
+              variant={checked ? "outline" : "ghost"}
+              size="sm"
+              className="w-full"
+              onClick={() => onChange(option.value)}
+            >
+              {Icon && <Icon aria-hidden="true" />}
+              {option.label}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }
+
+const MODE_OPTIONS: readonly ChoiceOption<BoardMode>[] = [
+  { value: "columns", label: "Columns", icon: Columns3 },
+  { value: "rows", label: "Rows", icon: Rows3 },
+];
+
+const DENSITY_OPTIONS: readonly ChoiceOption<CardDensity>[] = [
+  { value: "compact", label: "Compact", icon: List },
+  { value: "comfortable", label: "Cards", icon: LayoutList },
+  { value: "tiles", label: "Tiles", icon: LayoutGrid },
+];
+
+const STATS_POSITION_OPTIONS: readonly ChoiceOption<StatsPosition>[] = [
+  { value: "top", label: "Above services" },
+  { value: "bottom", label: "Below services" },
+];
 
 function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
   return <h3 className="text-muted-foreground text-xs font-medium">{children}</h3>;
@@ -104,7 +196,8 @@ function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
 export function SettingsDialog({
   appearance,
   categoryOrder,
-  columnCount,
+  density,
+  mode,
   open,
   statsPosition,
   settingsError = null,
@@ -112,7 +205,8 @@ export function SettingsDialog({
   showServicesSection,
   showStatsSection,
   onAppearanceChange,
-  onColumnCountChange,
+  onDensityChange,
+  onModeChange,
   onOpenChange,
   onStatsPositionChange,
   onSettingsScopeChange,
@@ -203,62 +297,30 @@ export function SettingsDialog({
           <section className="space-y-3">
             <SettingsSectionLabel>Layout</SettingsSectionLabel>
             <div className="space-y-3">
-              <div className="space-y-3 rounded-lg border border-border p-3">
-                <div className="space-y-0.5">
-                  <Label id="stats-position-label">Stats position</Label>
-                  <p className="text-muted-foreground text-sm">Where the live stats strip sits</p>
-                </div>
-                <div
-                  role="radiogroup"
-                  aria-labelledby="stats-position-label"
-                  className="grid grid-cols-2 gap-2"
-                >
-                  {(
-                    [
-                      ["top", "Above services"],
-                      ["bottom", "Below services"],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <Button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={statsPosition === value}
-                      variant={statsPosition === value ? "outline" : "ghost"}
-                      size="sm"
-                      className="w-full"
-                      onClick={() => onStatsPositionChange(value)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Columns per row */}
-              <div className="space-y-3 rounded-lg border border-border p-3">
-                <div className="space-y-0.5">
-                  <Label>Columns per row</Label>
-                  <p className="text-muted-foreground text-sm">Service cards displayed per row</p>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {([3, 4, 5] as const).map((count) => (
-                    <Button
-                      key={count}
-                      type="button"
-                      variant={columnCount === count ? "outline" : "ghost"}
-                      size="sm"
-                      className="flex h-auto flex-col items-center gap-1.5 py-2"
-                      onClick={() => onColumnCountChange(count)}
-                      aria-pressed={columnCount === count}
-                      aria-label={`${count} columns`}
-                    >
-                      <ColumnDots count={count} />
-                      <span>{count}</span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
+              <SettingsChoiceRow
+                id="board-mode"
+                title="Arrangement"
+                description="Categories side by side, or stacked in rows"
+                options={MODE_OPTIONS}
+                value={mode}
+                onChange={onModeChange}
+              />
+              <SettingsChoiceRow
+                id="card-density"
+                title="Card style"
+                description="How much each service card shows"
+                options={DENSITY_OPTIONS}
+                value={density}
+                onChange={onDensityChange}
+              />
+              <SettingsChoiceRow
+                id="stats-position"
+                title="Stats position"
+                description="Where the live stats strip sits"
+                options={STATS_POSITION_OPTIONS}
+                value={statsPosition}
+                onChange={onStatsPositionChange}
+              />
             </div>
           </section>
 

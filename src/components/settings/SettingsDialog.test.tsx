@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState, type ComponentProps } from "react";
@@ -53,13 +53,15 @@ function renderHeader(overrides: Partial<DialogProps> = {}) {
   const props: DialogProps = {
     appearance: { accent: "ice", theme: "dark" },
     categoryOrder: categoryOrderStub,
-    columnCount: 4,
+    density: "comfortable",
+    mode: "columns",
     statsPosition: "top",
     settingsScope: "all",
     showServicesSection: true,
     showStatsSection: true,
     onAppearanceChange: vi.fn(),
-    onColumnCountChange: vi.fn(),
+    onDensityChange: vi.fn(),
+    onModeChange: vi.fn(),
     onStatsPositionChange: vi.fn(),
     onSettingsScopeChange: vi.fn(),
     onShowServicesSectionChange: vi.fn(),
@@ -142,14 +144,34 @@ describe("SettingsDialog", () => {
     expect(props.onStatsPositionChange).toHaveBeenCalledWith("bottom");
   });
 
-  it("changes the column count via button group", async () => {
+  it("switches the arrangement and card style", async () => {
     const user = userEvent.setup();
     const { props } = renderHeader();
 
     await user.click(screen.getByRole("button", { name: "Open settings" }));
-    await user.click(screen.getByRole("button", { name: "5 columns" }));
+    const arrangement = screen.getByRole("radiogroup", { name: "Arrangement" });
+    expect(
+      within(arrangement).getByRole("radio", { name: "Columns" }).getAttribute("aria-checked")
+    ).toBe("true");
+    await user.click(within(arrangement).getByRole("radio", { name: "Rows" }));
+    await user.click(screen.getByRole("radio", { name: "Tiles" }));
 
-    expect(props.onColumnCountChange).toHaveBeenCalledWith(5);
+    expect(props.onModeChange).toHaveBeenCalledWith("rows");
+    expect(props.onDensityChange).toHaveBeenCalledWith("tiles");
+  });
+
+  it("moves between choices with the arrow keys", async () => {
+    const user = userEvent.setup();
+    const { props } = renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    const cards = screen.getByRole("radio", { name: "Cards" });
+    cards.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(props.onDensityChange).toHaveBeenLastCalledWith("tiles");
+    await user.keyboard("{ArrowLeft}");
+    expect(props.onDensityChange).toHaveBeenLastCalledWith("compact");
+    expect(document.activeElement).toBe(screen.getByRole("radio", { name: "Compact" }));
   });
 
   it("hides the category order section when fewer than 2 named categories", async () => {

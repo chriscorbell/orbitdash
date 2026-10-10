@@ -25,6 +25,7 @@ export type SettingsScope = "all" | "device";
 
 const CACHE_KEY = "orbitdash.settingsCache";
 const LEGACY_KEYS = {
+  // Read only so it gets cleared: the fixed column count gave way to layout modes.
   gridColumns: "orbitdash.servicesGrid",
   sectionOrder: "orbitdash.sectionOrder",
   servicesFirst: "orbitdash.servicesFirst",
@@ -75,9 +76,6 @@ export function readLegacyLayout(): DashboardSettings | null {
   }
   if (values.showServices !== null) layout.showServices = values.showServices !== "false";
   if (values.showStats !== null) layout.showStats = values.showStats !== "false";
-  if (values.gridColumns === "3" || values.gridColumns === "5") {
-    layout.gridColumns = Number(values.gridColumns) as 3 | 5;
-  }
   return { ...DEFAULT_DASHBOARD_SETTINGS, layout };
 }
 

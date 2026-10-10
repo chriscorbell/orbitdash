@@ -1,7 +1,7 @@
 # Bundle Size Budget
 
 Orbitdash splits the build into the app entry, React, the other third-party code the first render
-needs, Chart.js, drag and drop, Zod, and lazily loaded dialogs. Those chunks have explicit bundle
+needs, drag and drop, Zod, and lazily loaded dialogs. Those chunks have explicit bundle
 budgets.
 
 ## Chunk Layout
@@ -25,22 +25,23 @@ matches, so group priority decides where shared packages land:
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*` must never be loaded up front. If React lands in one of them again,
-or an always-loaded module imports dnd-kit or Chart.js directly, the entry starts importing that
+`drag-drop-*` and `SettingsDialog-*` must never be loaded up front. If React lands in one of them again,
+or an always-loaded module imports dnd-kit directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
 
 ## Current Budgets
 
-| Asset group          | Budget raw | Budget gzip | Current baseline                             |
-| -------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`         |      72 kB |       22 kB | about 66 kB raw / 20.5 kB gzip / 18.2 kB br  |
-| `index-*.css`        |      76 kB |       13 kB | about 72 kB raw / 12.1 kB gzip / 10.5 kB br  |
-| `react-vendor-*.js`  |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
-| `vendor-*.js`        |     180 kB |       56 kB | about 172 kB raw / 53.5 kB gzip / 47.1 kB br |
-| `validation-*.js`    |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
-| `ServiceDialog-*.js` |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
-| `drag-drop-*.js`     |      48 kB |       16 kB | about 43 kB raw / 14.1 kB gzip / 12.7 kB br  |
+| Asset group           | Budget raw | Budget gzip | Current baseline                             |
+| --------------------- | ---------: | ----------: | -------------------------------------------- |
+| `index-*.js`          |      62 kB |       20 kB | about 57 kB raw / 19.0 kB gzip / 16.9 kB br  |
+| `index-*.css`         |      76 kB |       13 kB | about 73 kB raw / 12.3 kB gzip / 10.7 kB br  |
+| `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
+| `vendor-*.js`         |     180 kB |       56 kB | about 172 kB raw / 53.5 kB gzip / 47.1 kB br |
+| `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
+| `ServiceDialog-*.js`  |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
+| `SettingsDialog-*.js` |      24 kB |        8 kB | about 11 kB raw / 3.8 kB gzip / 3.3 kB br    |
+| `drag-drop-*.js`      |      48 kB |       16 kB | about 43 kB raw / 14.1 kB gzip / 12.7 kB br  |
 
 Sizes are in KiB, as printed by the check script.
 
@@ -59,10 +60,14 @@ The check reads the built files in `dist/assets` and fails if:
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*` chunk
+- `dist/index.html` references a `drag-drop-*` or `SettingsDialog-*` chunk
 
 ## History
 
+- Board layouts added column packing, card densities and icon plates to the entry, and the
+  settings dialog moved into its own lazy `SettingsDialog-*` chunk, loaded when the settings button
+  is hovered, focused or clicked. The entry fell to about 57 kB / 19 kB, so its budget came back
+  down from 72 kB / 22 kB to 62 kB / 20 kB.
 - Browser responses moved to zod/mini and the service form dropped full Zod, cutting
   `validation-*` from about 82 kB / 23 kB gzip to 19 kB / 6 kB, so its budget fell from 85 kB /
   24 kB to 22 kB / 7 kB. TanStack Query and Radix Toast joined `vendor-*` (budget 145 kB / 47 kB

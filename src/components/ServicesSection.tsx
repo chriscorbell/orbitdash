@@ -5,6 +5,7 @@ import { ServicesSectionFeedback } from "@/components/services/ServicesSectionFe
 import { useServicesSectionState } from "@/components/services/useServicesSectionState";
 import { toast, toastError } from "@/lib/toast";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 import type {
   Service,
   CreateServicePayload,
@@ -29,7 +30,8 @@ interface ServicesSectionProps {
   categoryOrder: UseCategoryOrderResult;
   loading: boolean;
   error: string | null;
-  columnCount: 3 | 4 | 5;
+  density: CardDensity;
+  mode: BoardMode;
   search: string;
   addOpen: boolean;
   onAddOpenChange: (open: boolean) => void;
@@ -53,7 +55,8 @@ export function ServicesSection({
   categoryOrder,
   loading,
   error,
-  columnCount,
+  density,
+  mode,
   search,
   addOpen,
   onAddOpenChange,
@@ -71,7 +74,6 @@ export function ServicesSection({
     categoryOrderError,
     editingService,
     filteredServices,
-    gridClassName,
     groupedServices,
     handleDelete,
     handleDuplicate,
@@ -86,7 +88,6 @@ export function ServicesSection({
     showInlineError,
   } = useServicesSectionState({
     categoryOrder,
-    columnCount,
     error,
     loading,
     onDelete,
@@ -148,8 +149,9 @@ export function ServicesSection({
       {!showInitialLoading && !showInitialError && filteredServices.length > 0 && (
         <CategorySectionList
           grouped={groupedServices}
-          gridClassName={gridClassName}
+          density={density}
           hasNamedCategories={hasNamedCategories}
+          mode={mode}
           services={filteredServices}
           onDelete={handleDeleteCard}
           onDuplicate={handleDuplicateCard}

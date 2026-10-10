@@ -54,10 +54,9 @@ export const importSummarySchema = z.object({
   snapshot: z.string(),
 });
 
-const gridColumnsSchema = z.union([z.literal(3), z.literal(4), z.literal(5)]);
-
 const layoutSchema = z.object({
-  gridColumns: gridColumnsSchema,
+  mode: z.enum(["columns", "rows"]),
+  density: z.enum(["compact", "comfortable", "tiles"]),
   statsPosition: z.enum(["top", "bottom"]),
   showServices: z.boolean(),
   showStats: z.boolean(),

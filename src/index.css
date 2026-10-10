@@ -293,10 +293,37 @@
       opacity: 0;
     }
 
-    .group:hover .service-card-menu-trigger {
+    .group:hover .service-card-menu-trigger,
+    .group:focus-within .service-card-menu-trigger {
       opacity: 1;
+    }
+
+    /* Rides along with the card's hover lift. */
+    .group:hover .service-card-menu-trigger {
       transform: translateY(-0.125rem);
     }
+  }
+
+  /* Icons too dark for the dark theme, or too light for the light one, get a contrasting plate. */
+  .service-icon,
+  .service-icon > img {
+    transition:
+      background-color 200ms ease,
+      padding 200ms ease;
+  }
+
+  .dark .service-icon[data-icon-tone="dark"] {
+    background-color: oklch(0.93 0.004 255);
+  }
+
+  html:not(.dark) .service-icon[data-icon-tone="light"] {
+    background-color: oklch(0.27 0.012 255);
+  }
+
+  /* On the image, so the percentage follows the icon's own size. */
+  .dark .service-icon[data-icon-tone="dark"] > img,
+  html:not(.dark) .service-icon[data-icon-tone="light"] > img {
+    padding: 14%;
   }
 
   .page-load > * {

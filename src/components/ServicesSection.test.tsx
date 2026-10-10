@@ -81,7 +81,8 @@ function renderServicesSection(
       categoryOrder={categoryOrderStub}
       loading={false}
       error={null}
-      columnCount={4}
+      density="comfortable"
+      mode="columns"
       search=""
       addOpen={false}
       onAddOpenChange={vi.fn()}
