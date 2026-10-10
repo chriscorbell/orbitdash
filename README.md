@@ -50,6 +50,7 @@ version before creating the matching tag.
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
 - Simple service links with icons and categories; dark icons get a light plate automatically
+- Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
 - A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
 - UI-native service management (no config file needed)
@@ -58,6 +59,7 @@ version before creating the matching tag.
 - A wallpaper with blur and dim, your own dashboard name, an accent-colored favicon, and custom CSS
 - Settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
 - Collapse category sections with saved per-browser state
+- Import services from Homepage, Dashy, Homer, Homarr or browser bookmarks, with a preview to pick from
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
 - Deleting a service can be undone for 30 minutes
 - Optional sign-in with a password or your sign-in proxy (Authelia, Authentik, Tailscale Serve),
@@ -282,6 +284,46 @@ Logs are JSON lines on stdout/stderr. `LOG_LEVEL` sets the minimum level written
 event streams are logged at `debug`; other successful requests at `info`; 4xx responses at `warn`;
 5xx responses at `error`.
 
+## Importing From Another Dashboard
+
+Settings → Data → **Import from another dashboard** reads these files:
+
+| From              | File                                                      |
+| ----------------- | --------------------------------------------------------- |
+| Homepage          | `services.yaml` (nested groups become their own category) |
+| Dashy             | `conf.yml`                                                |
+| Homer             | `config.yml`                                              |
+| Homarr            | the JSON export of a board                                |
+| Browser bookmarks | the HTML export from Chrome, Firefox, Safari or Edge      |
+
+Nothing is added until you confirm. The preview shows every service with its icon, unticks links
+that are already on your dashboard, and lets you rename each group's category. Icons named in the
+file (`jellyfin.png`, `sh-jellyfin`, `hl-jellyfin`) or matching the service name are looked up in
+the dashboard-icons and selfh.st libraries. Icon fonts such as `mdi-` or Font Awesome have no image
+to copy, so those services come across without an icon. A snapshot is saved before anything is
+added.
+
+### Seeding a fresh install
+
+To start a new install with services already in place, put a file in any of the formats above at
+`/data/seed.yaml` (or point `ORBITDASH_SEED_FILE` at it). It is applied once, on the first start
+with an empty dashboard; after that the UI is the source of truth and the file is ignored. The
+simplest format is orbitdash's own:
+
+```yaml
+categories:
+  - name: Media
+    services:
+      - name: Jellyfin
+        url: http://10.0.0.20:8096
+        description: Movies and shows
+        icon: jellyfin # a dashboard-icons or selfh.st name, or an image URL
+  - name: Infrastructure
+    services:
+      - name: Proxmox
+        url: https://pve.lan:8006
+```
+
 ## Host Metrics
 
 orbitdash reads metrics straight from the kernel's `/proc` and `/sys`; there is no agent to install.
@@ -339,6 +381,28 @@ drives you mount after the container starts should show up too.
 If you only need the host's network interfaces, `network_mode: host` works without the mount.
 Docker then ignores `ports:`, and the dashboard listens on the host's port `3000` (change it with
 `PORT`).
+
+## Status Checks
+
+Status checks are off until you turn one on in a service's settings, so upgrading never makes
+orbitdash contact anything new. A check runs from the server, every 15 seconds to 1 hour (1 minute
+by default), against the service's link or a separate URL or `host:port`:
+
+- **HTTP** sends a `HEAD` request (or `GET` if the service refuses `HEAD`), follows up to 5
+  redirects, and never downloads the page. 2xx and 3xx answers count as up, and so do 401 and 403,
+  since a login page still means the service answered. Self-signed certificates can be allowed per
+  check.
+- **TCP** only opens a connection to the port and closes it. There is no ping: the container runs
+  without the privileges ICMP needs.
+
+A check fails after 10 seconds without an answer. A service shows as slow when it answers in more
+than 2 seconds, and as down after two failed checks in a row (the second one 15 seconds after the
+first), so a single dropped request doesn't count as an outage. At most 8 checks run at once,
+spread out so they don't all fire together.
+
+Results are kept for 24 hours and hourly totals for 30 days. `GET /api/status` returns the current
+status of every checked service, `GET /api/events?topics=status` streams each result, and
+`GET /api/status/:id/history?range=24h|30d` returns the uptime history.
 
 ## Health Checks
 

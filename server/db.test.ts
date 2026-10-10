@@ -68,10 +68,13 @@ describe("database integration", () => {
       "metric_history_15m",
       "metric_history_1m",
       "schema_migrations",
+      "service_status",
       "service_trash",
       "services",
       "sessions",
       "settings",
+      "status_hourly",
+      "status_results",
     ]);
 
     expect(db.prepare("SELECT id, name FROM schema_migrations ORDER BY id ASC").all()).toEqual([
@@ -104,7 +107,8 @@ describe("database integration", () => {
         name: "metric-history",
       },
       { id: 8, name: "metric-alerts" },
-      { id: 9, name: "auth-sessions" },
+      { id: 9, name: "status-checks" },
+      { id: 10, name: "auth-sessions" },
     ]);
   });
 
@@ -121,6 +125,38 @@ describe("database integration", () => {
     expect(
       getDb().prepare("SELECT icon, icon_source_url FROM services WHERE id = ?").get("svc-1")
     ).toEqual({ icon: "svc-1.png", icon_source_url: null });
+  });
+
+  it("leaves status checks off for every service in an upgraded database", () => {
+    const legacy = new Database(path.join(testDataDir!, "orbitdash.db"));
+    applyLegacyV02Schema(legacy);
+    legacy.exec(
+      `INSERT INTO services VALUES ('svc-1', 'Orbit', 'https://example.com', NULL, NULL, NULL, 1, 1, 1)`
+    );
+    legacy.close();
+
+    initializeDb({ dataDir: testDataDir! });
+
+    expect(
+      getDb()
+        .prepare(
+          `SELECT check_enabled, check_method, check_target, check_interval, check_ignore_tls
+           FROM services WHERE id = ?`
+        )
+        .get("svc-1")
+    ).toEqual({
+      check_enabled: 0,
+      check_method: "http",
+      check_target: null,
+      check_interval: 60,
+      check_ignore_tls: 0,
+    });
+    expect(() =>
+      getDb().exec("UPDATE services SET check_interval = 5 WHERE id = 'svc-1'")
+    ).toThrow();
+    expect(() =>
+      getDb().exec("UPDATE services SET check_method = 'icmp' WHERE id = 'svc-1'")
+    ).toThrow();
   });
 
   it("adds icon_source_url to databases that already ran the categories migration", () => {
@@ -143,7 +179,7 @@ describe("database integration", () => {
           id: number;
         }>
       ).map((row) => row.id)
-    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
   it("supports insert, update, and delete flows against the services table", () => {

@@ -6,6 +6,7 @@ import type {
   HostEvent,
   MetricsEvent,
   ServerEvent,
+  StatusEvent,
 } from "@shared/events";
 
 export type ConnectionEvent = "open" | "error" | "resumed";
@@ -15,6 +16,7 @@ interface EventsByTopic {
   config: ConfigChangedEvent;
   host: HostEvent;
   metrics: MetricsEvent;
+  status: StatusEvent;
 }
 
 type EventForTopic<T extends EventTopic> = EventsByTopic[T];
@@ -45,6 +47,7 @@ const EVENT_TYPES: Record<EventTopic, ServerEvent["type"]> = {
   config: "config.changed",
   host: "host",
   metrics: "metrics",
+  status: "status",
 };
 
 /**

@@ -53,6 +53,7 @@ Use this file as a practical handoff for future agents working in this repositor
   - `ORBITDASH_DATA_DIR`
   - `ORBITDASH_DISK_PATH`
   - `ORBITDASH_HOST_ROOT` (a read-only mount of the host's `/`; host metrics are read under it)
+  - `ORBITDASH_SEED_FILE` (services to add on a fresh install; defaults to `/data/seed.yaml`)
   - `PORT`
   - `NODE_ENV`
   - `LOG_LEVEL` (`debug` | `info` | `warn` | `error`, default `info`)
@@ -82,6 +83,8 @@ Use this file as a practical handoff for future agents working in this repositor
   - Chunking uses Rolldown `codeSplitting.groups` in `vite.config.ts`. A group also captures its modules' dependencies, so group priority decides where shared packages like React land. `docs/bundle-size-budget.md` explains the layout and the tracked budgets.
   - If bundle budgets fail again, inspect chunk boundaries before raising thresholds.
   - `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `SignInScreen-*` and `toaster-*` must stay lazy: modules loaded on first render reach dnd-kit, the settings dialog, the edit board, the sign-in screen and the toaster only through `lazy()` components. `npm run bundle:check` fails if `index.html` preloads any of them.
+  - The same goes for `ServiceStatus-*`: `ServiceCard.tsx` reaches the status dot and details only through `lazy()`. Status response schemas live in `src/lib/api/status.ts` (not `schemas.ts`) for that reason; the pair test in `src/lib/api/schemas.test.ts` covers them.
+- Status checks (`server/status/`, see "Status Checks" in `docs/architecture.md`) are off by default and the migration leaves existing services off. Keep it that way: an upgrade must never start contacting anything. Checker tests use injected fetch/connect and a fake clock, never the network, and logs must never include a check's URL or target (they can hold credentials).
 - The offline service worker (`src/sw/`, built to `dist/sw.js`) runs in production builds only; its caching rules are in `docs/architecture.md` under "Installable App And Offline Shell".
   - A new GET endpoint the dashboard renders goes to the network until it gets a route in `src/sw/routes.ts`.
   - `/sw.js` and `/manifest.webmanifest` must keep `Cache-Control: no-cache`, or browsers keep running an old build.

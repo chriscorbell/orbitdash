@@ -128,8 +128,20 @@ export interface SystemInfo {
   uptimeSeconds: number;
 }
 
+/** How a status check reaches a service: an HTTP request, or a plain TCP connect. */
+export type StatusCheckMethod = "http" | "tcp";
+
+/** A service's status check settings, as stored on the service. */
+export interface ServiceCheckConfig {
+  check_enabled: boolean; // off by default, so nothing is contacted until someone asks
+  check_method: StatusCheckMethod;
+  check_target: string | null; // URL (http) or host:port (tcp); null checks the link URL
+  check_interval: number; // seconds between checks
+  check_ignore_tls: boolean; // accept self-signed and otherwise untrusted certificates
+}
+
 /** Service link stored in the database */
-export interface Service {
+export interface Service extends ServiceCheckConfig {
   id: string;
   name: string;
   url: string;
@@ -142,6 +154,50 @@ export interface Service {
   open_in_new_tab: boolean;
   created_at: number;
   updated_at: number;
+}
+
+/**
+ * up: answered in time. degraded: answered, but slower than SLOW_RESPONSE_MS. down: failed
+ * FAILURES_BEFORE_DOWN checks in a row (or the first check ever). unknown: not checked yet.
+ */
+export type ServiceStatusState = "up" | "degraded" | "down" | "unknown";
+
+/** Current status of one service with checks enabled (GET /api/status and the `status` topic). */
+export interface ServiceStatus {
+  id: string; // service id
+  state: ServiceStatusState;
+  latencyMs: number | null; // response time of the last successful check
+  statusCode: number | null; // HTTP status of the last check, null for TCP or no answer
+  error: string | null; // why the last check failed, null when it passed
+  checkedAt: number | null; // ms since epoch
+  changedAt: number | null; // when it last went down or came back up, ms since epoch
+}
+
+/** Response shape for GET /api/status */
+export interface ServiceStatusesResponse {
+  statuses: ServiceStatus[];
+}
+
+/** Time ranges GET /api/status/:id/history serves. */
+export type StatusHistoryRange = "24h" | "30d";
+
+export interface StatusHistoryBucket {
+  ts: number; // bucket start, ms since epoch
+  checks: number;
+  failures: number;
+  slow: number; // checks that passed but took longer than SLOW_RESPONSE_MS
+  latencyMs: number | null; // average response time of the checks that passed
+}
+
+/** Response shape for GET /api/status/:id/history, oldest bucket first. */
+export interface StatusHistory {
+  id: string;
+  range: StatusHistoryRange;
+  resolutionMs: number; // bucket size
+  from: number; // start of the first bucket
+  to: number; // when the response was built
+  uptime: number | null; // percent of checks that passed, rounded down; null without checks
+  buckets: StatusHistoryBucket[];
 }
 
 /** A named group of services; empty categories are allowed */
@@ -170,8 +226,8 @@ export interface ReorderServicesPayload {
   ids: string[];
 }
 
-/** Payload for creating a service */
-export interface CreateServicePayload {
+/** Payload for creating a service; omitted check settings get their defaults (checks off). */
+export interface CreateServicePayload extends Partial<ServiceCheckConfig> {
   name: string;
   url: string;
   description?: string | null;
@@ -182,7 +238,7 @@ export interface CreateServicePayload {
 }
 
 /** Payload for updating a service */
-export interface UpdateServicePayload {
+export interface UpdateServicePayload extends Partial<ServiceCheckConfig> {
   name?: string;
   url?: string;
   description?: string | null;
@@ -270,4 +326,37 @@ export interface IconLibraryEntry {
 export interface IconLibraryResponse {
   entries: IconLibraryEntry[];
   updatedAt: number; // when the library index was fetched, ms since epoch
+}
+
+/** One service in an import preview, ready to be picked and applied. */
+export interface ImportPreviewService {
+  name: string;
+  url: string;
+  description: string | null;
+  iconUrl: string | null; // resolved from the file or the icon library
+  duplicate: boolean; // a service with this URL already exists
+}
+
+/** Response shape for POST /api/import/preview */
+export interface ImportPreview {
+  format: "homepage" | "dashy" | "homer" | "homarr" | "bookmarks" | "orbitdash-seed";
+  groups: Array<{ name: string; services: ImportPreviewService[] }>;
+  warnings: string[];
+}
+
+/** One service to create from an import, with the category it goes in. */
+export interface ImportServiceInput {
+  name: string;
+  url: string;
+  description: string | null;
+  iconUrl: string | null;
+  category: string | null;
+}
+
+/** Response shape for POST /api/import/apply */
+export interface ImportResult {
+  created: number;
+  failed: Array<{ name: string; error: string }>;
+  iconFailures: number; // services created without the icon because it couldn't be downloaded
+  snapshot: string | null; // the snapshot taken before importing
 }

@@ -24,6 +24,7 @@ async function createService(
   page: Page,
   options: {
     category: string;
+    check?: boolean;
     description?: string;
     name: string;
     url: string;
@@ -37,6 +38,10 @@ async function createService(
 
   if (options.description) {
     await page.getByLabel("Description").fill(options.description);
+  }
+
+  if (options.check) {
+    await page.getByRole("switch", { name: "Status check" }).click();
   }
 
   await page.getByRole("combobox", { name: "Category" }).click();
@@ -159,6 +164,31 @@ test("the Stats page shows live readings and switches ranges", async ({ page }) 
 
   await page.getByRole("link", { name: "Services" }).click();
   await expect(page.getByRole("heading", { name: "Services" })).toBeAttached();
+});
+
+test("status checks show on a card only when turned on", async ({ page }) => {
+  await page.goto("/");
+
+  await createService(page, {
+    category: "Links",
+    name: "Plain Link",
+    url: "https://example.com/plain",
+  });
+  await expect(serviceLink(page, "Plain Link").locator("[data-status]")).toHaveCount(0);
+
+  // The backend checks its own health endpoint, so the test needs no outside network.
+  await createService(page, {
+    category: "Checked",
+    check: true,
+    name: "Self Check",
+    url: "http://127.0.0.1:3001/healthz",
+  });
+  const card = serviceLink(page, "Self Check");
+  await expect(card.locator('[data-status="up"]')).toBeVisible({ timeout: 15_000 });
+
+  // Hovering the card shows the details with the 24h uptime bar.
+  await card.hover();
+  await expect(page.getByRole("img", { name: "100% up in 24 hours" })).toBeVisible();
 });
 
 test("changes made in one browser show up in another without a reload", async ({ browser }) => {

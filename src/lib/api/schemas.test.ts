@@ -1,11 +1,35 @@
 import { describe, expect, it } from "vitest";
 import * as iconLibraryMini from "@/lib/api/icon-library";
+import * as importMini from "@/lib/api/imports";
 import * as metricMini from "@/lib/api/metric-schemas";
 import * as mini from "@/lib/api/schemas";
 import * as full from "@shared/schemas";
 import { dashboardSettingsResponseSchema as fullSettings } from "@shared/dashboard-settings-schemas";
 import * as fullHost from "@shared/host-schemas";
 import { authSessionSchema as fullAuthSession } from "@shared/auth-schemas";
+import * as fullImport from "@shared/import-schemas";
+import * as fullStatus from "@shared/status-schemas";
+import * as miniStatus from "@/lib/api/status";
+
+const serviceStatus = {
+  id: "svc",
+  state: "degraded",
+  latencyMs: 2_400,
+  statusCode: 200,
+  error: null,
+  checkedAt: 2,
+  changedAt: 1,
+};
+
+const statusHistory = {
+  id: "svc",
+  range: "24h",
+  resolutionMs: 1_800_000,
+  from: 0,
+  to: 1,
+  uptime: null,
+  buckets: [{ ts: 0, checks: 2, failures: 1, slow: 0, latencyMs: null }],
+};
 
 const hostSnapshot = {
   version: 1,
@@ -84,6 +108,11 @@ const service = {
   open_in_new_tab: true,
   created_at: 1,
   updated_at: 2,
+  check_enabled: false,
+  check_method: "http",
+  check_target: null,
+  check_interval: 60,
+  check_ignore_tls: false,
 };
 
 const settings = {
@@ -137,6 +166,30 @@ const pairs = [
     invalid: [
       { ...service, position: "2" },
       { ...service, icon_source_url: undefined },
+      { ...service, check_method: "icmp" },
+      { ...service, check_interval: "60" },
+    ],
+  },
+  {
+    name: "service statuses",
+    mini: miniStatus.serviceStatusesResponseSchema,
+    full: fullStatus.serviceStatusesResponseSchema,
+    valid: { statuses: [serviceStatus] },
+    invalid: [
+      { statuses: [{ ...serviceStatus, state: "flapping" }] },
+      { statuses: [{ ...serviceStatus, changedAt: undefined }] },
+      {},
+    ],
+  },
+  {
+    name: "status history",
+    mini: miniStatus.statusHistorySchema,
+    full: fullStatus.statusHistorySchema,
+    valid: statusHistory,
+    invalid: [
+      { ...statusHistory, range: "7d" },
+      { ...statusHistory, uptime: undefined },
+      { ...statusHistory, buckets: [{ ts: 0, checks: 1, failures: 0, latencyMs: null }] },
     ],
   },
   {
@@ -165,6 +218,40 @@ const pairs = [
     invalid: [
       { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
     ],
+  },
+  {
+    name: "import preview",
+    mini: importMini.importPreviewSchema,
+    full: fullImport.importPreviewSchema,
+    valid: {
+      format: "homepage",
+      groups: [
+        {
+          name: "Media",
+          services: [
+            {
+              name: "Jellyfin",
+              url: "http://10.0.0.20:8096",
+              description: "Movies",
+              iconUrl: null,
+              duplicate: false,
+            },
+          ],
+        },
+      ],
+      warnings: [],
+    },
+    invalid: [
+      { format: "heimdall", groups: [], warnings: [] },
+      { format: "homer", groups: [{ name: "A", services: [{ name: "x" }] }], warnings: [] },
+    ],
+  },
+  {
+    name: "import result",
+    mini: importMini.importResultSchema,
+    full: fullImport.importResultSchema,
+    valid: { created: 2, failed: [{ name: "A", error: "nope" }], iconFailures: 1, snapshot: "s" },
+    invalid: [{ created: 2, failed: [], iconFailures: "1", snapshot: null }],
   },
   {
     name: "categories",
@@ -238,6 +325,27 @@ describe("browser response schemas", () => {
       }
     });
   }
+
+  it("read a service cached before status checks existed as checks off", () => {
+    const {
+      check_enabled: _enabled,
+      check_method: _method,
+      check_target: _target,
+      check_interval: _interval,
+      check_ignore_tls: _ignoreTls,
+      ...older
+    } = service;
+    const expected = {
+      ...older,
+      check_enabled: false,
+      check_method: "http",
+      check_target: null,
+      check_interval: 60,
+      check_ignore_tls: false,
+    };
+    expect(mini.serviceSchema.parse(older)).toEqual(expected);
+    expect(full.serviceSchema.parse(older)).toEqual(expected);
+  });
 
   it("parse success replies and import summaries", () => {
     expect(mini.successResponseSchema.parse({ success: true })).toEqual({ success: true });

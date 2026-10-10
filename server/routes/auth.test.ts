@@ -490,3 +490,32 @@ describe("no auth", () => {
     });
   });
 });
+
+describe("guest reads", () => {
+  it("leave out status check targets, which can hold credentials", async () => {
+    start({ ...PASSWORD_ENV, ORBITDASH_GUEST: "view" });
+    const cookie = await signIn();
+    const created = await jsonPost(
+      "/api/services",
+      {
+        name: "NAS",
+        url: "https://nas.home",
+        check_enabled: true,
+        check_target: "https://monitor:secret@nas.home/health",
+      },
+      { cookie }
+    );
+    expect(created.status).toBe(201);
+
+    const asOwner = (await (await call("/api/services", { cookie })).json()) as Array<{
+      check_target: string | null;
+    }>;
+    expect(asOwner[0].check_target).toBe("https://monitor:secret@nas.home/health");
+
+    const asGuest = (await (await call("/api/services")).json()) as Array<{
+      check_enabled: boolean;
+      check_target: string | null;
+    }>;
+    expect(asGuest[0]).toMatchObject({ check_enabled: true, check_target: null });
+  });
+});

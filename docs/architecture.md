@@ -22,7 +22,7 @@ and repeatable instead of relying on one large startup-only schema block.
 ### One Event Stream
 
 The server pushes live data over a single server-sent event stream, `GET /api/events`, filtered by
-topic (`metrics`, `host`, `config`). SSE fits because updates only flow one way. Every successful
+topic (`metrics`, `host`, `config`, `alerts`, `status`). SSE fits because updates only flow one way. Every successful
 mutation publishes a `config.changed` event naming what changed (`layout`, `settings`, or `all`)
 and the tab that made it, so other tabs and devices refresh without a reload and the originating
 tab can ignore its own echo. In the browser, `src/lib/live/event-stream.ts` keeps one connection
@@ -84,6 +84,55 @@ time-weighted average and a maximum per bucket.
   columnar (`ts` plus `avg`/`max` arrays per metric), which is the shape uPlot takes. Buckets with
   no data are left out, and one all-null entry marks each gap so a line chart breaks there.
 
+### Status Checks
+
+Each service can have a status check: off by default, and off for every existing service after an
+upgrade, so orbitdash never starts contacting anything on its own. The settings live on the
+service row (`check_enabled`, `check_method`, `check_target`, `check_interval`,
+`check_ignore_tls`) and travel with the service through the API, duplicates, the trash and
+backups. The code is in `server/status/`:
+
+- **Checker** (`checker.ts`). HTTP checks send `HEAD`, and `GET` when the server answers 405 or
+  501 or drops the connection. Redirects are followed by hand, up to 5, and only to http(s); a
+  redirect anywhere else ends the check with that answer. The body is cancelled as soon as the
+  headers arrive, so a check never downloads a page. 2xx, 3xx, 401 and 403 count as up (a login
+  wall still means the service answered). TCP checks open a connection with `Bun.connect` and close
+  it. There is no ICMP: the container runs with every capability dropped. Each check has one
+  10-second deadline for all of its requests, and "allow self-signed certificates" passes
+  `tls: { rejectUnauthorized: false }` to Bun's fetch. Errors become short reasons ("Connection
+  refused", "Certificate not trusted", "HTTP 503") worked out from the error code only, since
+  messages can contain the URL and with it credentials; logs carry the service id and that reason.
+- **States** (`state.ts`). `up` answered within 2 seconds, `degraded` answered slower, `down`
+  failed, `unknown` not checked yet. A reachable service turns down only after 2 failed checks in a
+  row, and the second check comes 15 seconds after the first failure instead of a full interval
+  later, so an outage still shows within seconds. A service that was down (or never checked) turns
+  down or up on its first result. "Up for 3h" and "Down since 14:02" come from `changed_at`, which
+  moves when a service goes down or comes back, not between up and degraded.
+- **Scheduler** (`scheduler.ts`). The job runner calls it every second. Each check has a due time;
+  due checks start earliest first while fewer than 8 are running, and a finished check frees its
+  slot at once. The next run is measured from the start of the last one, moved by up to 10% of the
+  interval each time, so checks never fall into lockstep. At startup, first runs spread over up to
+  30 seconds, or keep their cadence from the last stored check; a check that was just turned on or
+  changed runs within 2 seconds. Config changes (`config.changed` events for layout or all) mark the
+  checks for a reload on the next tick. Shutdown aborts running checks and drops their results
+  before the database closes.
+- **Storage** (`store.ts`, migration 9). `service_status` keeps the current status per service,
+  with the target it describes, so a status from an old target is never shown for a new one.
+  `status_results` keeps every result for 24 hours and `status_hourly` keeps hourly totals for 30
+  days; each check writes its result, its hour's totals and the new status in one transaction. The
+  hourly prune job also removes history of services that are gone for good (not in the trash).
+- **Reading.** `GET /api/status` lists the current status of every service with checks on, and
+  each result is pushed as a `status` event (`null` when a check is turned off or its service is
+  deleted). `GET /api/status/:id/history?range=24h|30d` returns 48 half hours from raw results or
+  30 days from the hourly totals, with an uptime percentage rounded down so one failure never reads
+  as 100%.
+
+In the browser, cards with checks on load `src/components/status/ServiceStatus.tsx` on demand (the
+`ServiceStatus-*` chunk), so dashboards without checks don't download it. Statuses are one
+TanStack Query cache keyed by service id, kept current by a single `status` subscription and
+refetched after the connection drops. Hovering or focusing a card shows the details, which fetch
+the 24h history when they open.
+
 ### Installable App And Offline Shell
 
 orbitdash ships a web app manifest (`public/manifest.webmanifest`, icons in `public/icons/` made by
@@ -107,8 +156,8 @@ dependencies and a larger runtime for the handful of rules orbitdash needs. The 
   network first. They fall back to the cache when the network fails, answers 5xx, or takes longer
   than 4 seconds, and after one fallback the cache answers at once for 10 seconds. Hashed
   `/assets/*` and wallpapers are cache first, icons stale-while-revalidate. Non-GET requests, the
-  event stream, metrics and `/api/system` (live uptime) always go to the network, and nothing marked
-  `no-store` is cached.
+  event stream, metrics, statuses and `/api/system` (live uptime) always go to the network, and
+  nothing marked `no-store` is cached.
 - Updates: each build changes `sw.js`, which the server sends with `Cache-Control: no-cache`. The
   new worker precaches its build, calls `skipWaiting()` and `clients.claim()`, and deletes the
   previous build's cache. Pages load network first, so the next load is always the new build, and
@@ -173,8 +222,11 @@ form validation.
 - `server/db.ts` and `server/migrations.ts` own SQLite access and schema evolution. Migrations can
   run SQL statements and an optional `up(db)` data step inside one transaction. Runtime startup,
   health, metrics collection, and observability stay in their dedicated `server/` modules.
+- `server/status/` owns status checks: the checker, the scheduler, state rules, storage and the
+  monitor that wires them to the database and the event bus. `server/routes/status.ts` only reads
+  from the monitor.
 - `shared/` owns client/server contracts, runtime schemas, URL normalization, service form-data
-  handling, and category-order rules.
+  handling, category-order rules, and the status check rules both sides use (`shared/status.ts`).
 - Frontend hooks under `src/hooks/` own API-backed services (`useServices`, with optimistic moves),
   categories (`useCategories`, with optimistic renames, deletes and reorders), metrics, and
   dashboard settings.
@@ -185,5 +237,5 @@ form validation.
   edit mode the lazily loaded `board/EditableBoard.tsx` adds dnd-kit dragging of cards and
   categories, rename in place, add tiles and card menus.
 - `ServiceDialog` coordinates submission and validation. Form and icon-preview state lives in
-  `services/useServiceDialogState.ts`, with category, icon, and action controls split into focused
-  components.
+  `services/useServiceDialogState.ts`, with category, icon, status check, and action controls split
+  into focused components.

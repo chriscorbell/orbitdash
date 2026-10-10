@@ -3,11 +3,13 @@ import {
   serviceCreateSchema,
   serviceUpdateSchema,
 } from "@shared/service-schemas";
+import { DEFAULT_CHECK_CONFIG, resolveCheckConfig } from "@shared/status";
 import type {
   Service,
   CreateServicePayload,
   MoveServicePayload,
   ReorderServicesPayload,
+  ServiceCheckConfig,
   UpdateServicePayload,
 } from "@shared/types";
 import { apiFail, apiOk, getErrorMessage, type ApiResult } from "../api-response";
@@ -22,12 +24,15 @@ import {
 } from "./icon-storage";
 import type { ParsedServicePayload } from "./service-payloads";
 
-type ServiceRecord = Omit<Service, "open_in_new_tab"> & {
+type ServiceRecord = Omit<Service, "open_in_new_tab" | "check_enabled" | "check_ignore_tls"> & {
+  check_enabled: boolean | number;
+  check_ignore_tls: boolean | number;
   open_in_new_tab: boolean | number;
 };
 
 interface StoredServiceInput {
   categoryId: string | null;
+  check: ServiceCheckConfig;
   createdAt: number;
   description: string | null;
   icon: string | null;
@@ -42,6 +47,7 @@ interface StoredServiceInput {
 
 interface UpdatedServiceInput {
   categoryId: string | null;
+  check: ServiceCheckConfig;
   description: string | null;
   icon: string | null;
   iconSourceUrl: string | null;
@@ -59,7 +65,30 @@ function normalizeServiceRecord(service: ServiceRecord): Service {
   return {
     ...service,
     open_in_new_tab: Boolean(service.open_in_new_tab),
+    check_enabled: Boolean(service.check_enabled),
+    check_ignore_tls: Boolean(service.check_ignore_tls),
   };
+}
+
+function storedCheckConfig(service: ServiceRecord): ServiceCheckConfig {
+  return {
+    check_enabled: Boolean(service.check_enabled),
+    check_method: service.check_method,
+    check_target: service.check_target,
+    check_interval: service.check_interval,
+    check_ignore_tls: Boolean(service.check_ignore_tls),
+  };
+}
+
+/** Check columns in the order the INSERT and UPDATE statements list them. */
+function checkColumnValues(check: ServiceCheckConfig): Array<string | number | null> {
+  return [
+    check.check_enabled ? 1 : 0,
+    check.check_method,
+    check.check_target,
+    check.check_interval,
+    check.check_ignore_tls ? 1 : 0,
+  ];
 }
 
 function getServiceRecord(id: string): ServiceRecord | undefined {
@@ -70,8 +99,9 @@ function getServiceRecord(id: string): ServiceRecord | undefined {
 function createStoredService(input: StoredServiceInput): Service {
   const db = getDb();
   db.prepare(
-    `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at,
+                           check_enabled, check_method, check_target, check_interval, check_ignore_tls)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     input.id,
     input.name,
@@ -83,7 +113,8 @@ function createStoredService(input: StoredServiceInput): Service {
     input.position,
     input.openInNewTab ? 1 : 0,
     input.createdAt,
-    input.updatedAt
+    input.updatedAt,
+    ...checkColumnValues(input.check)
   );
 
   return normalizeServiceRecord(getServiceRecord(input.id)!);
@@ -94,7 +125,8 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
   db.prepare(
     `UPDATE services SET
        name = ?, url = ?, description = ?, icon = ?, icon_source_url = ?, category_id = ?,
-       position = ?, open_in_new_tab = ?, updated_at = ?
+       position = ?, open_in_new_tab = ?, updated_at = ?,
+       check_enabled = ?, check_method = ?, check_target = ?, check_interval = ?, check_ignore_tls = ?
      WHERE id = ?`
   ).run(
     input.name,
@@ -106,6 +138,7 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
     input.position,
     input.openInNewTab ? 1 : 0,
     input.updatedAt,
+    ...checkColumnValues(input.check),
     id
   );
 
@@ -147,6 +180,10 @@ export async function createService(
   const id = crypto.randomUUID();
   const now = Date.now();
   const validatedPayload = validation.data;
+  const check = resolveCheckConfig(DEFAULT_CHECK_CONFIG, validatedPayload);
+  if (!check.ok) {
+    return apiFail(400, check.error);
+  }
 
   let iconFilename: string | null = null;
   let iconSourceUrl: string | null = null;
@@ -168,6 +205,7 @@ export async function createService(
       const categoryId = resolveCategoryId(validatedPayload.category);
       return createStoredService({
         categoryId,
+        check: check.value,
         createdAt: now,
         description: validatedPayload.description,
         icon: iconFilename,
@@ -200,6 +238,11 @@ export async function updateService(
   }
 
   const validatedPayload = validation.data;
+  const check = resolveCheckConfig(storedCheckConfig(existing), validatedPayload);
+  if (!check.ok) {
+    return apiFail(400, check.error);
+  }
+
   let iconFilename = existing.icon;
   let iconSourceUrl = existing.icon_source_url;
   let newIcon: string | null = null;
@@ -236,6 +279,7 @@ export async function updateService(
 
       return updateStoredService(id, {
         categoryId,
+        check: check.value,
         position,
         description:
           validatedPayload.description !== undefined
@@ -281,6 +325,7 @@ export function duplicateService(id: string): ApiResult<Service> {
 
     return createStoredService({
       categoryId: existing.category_id,
+      check: storedCheckConfig(existing),
       position: existing.position + 1,
       createdAt: now,
       description: existing.description,

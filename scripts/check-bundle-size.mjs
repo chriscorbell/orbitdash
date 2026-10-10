@@ -65,11 +65,25 @@ const budgets = [
     maxGzipKb: 4,
   },
   {
+    label: "import dialog",
+    prefix: "ImportDialog-",
+    extension: ".js",
+    maxRawKb: 16,
+    maxGzipKb: 6,
+  },
+  {
     label: "drag and drop",
     prefix: "drag-drop-",
     extension: ".js",
     maxRawKb: 48,
     maxGzipKb: 16,
+  },
+  {
+    label: "service status",
+    prefix: "ServiceStatus-",
+    extension: ".js",
+    maxRawKb: 10,
+    maxGzipKb: 4,
   },
   {
     label: "sign-in screen",
@@ -97,6 +111,9 @@ const lazyOnlyPrefixes = [
   "EditableBoard-",
   "StatsPage-",
   "CommandPalette-",
+  "ImportDialog-",
+  // Status dots and details, loaded by the first card with checks on.
+  "ServiceStatus-",
   // Only shown when auth is on and this browser isn't signed in.
   "SignInScreen-",
   // Loads with the first toast, or once the page is idle.

@@ -1,12 +1,18 @@
 import { useId, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { getIconUrl } from "@/lib/api/services";
-import type { CreateServicePayload, Service } from "@shared/types";
+import { DEFAULT_CHECK_CONFIG, normalizeCheckTarget } from "@shared/status";
+import type { CreateServicePayload, Service, StatusCheckMethod } from "@shared/types";
 import { normalizeIconUrl, normalizeServiceUrl } from "@shared/urls";
 
 export const NEW_CATEGORY_VALUE = "__new__";
 export const NONE_CATEGORY_VALUE = "__none__";
 
 export interface ServiceDialogFormState {
+  checkEnabled: boolean;
+  checkIgnoreTls: boolean;
+  checkInterval: number;
+  checkMethod: StatusCheckMethod;
+  checkTarget: string;
   description: string;
   iconPreview: string | null;
   iconUrl: string;
@@ -18,8 +24,13 @@ export interface ServiceDialogFormState {
   url: string;
 }
 
-interface ServiceDialogFieldIds {
+export interface ServiceDialogFieldIds {
   categoryInputId: string;
+  checkEnabledInputId: string;
+  checkIgnoreTlsInputId: string;
+  checkIntervalInputId: string;
+  checkMethodInputId: string;
+  checkTargetInputId: string;
   descriptionInputId: string;
   iconFileInputId: string;
   iconUrlInputId: string;
@@ -74,6 +85,11 @@ export function createInitialFormState(
   const categoryState = resolveInitialCategoryState(service, categoryOptions, defaultCategory);
 
   return {
+    checkEnabled: service?.check_enabled ?? DEFAULT_CHECK_CONFIG.check_enabled,
+    checkIgnoreTls: service?.check_ignore_tls ?? DEFAULT_CHECK_CONFIG.check_ignore_tls,
+    checkInterval: service?.check_interval ?? DEFAULT_CHECK_CONFIG.check_interval,
+    checkMethod: service?.check_method ?? DEFAULT_CHECK_CONFIG.check_method,
+    checkTarget: service?.check_target ?? "",
     description: service?.description ?? "",
     iconPreview: getServiceIconPreview(service),
     iconUrl: "",
@@ -112,6 +128,11 @@ export function buildServicePayload(formState: ServiceDialogFormState): CreateSe
     icon_url: formState.iconUrl.trim() || null,
     category: resolveSelectedCategory(formState),
     open_in_new_tab: formState.openInNewTab,
+    check_enabled: formState.checkEnabled,
+    check_method: formState.checkMethod,
+    check_target: formState.checkTarget.trim() || null,
+    check_interval: formState.checkInterval,
+    check_ignore_tls: formState.checkIgnoreTls,
   };
 }
 
@@ -119,8 +140,8 @@ export type PreparedServicePayload =
   { error: null; payload: CreateServicePayload } | { error: string; payload: null };
 
 /**
- * Checks the form the same way the server will (required name, valid service and icon URLs) and
- * returns the payload with URLs normalized. Kept free of zod so the form stays light; the server
+ * Checks the form the same way the server will (required name, valid service, icon and check
+ * URLs) and returns the payload with URLs normalized. Kept free of zod so the form stays light; the server
  * still validates everything it receives.
  */
 export function prepareServicePayload(formState: ServiceDialogFormState): PreparedServicePayload {
@@ -139,7 +160,15 @@ export function prepareServicePayload(formState: ServiceDialogFormState): Prepar
     return { error: "icon url must be a valid http(s) URL", payload: null };
   }
 
-  return { error: null, payload: { ...payload, url, icon_url: iconUrl } };
+  const checkTarget = normalizeCheckTarget(formState.checkMethod, payload.check_target);
+  if (!checkTarget.ok) {
+    return { error: checkTarget.error, payload: null };
+  }
+
+  return {
+    error: null,
+    payload: { ...payload, url, icon_url: iconUrl, check_target: checkTarget.value },
+  };
 }
 
 export function isServiceDialogSubmittable(formState: ServiceDialogFormState): boolean {
@@ -153,6 +182,9 @@ export function isServiceDialogSubmittable(formState: ServiceDialogFormState): b
 
   return resolveSelectedCategory(formState) !== null;
 }
+
+type CheckField =
+  "checkEnabled" | "checkIgnoreTls" | "checkInterval" | "checkMethod" | "checkTarget";
 
 export function useServiceDialogState({
   categoryOptions,
@@ -224,6 +256,11 @@ export function useServiceDialogState({
 
   const fieldIds: ServiceDialogFieldIds = {
     categoryInputId: `${fieldIdPrefix}-category`,
+    checkEnabledInputId: `${fieldIdPrefix}-check-enabled`,
+    checkIgnoreTlsInputId: `${fieldIdPrefix}-check-ignore-tls`,
+    checkIntervalInputId: `${fieldIdPrefix}-check-interval`,
+    checkMethodInputId: `${fieldIdPrefix}-check-method`,
+    checkTargetInputId: `${fieldIdPrefix}-check-target`,
     descriptionInputId: `${fieldIdPrefix}-description`,
     iconFileInputId: `${fieldIdPrefix}-icon-file`,
     iconUrlInputId: `${fieldIdPrefix}-icon-url`,
@@ -242,6 +279,9 @@ export function useServiceDialogState({
     handleIconUrlChange,
     handleRemoveIcon,
     storedIconSourceUrl,
+    setCheck: (patch: Partial<Pick<ServiceDialogFormState, CheckField>>) => {
+      setFormState((current) => ({ ...current, ...patch }));
+    },
     setDescription: (description: string) => {
       setFormState((current) => ({
         ...current,

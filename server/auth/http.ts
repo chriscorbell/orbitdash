@@ -105,6 +105,11 @@ export function identifyRequest(c: Context, { withSession = true } = {}): Reques
   return identity;
 }
 
+/** True when the request may change things: auth is off, or it is signed in. Guests can't. */
+export function canEdit(c: Context): boolean {
+  return getAuthConfig().mode === "none" || identifyRequest(c).access === "edit";
+}
+
 /** Sends the cookie again when this request slid the session's expiry. */
 export function renewSessionCookie(c: Context, identity: RequestIdentity) {
   if (identity.session?.refreshed) {

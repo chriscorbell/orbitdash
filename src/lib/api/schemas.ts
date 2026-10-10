@@ -28,6 +28,13 @@ export const serviceSchema = z.object({
   open_in_new_tab: z.boolean(),
   created_at: z.number(),
   updated_at: z.number(),
+  // Defaulted so a services response cached by the offline worker before status checks existed
+  // still loads (with checks off).
+  check_enabled: z._default(z.boolean(), false),
+  check_method: z._default(z.enum(["http", "tcp"]), "http"),
+  check_target: z._default(z.nullable(z.string()), null),
+  check_interval: z._default(z.number(), 60),
+  check_ignore_tls: z._default(z.boolean(), false),
 });
 
 export const servicesResponseSchema = z.array(serviceSchema);

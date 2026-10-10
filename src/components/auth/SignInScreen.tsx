@@ -118,14 +118,14 @@ function PasswordForm({ onSignedIn }: Pick<SignInScreenProps, "onSignedIn">) {
             aria-invalid={message ? true : undefined}
             aria-describedby={message ? "sign-in-message" : undefined}
             onChange={(event) => setPassword(event.target.value)}
-            className="h-10 pr-10"
+            className="h-10 pr-9"
           />
           <button
             type="button"
             aria-label={visible ? "Hide password" : "Show password"}
             aria-pressed={visible}
             onClick={() => setVisible((current) => !current)}
-            className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
+            className="absolute top-0 right-0 bottom-0 flex w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
@@ -140,11 +140,7 @@ function PasswordForm({ onSignedIn }: Pick<SignInScreenProps, "onSignedIn">) {
           )}
         </p>
       </div>
-      <Button
-        type="submit"
-        className="h-10 w-full active:scale-[0.98]"
-        disabled={pending || locked || password === ""}
-      >
+      <Button type="submit" className="h-10 w-full" disabled={pending || locked || password === ""}>
         {pending ? (
           <LoaderCircle aria-hidden="true" className="animate-spin" />
         ) : (
@@ -161,10 +157,10 @@ export function SignInScreen({ mode, onCancel, onSignedIn }: SignInScreenProps) 
   const name = document.title.trim() || "orbitdash";
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-12">
+    <div className="flex min-h-svh items-center justify-center bg-background px-4 py-16">
       <main className="page-load w-full max-w-xs">
         <div className="mb-8 flex flex-col items-center gap-4 text-center">
-          <Logo className="size-11 text-foreground" />
+          <Logo className="size-10 text-foreground" />
           <h1 className="text-xl font-semibold tracking-tight">
             {mode === "proxy" ? "Not signed in" : name}
           </h1>
@@ -193,7 +189,7 @@ export function SignInScreen({ mode, onCancel, onSignedIn }: SignInScreenProps) 
           <Button
             type="button"
             variant="ghost"
-            className="mt-3 h-10 w-full text-muted-foreground"
+            className="mt-2 h-10 w-full text-muted-foreground"
             onClick={onCancel}
           >
             <ArrowLeft aria-hidden="true" />

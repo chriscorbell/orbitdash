@@ -204,6 +204,57 @@ const migrations: Migration[] = [
   },
   {
     id: 9,
+    name: "status-checks",
+    // Status checks (server/status/). Off for every existing service, so an upgrade never starts
+    // contacting anything on its own.
+    statements: [
+      `ALTER TABLE services ADD COLUMN check_enabled INTEGER NOT NULL DEFAULT 0
+       CHECK (check_enabled IN (0, 1))`,
+      `ALTER TABLE services ADD COLUMN check_method TEXT NOT NULL DEFAULT 'http'
+       CHECK (check_method IN ('http', 'tcp'))`,
+      `ALTER TABLE services ADD COLUMN check_target TEXT`,
+      `ALTER TABLE services ADD COLUMN check_interval INTEGER NOT NULL DEFAULT 60
+       CHECK (check_interval BETWEEN 15 AND 3600)`,
+      `ALTER TABLE services ADD COLUMN check_ignore_tls INTEGER NOT NULL DEFAULT 0
+       CHECK (check_ignore_tls IN (0, 1))`,
+      // The current status per service. target_key names what was checked, so a status left from
+      // an older target is never shown for a new one. failures counts failed checks in a row.
+      `CREATE TABLE service_status (
+        service_id TEXT PRIMARY KEY,
+        target_key TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('up', 'degraded', 'down', 'unknown')),
+        failures INTEGER NOT NULL DEFAULT 0,
+        latency_ms INTEGER,
+        status_code INTEGER,
+        error TEXT,
+        checked_at INTEGER,
+        changed_at INTEGER
+      )`,
+      // Every check result, kept 24 hours. History has no foreign key on purpose: deleting a
+      // service into the trash and restoring it, or importing a backup with the same ids, keeps
+      // its history. The prune job removes history whose service is gone for good.
+      `CREATE TABLE status_results (
+        service_id TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        ok INTEGER NOT NULL CHECK (ok IN (0, 1)),
+        latency_ms INTEGER,
+        PRIMARY KEY (service_id, ts)
+      ) WITHOUT ROWID`,
+      `CREATE INDEX status_results_ts_idx ON status_results (ts)`,
+      // Hourly totals, kept 30 days. Latency is summed over the checks that passed.
+      `CREATE TABLE status_hourly (
+        service_id TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        checks INTEGER NOT NULL,
+        failures INTEGER NOT NULL,
+        slow INTEGER NOT NULL,
+        latency_sum_ms INTEGER NOT NULL,
+        PRIMARY KEY (service_id, ts)
+      ) WITHOUT ROWID`,
+    ],
+  },
+  {
+    id: 10,
     name: "auth-sessions",
     // Password sign-ins (server/auth/). Only a SHA-256 of each session token is stored, never the
     // token. `credential` fingerprints the password a session was created under, so changing the

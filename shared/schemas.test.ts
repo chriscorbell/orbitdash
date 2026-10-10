@@ -111,6 +111,50 @@ describe("serviceCreateSchema", () => {
   });
 });
 
+describe("service check fields", () => {
+  it("are optional and left for service-operations to default", () => {
+    const parsed = serviceCreateSchema.parse({ name: "Orbit", url: "nas.lan" });
+    expect(parsed.check_enabled).toBeUndefined();
+    expect(parsed.check_interval).toBeUndefined();
+  });
+
+  it("validate types and ranges, and blank targets become null", () => {
+    expect(
+      serviceUpdateSchema.parse({
+        check_enabled: true,
+        check_method: "tcp",
+        check_target: "  ",
+        check_interval: 15,
+        check_ignore_tls: false,
+      })
+    ).toEqual({
+      check_enabled: true,
+      check_method: "tcp",
+      check_target: null,
+      check_interval: 15,
+      check_ignore_tls: false,
+    });
+
+    for (const [patch, message] of [
+      [
+        { check_interval: 3601 },
+        "check interval must be a whole number of seconds from 15 to 3600",
+      ],
+      [
+        { check_interval: "60" },
+        "check interval must be a whole number of seconds from 15 to 3600",
+      ],
+      [{ check_method: "ping" }, "check method must be http or tcp"],
+      [{ check_target: 22 }, "check target must be a string"],
+      [{ check_ignore_tls: "yes" }, "check_ignore_tls must be true or false"],
+    ] as const) {
+      const result = serviceUpdateSchema.safeParse(patch);
+      expect(result.success).toBe(false);
+      if (!result.success) expect(getValidationMessage(result.error)).toBe(message);
+    }
+  });
+});
+
 describe("serviceUpdateSchema", () => {
   it("allows partial updates and preserves omitted fields as undefined", () => {
     expect(
@@ -247,6 +291,11 @@ describe("response schemas", () => {
       open_in_new_tab: true,
       created_at: 1,
       updated_at: 2,
+      check_enabled: false,
+      check_method: "http",
+      check_target: null,
+      check_interval: 60,
+      check_ignore_tls: false,
     };
 
     expect(serviceSchema.parse(service)).toEqual(service);
