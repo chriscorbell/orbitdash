@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createQueryWrapper } from "@/test/query";
 import { readLegacyLayout, useDashboardSettings } from "@/hooks/useDashboardSettings";
 import {
   DEFAULT_DASHBOARD_SETTINGS,
@@ -74,7 +75,9 @@ describe("useDashboardSettings", () => {
     );
     createServer({ shared: { layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 3 } } });
 
-    const { result } = renderHook(() => useDashboardSettings());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
     expect(result.current.settings.layout.gridColumns).toBe(5);
 
     await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(3));
@@ -89,7 +92,9 @@ describe("useDashboardSettings", () => {
     window.localStorage.setItem("orbitdash.servicesGrid", "5");
     const server = createServer({ stored: false });
 
-    const { result } = renderHook(() => useDashboardSettings());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(5));
     expect(server.shared.layout).toMatchObject({ servicesFirst: false, gridColumns: 5 });
@@ -101,7 +106,9 @@ describe("useDashboardSettings", () => {
     window.localStorage.setItem("orbitdash.showStatsSection", "false");
     const server = createServer({ stored: true });
 
-    const { result } = renderHook(() => useDashboardSettings());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(result.current.scope).toBe("device"));
     expect(server.overrides).toEqual({ layout: { showStats: false } });
@@ -113,7 +120,9 @@ describe("useDashboardSettings", () => {
     window.localStorage.setItem("orbitdash.showStatsSection", "true");
     createServer({ stored: true });
 
-    const { result } = renderHook(() => useDashboardSettings());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(api.fetchDashboardSettings).toHaveBeenCalled());
     await waitFor(() =>
@@ -125,11 +134,13 @@ describe("useDashboardSettings", () => {
 
   it("saves layout changes to the shared settings by default", async () => {
     const server = createServer();
-    const { result } = renderHook(() => useDashboardSettings());
-    await waitFor(() => expect(api.fetchDashboardSettings).toHaveBeenCalled());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.updateLayout({ servicesFirst: false }));
-    expect(result.current.settings.layout.servicesFirst).toBe(false);
+    await waitFor(() => expect(result.current.settings.layout.servicesFirst).toBe(false));
 
     await waitFor(() => expect(server.shared.layout.servicesFirst).toBe(false));
     expect(api.updateSharedSettings).toHaveBeenCalledWith(
@@ -140,8 +151,10 @@ describe("useDashboardSettings", () => {
 
   it("switches to per-device settings and back", async () => {
     const server = createServer();
-    const { result } = renderHook(() => useDashboardSettings());
-    await waitFor(() => expect(api.fetchDashboardSettings).toHaveBeenCalled());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.setScope("device"));
     await waitFor(() => expect(result.current.scope).toBe("device"));
@@ -149,6 +162,7 @@ describe("useDashboardSettings", () => {
 
     act(() => result.current.updateLayout({ gridColumns: 3 }));
     await waitFor(() => expect(server.overrides.layout?.gridColumns).toBe(3));
+    await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(3));
     expect(server.shared.layout.gridColumns).toBe(4);
 
     act(() => result.current.setScope("device"));
@@ -156,12 +170,14 @@ describe("useDashboardSettings", () => {
 
     act(() => result.current.setScope("all"));
     await waitFor(() => expect(result.current.scope).toBe("all"));
-    expect(result.current.settings.layout.gridColumns).toBe(4);
+    await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(4));
   });
 
   it("reverts an optimistic change when saving fails", async () => {
     createServer();
-    const { result } = renderHook(() => useDashboardSettings());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
     await waitFor(() => expect(api.fetchDashboardSettings).toHaveBeenCalled());
     await waitFor(() => expect(result.current.settings).toEqual(DEFAULT_DASHBOARD_SETTINGS));
 
@@ -175,7 +191,9 @@ describe("useDashboardSettings", () => {
   it("reports load failures and keeps working from defaults", async () => {
     api.fetchDashboardSettings.mockRejectedValue(new Error("down"));
 
-    const { result } = renderHook(() => useDashboardSettings());
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(result.current.error).toBe("down"));
     expect(result.current.settings).toEqual(DEFAULT_DASHBOARD_SETTINGS);

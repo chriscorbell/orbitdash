@@ -1,9 +1,9 @@
 import { requestJson } from "@/lib/api/client";
-import {
-  dashboardSettingsResponseSchema,
-  type DashboardSettingsPatch,
-  type DashboardSettingsResponse,
-  type DeviceUpdate,
+import { dashboardSettingsResponseSchema } from "@/lib/api/schemas";
+import type {
+  DashboardSettingsPatch,
+  DashboardSettingsResponse,
+  DeviceUpdate,
 } from "@shared/dashboard-settings";
 
 function withDevice(path: string, deviceId: string): string {

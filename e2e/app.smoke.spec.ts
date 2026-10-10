@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** A service card's link; role-based so toasts mentioning the same name don't also match. */
+function serviceLink(page: Page, name: string) {
+  return page.locator("main").getByRole("link", { name: new RegExp(`^${name}`) });
+}
+
 async function createService(
   page: Page,
   options: {
@@ -25,7 +30,7 @@ async function createService(
   await page.getByRole("button", { name: "Add service" }).click();
 
   await expect(page.getByRole("dialog", { name: "Add Service" })).toBeHidden();
-  await expect(page.getByText(options.name)).toBeVisible();
+  await expect(serviceLink(page, options.name)).toBeVisible();
 }
 
 test("primary dashboard journey works end to end", async ({ page }) => {
@@ -64,7 +69,7 @@ test("primary dashboard journey works end to end", async ({ page }) => {
   await page.getByRole("button", { name: "Save changes" }).click();
 
   await expect(page.getByRole("dialog", { name: "Edit Service" })).toBeHidden();
-  await expect(page.getByText("Orbit Control")).toBeVisible();
+  await expect(serviceLink(page, "Orbit Control")).toBeVisible();
   await expect(page.locator("main").getByText("Updated service description").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Open settings" }).click();
@@ -100,7 +105,7 @@ test("changes made in one browser show up in another without a reload", async ({
     url: "https://example.com/synced",
   });
 
-  await expect(second.getByText("Synced Service")).toBeVisible({ timeout: 5_000 });
+  await expect(serviceLink(second, "Synced Service")).toBeVisible({ timeout: 5_000 });
   await first.close();
   await second.close();
 });

@@ -5,6 +5,7 @@ import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesSectionFeedback } from "@/components/services/ServicesSectionFeedback";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
 import { useServicesSectionState } from "@/components/services/useServicesSectionState";
+import { toast } from "@/lib/toast";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type {
   Service,
@@ -58,7 +59,6 @@ export function ServicesSection({
   onRenameCategory,
 }: ServicesSectionProps) {
   const {
-    actionError,
     addOpen,
     categoryOptions,
     categoryOrderError,
@@ -75,7 +75,6 @@ export function ServicesSection({
     isReorderMode,
     renameCategoryTarget,
     search,
-    setActionError,
     setAddOpen,
     setDeleteTarget,
     setEditingService,
@@ -112,11 +111,9 @@ export function ServicesSection({
       />
 
       <ServicesSectionFeedback
-        actionError={actionError}
         categoryOrderError={categoryOrderError}
         error={error}
         isReorderMode={isReorderMode}
-        onClearActionError={() => setActionError(null)}
         onRetry={() => {
           void onRetry();
         }}
@@ -161,7 +158,8 @@ export function ServicesSection({
           onOpenChange={setAddOpen}
           categoryOptions={categoryOptions}
           onSubmit={async (payload, iconFile) => {
-            await onCreate(payload, iconFile);
+            const created = await onCreate(payload, iconFile);
+            toast({ title: `Added ${created.name}`, tone: "success" });
           }}
         />
       </Suspense>
@@ -183,11 +181,13 @@ export function ServicesSection({
             }
 
             await onUpdate(editingService.id, payload, iconFile, removeIcon);
+            toast({ title: "Changes saved", tone: "success" });
           }}
           onDelete={
             editingService
               ? async () => {
                   await onDelete(editingService.id);
+                  toast({ title: `Deleted ${editingService.name}`, tone: "success" });
                 }
               : undefined
           }

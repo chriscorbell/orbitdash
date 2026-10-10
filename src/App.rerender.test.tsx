@@ -2,6 +2,7 @@
 
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createQueryWrapper } from "@/test/query";
 import type { MetricSample } from "@shared/types";
 
 const harness = vi.hoisted(() => ({
@@ -69,7 +70,7 @@ afterEach(() => {
 
 describe("App render isolation", () => {
   it("re-renders only the stats section when a metrics sample arrives", async () => {
-    render(<App />);
+    render(<App />, { wrapper: createQueryWrapper().wrapper });
     expect(await screen.findByText("0 points")).toBeTruthy();
     const rendersBefore = harness.servicesRenders;
 

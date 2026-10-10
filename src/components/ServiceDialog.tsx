@@ -14,11 +14,10 @@ import { ServiceCategoryField } from "@/components/services/ServiceCategoryField
 import { ServiceDialogActions } from "@/components/services/ServiceDialogActions";
 import { ServiceIconField } from "@/components/services/ServiceIconField";
 import {
-  buildServicePayload,
   isServiceDialogSubmittable,
+  prepareServicePayload,
   useServiceDialogState,
 } from "@/components/services/useServiceDialogState";
-import { getValidationMessage, serviceCreateSchema } from "@shared/service-schemas";
 import type { Service, CreateServicePayload } from "@shared/types";
 
 interface ServiceDialogProps {
@@ -83,15 +82,13 @@ function ServiceDialogBody({
     setSubmitting(true);
     setErrorMessage(null);
     try {
-      const payload = buildServicePayload(formState);
-
-      const validation = serviceCreateSchema.safeParse(payload);
-      if (!validation.success) {
-        setErrorMessage(getValidationMessage(validation.error));
+      const prepared = prepareServicePayload(formState);
+      if (prepared.error !== null) {
+        setErrorMessage(prepared.error);
         return;
       }
 
-      await onSubmit(validation.data, iconFile || undefined, removeIcon);
+      await onSubmit(prepared.payload, iconFile || undefined, removeIcon);
       onOpenChange(false);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to save service");

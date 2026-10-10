@@ -3,6 +3,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createQueryWrapper } from "@/test/query";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service } from "@shared/types";
 
@@ -190,7 +191,7 @@ afterEach(() => {
 
 describe("App", () => {
   it("shows services before stats by default", async () => {
-    render(<App />);
+    render(<App />, { wrapper: createQueryWrapper().wrapper });
 
     const servicesSection = await screen.findByTestId("services-section");
     const statsHeading = screen.getByRole("heading", { name: "Stats" });
@@ -204,7 +205,7 @@ describe("App", () => {
   it("can hide each section independently and shows an empty state when both are hidden", async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    render(<App />, { wrapper: createQueryWrapper().wrapper });
 
     await user.click(screen.getByRole("button", { name: "Toggle services section" }));
     expect(screen.queryByTestId("services-section")).toBeNull();

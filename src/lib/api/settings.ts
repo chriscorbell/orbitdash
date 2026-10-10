@@ -1,10 +1,9 @@
-import { invalidateRequestCache, requestJson, requestJsonCached } from "@/lib/api/client";
-import { categoryOrderResponseSchema } from "@shared/schemas";
+import { jsonBody, requestJson } from "@/lib/api/client";
+import { categoryOrderResponseSchema } from "@/lib/api/schemas";
 import type { CategoryOrderResponse, UpdateCategoryOrderPayload } from "@shared/types";
 
-/** Fetch the saved category order */
-export async function fetchCategoryOrder(): Promise<CategoryOrderResponse> {
-  return requestJsonCached<CategoryOrderResponse>(
+export function fetchCategoryOrder(): Promise<CategoryOrderResponse> {
+  return requestJson(
     "/api/settings/category-order",
     {},
     "Failed to fetch category order",
@@ -12,23 +11,13 @@ export async function fetchCategoryOrder(): Promise<CategoryOrderResponse> {
   );
 }
 
-/** Persist category order */
-export async function updateCategoryOrder(
+export function updateCategoryOrder(
   payload: UpdateCategoryOrderPayload
 ): Promise<CategoryOrderResponse> {
-  const response = await requestJson<CategoryOrderResponse>(
+  return requestJson(
     "/api/settings/category-order",
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
+    jsonBody("PUT", payload),
     "Failed to save category order",
     categoryOrderResponseSchema
   );
-
-  invalidateRequestCache("/api/settings/category-order");
-  return response;
 }

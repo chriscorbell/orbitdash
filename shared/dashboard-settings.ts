@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export const GRID_COLUMN_OPTIONS = [3, 4, 5] as const;
 export type GridColumns = (typeof GRID_COLUMN_OPTIONS)[number];
 
@@ -27,86 +25,63 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
   },
 };
 
-const gridColumnsSchema = z.union([z.literal(3), z.literal(4), z.literal(5)]);
-
-// Stored settings are parsed leniently: a missing or invalid field falls back to its default
-// instead of failing the whole document, so older and newer versions can share one database.
-const storedLayoutSchema = z.object({
-  gridColumns: gridColumnsSchema.catch(DEFAULT_DASHBOARD_SETTINGS.layout.gridColumns),
-  servicesFirst: z.boolean().catch(DEFAULT_DASHBOARD_SETTINGS.layout.servicesFirst),
-  showServices: z.boolean().catch(DEFAULT_DASHBOARD_SETTINGS.layout.showServices),
-  showStats: z.boolean().catch(DEFAULT_DASHBOARD_SETTINGS.layout.showStats),
-});
-
-const storedSettingsSchema = z.object({
-  layout: storedLayoutSchema.catch(DEFAULT_DASHBOARD_SETTINGS.layout),
-});
-
-/** Request bodies are strict, so typos are reported instead of silently ignored. */
-export const dashboardSettingsPatchSchema = z
-  .object({
-    layout: z
-      .object({
-        gridColumns: gridColumnsSchema.optional(),
-        servicesFirst: z.boolean().optional(),
-        showServices: z.boolean().optional(),
-        showStats: z.boolean().optional(),
-      })
-      .strict()
-      .optional(),
-  })
-  .strict();
-
-export const dashboardSettingsSchema = z.object({
-  layout: z.object({
-    gridColumns: gridColumnsSchema,
-    servicesFirst: z.boolean(),
-    showServices: z.boolean(),
-    showStats: z.boolean(),
-  }),
-});
-
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
-export const deviceIdSchema = z.string().regex(DEVICE_ID_PATTERN, "invalid device id");
+export interface DeviceSettings {
+  id: string;
+  name: string | null;
+  overrides: DashboardSettingsPatch;
+}
 
-export const deviceUpdateSchema = z
-  .object({
-    name: z.string().trim().max(60, "name must be 60 characters or fewer").nullable().optional(),
-    overrides: dashboardSettingsPatchSchema.nullable().optional(),
-  })
-  .strict();
+export interface DeviceUpdate {
+  name?: string | null;
+  overrides?: DashboardSettingsPatch | null;
+}
 
-export const deviceSettingsSchema = z.object({
-  id: z.string(),
-  name: z.string().nullable(),
-  overrides: dashboardSettingsPatchSchema,
-});
+export interface DashboardSettingsResponse {
+  device: DeviceSettings | null;
+  effective: DashboardSettings;
+  settings: DashboardSettings;
+  stored: boolean;
+}
 
-export const dashboardSettingsResponseSchema = z.object({
-  device: deviceSettingsSchema.nullable(),
-  effective: dashboardSettingsSchema,
-  settings: dashboardSettingsSchema,
-  stored: z.boolean(),
-});
+function isGridColumns(value: unknown): value is GridColumns {
+  return (GRID_COLUMN_OPTIONS as readonly unknown[]).includes(value);
+}
 
-export type DeviceSettings = z.infer<typeof deviceSettingsSchema>;
-export type DeviceUpdate = z.infer<typeof deviceUpdateSchema>;
-export type DashboardSettingsResponse = z.infer<typeof dashboardSettingsResponseSchema>;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Valid layout fields from untrusted input; anything else is left out. */
+function pickLayoutFields(input: unknown): Partial<DashboardLayoutSettings> {
+  if (!isRecord(input)) return {};
+  const layout: Partial<DashboardLayoutSettings> = {};
+  if (isGridColumns(input.gridColumns)) layout.gridColumns = input.gridColumns;
+  for (const key of ["servicesFirst", "showServices", "showStats"] as const) {
+    if (typeof input[key] === "boolean") layout[key] = input[key];
+  }
+  return layout;
+}
 
 export function isDeviceId(value: string): boolean {
   return DEVICE_ID_PATTERN.test(value);
 }
 
+/**
+ * Stored settings are read leniently: a missing or invalid field falls back to its default
+ * instead of failing the whole document, so older and newer versions can share one database.
+ */
 export function parseDashboardSettings(input: unknown): DashboardSettings {
-  const parsed = storedSettingsSchema.safeParse(input);
-  return parsed.success ? parsed.data : DEFAULT_DASHBOARD_SETTINGS;
+  return mergeDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, {
+    layout: pickLayoutFields(isRecord(input) ? input.layout : undefined),
+  });
 }
 
 /** Overrides read from storage keep only valid fields. */
 export function parseDashboardSettingsPatch(input: unknown): DashboardSettingsPatch {
-  const parsed = dashboardSettingsPatchSchema.safeParse(input);
-  return parsed.success ? parsed.data : {};
+  const layout = pickLayoutFields(isRecord(input) ? input.layout : undefined);
+  return Object.keys(layout).length > 0 ? { layout } : {};
 }
 
 export function mergeDashboardSettings(

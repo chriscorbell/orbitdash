@@ -5,11 +5,14 @@ import { ServicesSection } from "@/components/ServicesSection";
 import { StatsSection } from "@/components/StatsSection";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Toaster } from "@/components/ui/toaster";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
+import { useLiveQueries } from "@/hooks/useLiveQueries";
 import { useServices } from "@/hooks/useServices";
 
 function App() {
+  useLiveQueries();
   const {
     services,
     loading: servicesLoading,
@@ -101,6 +104,7 @@ function App() {
         )}
       </main>
       <Footer />
+      <Toaster />
     </div>
   );
 }
