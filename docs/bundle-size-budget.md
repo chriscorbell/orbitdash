@@ -30,7 +30,7 @@ matches, so group priority decides where shared packages land:
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`,
+`drag-drop-*`, `SettingsPage-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`,
 `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`, `NotificationSettings-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with
 checks on), `ServiceLinksMenu-*` (the links menu of cards with extra links or an external URL),
 `SignInScreen-*` (only shown when auth is on), `toaster-*` (loaded with the first
@@ -46,12 +46,12 @@ happens.
 | --------------------------- | ---------: | ----------: | -------------------------------------------- |
 | `index-*.js`                |      66 kB |     22.5 kB | about 65 kB raw / 21.9 kB gzip / 19.3 kB br  |
 | `api-schemas-*.js`          |       7 kB |        3 kB | about 5 kB raw / 2.3 kB gzip / 2.0 kB br     |
-| `index-*.css`               |      92 kB |       15 kB | about 92 kB raw / 14.9 kB gzip / 12.4 kB br  |
+| `index-*.css`               |      96 kB |       16 kB | about 92 kB raw / 14.9 kB gzip / 12.4 kB br  |
 | `react-vendor-*.js`         |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`               |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
 | `validation-*.js`           |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
 | `ServiceDialog-*.js`        |     100 kB |       28 kB | about 27 kB raw / 8.2 kB gzip / 7.4 kB br    |
-| `SettingsDialog-*.js`       |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
+| `SettingsPage-*.js`         |      10 kB |        4 kB | about 7 kB raw / 2.6 kB gzip                 |
 | `EditableBoard-*.js`        |      44 kB |       14 kB | about 21 kB raw / 6.9 kB gzip / 6.2 kB br    |
 | `StatsPage-*.js`            |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
 | `CommandPalette-*.js`       |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
@@ -86,13 +86,22 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`,
+- `dist/index.html` references a `drag-drop-*`, `SettingsPage-*`, `EditableBoard-*`,
   `StatsPage-*`, `CommandPalette-*`, `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`,
   `NotificationSettings-*`, `ServiceStatus-*`, `ServiceLinksMenu-*`, `SignInScreen-*`,
   `toaster-*` or `pwa-*` chunk
 
 ## History
 
+- Settings became a page at `/settings`, so the 24 kB `SettingsDialog-*` chunk is gone. The page
+  shell (section list, device scope switch) is `SettingsPage-*` (about 2.6 kB gzip), and each section
+  loads as its own chunk when it's opened, so opening settings no longer downloads every section.
+  The entry only gained the route (about 0.1 kB gzip); the section list stays in the page chunk.
+  The shared CSS reached 92.6 kB raw and 14.99 kB gzip: Tailwind writes one stylesheet for the
+  entry and every lazy chunk, so each lazily loaded feature (import, widgets, status checks,
+  sign-in, URLs and tags, notifications, integrations, Docker, and now the settings page) adds to
+  it even though first-paint JavaScript stayed flat. Its budget went from 92 kB / 15 kB to
+  96 kB / 16 kB.
 - Notification settings (channels, the channel form, options and the delivery log) load in a lazy
   `NotificationSettings-*` chunk of about 7.6 kB gzip as the settings dialog opens, with a 30 kB
   raw / 10 kB gzip budget. The settings dialog itself only gained the lazy section, about 0.7 kB

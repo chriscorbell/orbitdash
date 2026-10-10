@@ -14,7 +14,7 @@ import { HeaderStatus } from "@/components/header/HeaderStatus";
 import { Logo } from "@/components/common/Logo";
 import {
   preloadEditableBoard,
-  preloadSettingsDialog,
+  preloadSettingsPage,
   preloadStatsPage,
 } from "@/components/settings/settings-preload";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { handleLinkClick } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import type { ClockFormat } from "@shared/dashboard-settings";
 
-export type AppPage = "services" | "stats";
+export type AppPage = "services" | "stats" | "settings";
 
 interface AppHeaderProps {
   /** False for guests: add, edit and settings give way to a sign-in button. */
@@ -205,13 +205,14 @@ export function AppHeader({
                 )}
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant={page === "settings" ? "secondary" : "ghost"}
                   size="icon-sm"
                   className="pointer-coarse:size-9"
                   aria-label="Open settings"
+                  aria-current={page === "settings" ? "page" : undefined}
                   onClick={onOpenSettings}
-                  onFocus={preloadSettingsDialog}
-                  onPointerEnter={preloadSettingsDialog}
+                  onFocus={preloadSettingsPage}
+                  onPointerEnter={preloadSettingsPage}
                 >
                   <Settings />
                 </Button>

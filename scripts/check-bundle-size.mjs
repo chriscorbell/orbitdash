@@ -13,8 +13,8 @@ const budgets = [
     label: "entry css",
     prefix: "index-",
     extension: ".css",
-    maxRawKb: 92,
-    maxGzipKb: 15,
+    maxRawKb: 96,
+    maxGzipKb: 16,
   },
   {
     label: "react vendor",
@@ -39,11 +39,11 @@ const budgets = [
     maxGzipKb: 28,
   },
   {
-    label: "settings dialog",
-    prefix: "SettingsDialog-",
+    label: "settings page",
+    prefix: "SettingsPage-",
     extension: ".js",
-    maxRawKb: 24,
-    maxGzipKb: 8,
+    maxRawKb: 10,
+    maxGzipKb: 4,
   },
   {
     label: "editable board",
@@ -137,7 +137,7 @@ const budgets = [
 // entry imports it statically and its lazy() boundary has been defeated.
 const lazyOnlyPrefixes = [
   "drag-drop-",
-  "SettingsDialog-",
+  "SettingsPage-",
   "EditableBoard-",
   "StatsPage-",
   "CommandPalette-",

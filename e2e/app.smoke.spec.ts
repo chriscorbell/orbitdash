@@ -146,7 +146,8 @@ test("the command palette opens by typing and runs actions", async ({ page }) =>
     "true"
   );
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog", { name: "Dashboard settings" })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
 });
 
 test("the Stats page shows live readings and switches ranges", async ({ page }) => {

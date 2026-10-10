@@ -4,17 +4,14 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppHeader } from "@/components/header/AppHeader";
-import {
-  preloadEditableBoard,
-  preloadSettingsDialog,
-} from "@/components/settings/settings-preload";
+import { preloadEditableBoard, preloadSettingsPage } from "@/components/settings/settings-preload";
 import { createQueryWrapper } from "@/test/query";
 
 // The real preloads import whole lazy chunks, which can finish after the test environment is torn
 // down and fail the run.
 vi.mock("@/components/settings/settings-preload", () => ({
   preloadEditableBoard: vi.fn(),
-  preloadSettingsDialog: vi.fn(),
+  preloadSettingsPage: vi.fn(),
 }));
 
 vi.mock("@/lib/api/system", () => ({
@@ -68,7 +65,7 @@ describe("AppHeader", () => {
     await user.click(screen.getByRole("button", { name: "Open settings" }));
     expect(props.onAddService).toHaveBeenCalled();
     expect(props.onOpenSettings).toHaveBeenCalled();
-    expect(preloadSettingsDialog).toHaveBeenCalled();
+    expect(preloadSettingsPage).toHaveBeenCalled();
 
     expect(await screen.findByText("nas")).toBeTruthy();
     expect(screen.getByText("up 3d 5h")).toBeTruthy();

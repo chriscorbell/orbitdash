@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import {
   SCOPED_SECTIONS,
   SETTINGS_SECTIONS,
+  settingsSectionFromPath,
   type SettingsProps,
   type SettingsSectionId,
 } from "@/components/settings/settings-sections";
@@ -141,15 +142,16 @@ function ScopeSwitch({ props }: { props: SettingsProps }) {
 }
 
 interface SettingsPageProps extends SettingsProps {
-  /** From the URL; null on /settings, which lists the sections on phones. */
-  section: SettingsSectionId | null;
+  /** From the URL ("/settings/layout" -> "layout"); null on /settings, which lists sections on phones. */
+  section: string | null;
 }
 
 /**
  * Settings as a page: sections listed beside the open one, or on phones a list that opens each
  * section on its own with a way back.
  */
-export function SettingsPage({ section, ...props }: SettingsPageProps) {
+export function SettingsPage({ section: requested, ...props }: SettingsPageProps) {
+  const section = settingsSectionFromPath(`/settings/${requested ?? ""}`);
   const current = section ?? "general";
   const label = SETTINGS_SECTIONS.find((entry) => entry.id === current)!.label;
 
@@ -169,9 +171,9 @@ export function SettingsPage({ section, ...props }: SettingsPageProps) {
                   onClick={(event) => handleLinkClick(event, `/settings/${entry.id}`)}
                   className={cn(
                     "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:py-3",
-                    active
-                      ? "md:bg-accent md:text-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                    // On phones the list is its own page, so nothing in it is "open".
+                    active && "md:bg-accent md:text-foreground md:hover:bg-accent"
                   )}
                 >
                   <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />

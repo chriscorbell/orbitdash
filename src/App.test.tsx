@@ -16,7 +16,7 @@ interface MockServicesProps {
 
 interface MockSettingsProps {
   account?: { mode: string; user: string | null; onSignOut?: () => void };
-  open: boolean;
+  section?: string | null;
   onShowServicesSectionChange: (visible: boolean) => void;
   onShowStatsSectionChange: (visible: boolean) => void;
   onStatsPositionChange: (position: "top" | "bottom") => void;
@@ -38,7 +38,7 @@ vi.mock("@/components/ServicesSection", () => ({
 
 // The app loads the settings dialog lazily through this module.
 vi.mock("@/components/settings/settings-preload", () => ({
-  preloadSettingsDialog: vi.fn(),
+  preloadSettingsPage: vi.fn(),
   preloadEditableBoard: vi.fn(),
   preloadStatsPage: vi.fn(),
   loadEditableBoard: async () => ({ EditableBoard: () => null }),
@@ -81,16 +81,17 @@ vi.mock("@/components/settings/settings-preload", () => ({
       <div data-testid="stats-page">{themeKey}</div>
     ),
   }),
-  loadSettingsDialog: async () => ({
-    SettingsDialog: ({
+  loadSettingsPage: async () => ({
+    SettingsPage: ({
       account,
-      open,
+      section,
       onShowServicesSectionChange,
       onShowStatsSectionChange,
       onStatsPositionChange,
     }: MockSettingsProps) =>
-      open ? (
-        <div role="dialog" aria-label="Settings">
+      section !== undefined ? (
+        <div role="region" aria-label="Settings">
+          <span data-testid="settings-section">{section ?? "none"}</span>
           {account && (
             <button type="button" onClick={account.onSignOut}>
               Sign out as {account.user ?? account.mode}
@@ -266,6 +267,7 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Open settings" }));
     await user.click(await screen.findByRole("button", { name: "Stats below" }));
+    await user.click(screen.getByRole("link", { name: "Services" }));
 
     await waitFor(() => {
       const services = screen.getByTestId("services-section");
@@ -289,6 +291,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Open settings" }));
     await user.click(await screen.findByRole("button", { name: "Hide services" }));
     await user.click(screen.getByRole("button", { name: "Hide stats" }));
+    await user.click(screen.getByRole("link", { name: "Services" }));
 
     expect(await screen.findByText("Nothing is shown right now")).toBeTruthy();
     expect(screen.queryByTestId("services-section")).toBeNull();
@@ -409,6 +412,28 @@ describe("App", () => {
 
     view.rerender(<App auth={guest} />);
     expect(screen.getByTestId("editing").textContent).toBe("false");
+  });
+
+  it("opens settings as a page and keeps guests on the dashboard", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(window.location.pathname).toBe("/settings");
+    expect((await screen.findByTestId("settings-section")).textContent).toBe("none");
+    expect(screen.getByRole("button", { name: "Open settings" }).getAttribute("aria-current")).toBe(
+      "page"
+    );
+    expect(screen.queryByTestId("services-section")).toBeNull();
+    cleanup();
+
+    window.history.replaceState(null, "", "/settings/widgets");
+    renderApp();
+    expect((await screen.findByTestId("settings-section")).textContent).toBe("widgets");
+    cleanup();
+
+    renderApp({ auth: guest });
+    expect(await screen.findByTestId("services-section")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Settings" })).toBeNull();
   });
 
   it("signs out from settings", async () => {

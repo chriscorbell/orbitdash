@@ -32,6 +32,10 @@ test("signs in with the password, refuses a wrong one, and signs out", async ({ 
   await expect(page.getByRole("button", { name: "Add service" })).toBeVisible();
 
   await page.getByRole("button", { name: "Open settings" }).click();
+  await page
+    .getByRole("navigation", { name: "Settings" })
+    .getByRole("link", { name: "Security" })
+    .click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(passwordField(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Add service" })).toHaveCount(0);
