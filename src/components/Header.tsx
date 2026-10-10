@@ -1,18 +1,4 @@
-import { useEffect, useState } from "react";
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,9 +10,31 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { SortableCategoryItem } from "@/components/services/SortableCategoryItem";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+
+// The sortable list pulls in dnd-kit, so it loads on demand. Hovering or
+// focusing the settings button starts the download before the dialog opens.
+const loadCategoryOrderList = () => import("@/components/services/CategoryOrderList");
+
+const CategoryOrderList = lazy(() =>
+  loadCategoryOrderList().then((module) => ({ default: module.CategoryOrderList }))
+);
+
+function preloadCategoryOrderList() {
+  void loadCategoryOrderList();
+}
+
+// Matches the height of a SortableCategoryItem row so the dialog does not jump.
+function CategoryOrderListFallback({ count }: { count: number }) {
+  return (
+    <div className="space-y-2" aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} className="h-11.5 rounded-lg border border-border bg-background" />
+      ))}
+    </div>
+  );
+}
 
 interface HeaderProps {
   categoryOrder: UseCategoryOrderResult;
@@ -109,11 +117,6 @@ export function Header({
 }: HeaderProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
   useEffect(() => {
     if (isSettingsOpen) {
       categoryOrder.beginReorder();
@@ -127,13 +130,6 @@ export function Header({
     // Only run when isSettingsOpen toggles
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSettingsOpen]);
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over) {
-      categoryOrder.reorderCategories(String(active.id), String(over.id));
-    }
-  };
 
   const canReorderCategories = categoryOrder.namedCategories.length >= 2;
 
@@ -151,6 +147,8 @@ export function Header({
             size="icon-sm"
             aria-label="Open settings"
             onClick={() => setIsSettingsOpen(true)}
+            onFocus={preloadCategoryOrderList}
+            onPointerEnter={preloadCategoryOrderList}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -270,29 +268,17 @@ export function Header({
                 {canReorderCategories && (
                   <section className="space-y-3">
                     <SettingsSectionLabel>Category order</SettingsSectionLabel>
-                    <DndContext
-                      collisionDetection={closestCenter}
-                      sensors={sensors}
-                      onDragEnd={handleDragEnd}
+                    <Suspense
+                      fallback={
+                        <CategoryOrderListFallback count={categoryOrder.draftOrder.length} />
+                      }
                     >
-                      <SortableContext
-                        items={categoryOrder.draftOrder}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <div className="space-y-2">
-                          {categoryOrder.draftOrder.map((category, index) => (
-                            <SortableCategoryItem
-                              key={category}
-                              category={category}
-                              index={index}
-                              total={categoryOrder.draftOrder.length}
-                              onMoveUp={() => categoryOrder.moveCategory(category, "up")}
-                              onMoveDown={() => categoryOrder.moveCategory(category, "down")}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
+                      <CategoryOrderList
+                        order={categoryOrder.draftOrder}
+                        onMove={categoryOrder.moveCategory}
+                        onReorder={categoryOrder.reorderCategories}
+                      />
+                    </Suspense>
                     {categoryOrder.error && (
                       <p className="text-destructive text-sm font-medium">{categoryOrder.error}</p>
                     )}
