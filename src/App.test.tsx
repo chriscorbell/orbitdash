@@ -125,6 +125,8 @@ const serviceStub: Service = {
   description: null,
   icon: null,
   category: null,
+  category_id: null,
+  position: 0,
   open_in_new_tab: true,
   created_at: 1,
   updated_at: 1,

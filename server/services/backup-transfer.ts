@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { z } from "zod";
+import { CATEGORY_ORDER_SETTING_KEY, mergeCategoryOrder } from "@shared/category-order";
 import { normalizeServiceUrl } from "@shared/urls";
 import { apiFail, apiOk, type ApiResult } from "../api-response";
 import { getDataDir, getDb } from "../db";
@@ -8,11 +9,11 @@ import { createSnapshot } from "./backup-snapshots";
 import { detectIconExt, getIconsDir, MAX_ICON_BYTES } from "./icon-storage";
 
 export const BACKUP_FORMAT = "orbitdash-backup";
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 const ICON_FILENAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
-const backupServiceSchema = z.object({
+const serviceFields = {
   id: z.string().trim().min(1, "service id is required"),
   name: z.string().trim().min(1, "service name is required"),
   url: z
@@ -21,8 +22,24 @@ const backupServiceSchema = z.object({
     .refine((value) => normalizeServiceUrl(value) !== null, "service url must be a valid URL"),
   description: z.string().nullable(),
   icon: z.string().nullable(),
-  category: z.string().nullable(),
   open_in_new_tab: z.boolean(),
+  created_at: z.number().int(),
+  updated_at: z.number().int(),
+};
+
+/** Version 1 (orbitdash 0.2): categories were a free-text name on each service. */
+const backupServiceV1Schema = z.object({ ...serviceFields, category: z.string().nullable() });
+
+const backupServiceSchema = z.object({
+  ...serviceFields,
+  category_id: z.string().nullable(),
+  position: z.number().int(),
+});
+
+const backupCategorySchema = z.object({
+  id: z.string().trim().min(1, "category id is required"),
+  name: z.string().trim().min(1, "category name is required"),
+  position: z.number().int(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
 });
@@ -32,27 +49,63 @@ const backupIconSchema = z.object({
   data: z.string(),
 });
 
-export const backupDocumentSchema = z
+const documentFields = {
+  format: z.literal(BACKUP_FORMAT, { error: "not an orbitdash backup file" }),
+  exportedAt: z.string(),
+  appVersion: z.string().optional(),
+  settings: z.record(z.string(), z.string()),
+  icons: z.array(backupIconSchema),
+};
+
+function rejectDuplicateIds(label: string, ids: string[], ctx: z.RefinementCtx) {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) {
+      ctx.addIssue({ code: "custom", message: `duplicate ${label} id "${id}"` });
+    }
+    seen.add(id);
+  }
+}
+
+const backupDocumentV1Schema = z
+  .object({ ...documentFields, version: z.literal(1), services: z.array(backupServiceV1Schema) })
+  .superRefine((document, ctx) =>
+    rejectDuplicateIds(
+      "service",
+      document.services.map((service) => service.id),
+      ctx
+    )
+  );
+
+const backupDocumentV2Schema = z
   .object({
-    format: z.literal(BACKUP_FORMAT, { error: "not an orbitdash backup file" }),
-    version: z.literal(BACKUP_VERSION, { error: "unsupported backup version" }),
-    exportedAt: z.string(),
-    appVersion: z.string().optional(),
+    ...documentFields,
+    version: z.literal(2),
+    categories: z.array(backupCategorySchema),
     services: z.array(backupServiceSchema),
-    settings: z.record(z.string(), z.string()),
-    icons: z.array(backupIconSchema),
   })
   .superRefine((document, ctx) => {
-    const seen = new Set<string>();
-    for (const service of document.services) {
-      if (seen.has(service.id)) {
-        ctx.addIssue({ code: "custom", message: `duplicate service id "${service.id}"` });
-      }
-      seen.add(service.id);
-    }
+    rejectDuplicateIds(
+      "service",
+      document.services.map((service) => service.id),
+      ctx
+    );
+    rejectDuplicateIds(
+      "category",
+      document.categories.map((category) => category.id),
+      ctx
+    );
   });
 
-export type BackupDocument = z.infer<typeof backupDocumentSchema>;
+const backupEnvelopeSchema = z.object({
+  format: z.literal(BACKUP_FORMAT, { error: "not an orbitdash backup file" }),
+  version: z.union([z.literal(1), z.literal(2)], { error: "unsupported backup version" }),
+});
+
+export const backupDocumentSchema = backupDocumentV2Schema;
+
+export type BackupDocument = z.infer<typeof backupDocumentV2Schema>;
+type BackupDocumentV1 = z.infer<typeof backupDocumentV1Schema>;
 
 export interface ImportSummary {
   icons: number;
@@ -66,7 +119,8 @@ interface ServiceRow {
   url: string;
   description: string | null;
   icon: string | null;
-  category: string | null;
+  category_id: string | null;
+  position: number;
   open_in_new_tab: number;
   created_at: number;
   updated_at: number;
@@ -84,8 +138,17 @@ function readAppVersion(): string | undefined {
 export function exportBackup(now: Date = new Date()): BackupDocument {
   const db = getDb();
   const rows = db
-    .prepare("SELECT * FROM services ORDER BY category ASC, name ASC")
+    .prepare(
+      `SELECT id, name, url, description, icon, category_id, position, open_in_new_tab,
+              created_at, updated_at
+       FROM services ORDER BY category_id ASC, position ASC, name ASC`
+    )
     .all() as ServiceRow[];
+  const categories = db
+    .prepare(
+      "SELECT id, name, position, created_at, updated_at FROM categories ORDER BY position ASC"
+    )
+    .all() as BackupDocument["categories"];
   const settings = db.prepare("SELECT key, value FROM settings ORDER BY key ASC").all() as Array<{
     key: string;
     value: string;
@@ -105,6 +168,7 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
     version: BACKUP_VERSION,
     exportedAt: now.toISOString(),
     appVersion: readAppVersion(),
+    categories,
     services: rows.map((row) => ({ ...row, open_in_new_tab: Boolean(row.open_in_new_tab) })),
     settings: Object.fromEntries(settings.map((setting) => [setting.key, setting.value])),
     icons,
@@ -124,22 +188,82 @@ function decodeIcons(document: BackupDocument): Map<string, Buffer> {
   return icons;
 }
 
-/**
- * Replaces all services, settings and icons with the backup's contents. A pre-import snapshot is
- * taken first, the database swap runs in one transaction, and the icons directory is swapped only
- * after the transaction commits.
- */
-export function importBackup(input: unknown): ApiResult<ImportSummary> {
-  const parsed = backupDocumentSchema.safeParse(input);
-  if (!parsed.success) {
-    return apiFail(400, parsed.error.issues[0]?.message ?? "invalid backup file");
+function parseLegacyOrder(savedOrder: string | undefined): string[] {
+  try {
+    const parsed: unknown = JSON.parse(savedOrder ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Brings a version 1 backup to the current shape: categories from names, alphabetical order. */
+function upgradeV1Document(document: BackupDocumentV1): BackupDocument {
+  const { [CATEGORY_ORDER_SETTING_KEY]: savedOrder, ...settings } = document.settings;
+  const parsedOrder = parseLegacyOrder(savedOrder);
+
+  const names = document.services
+    .map((service) => service.category?.trim())
+    .filter((name): name is string => Boolean(name));
+  const now = Date.now();
+  const categories = mergeCategoryOrder(names, parsedOrder).map((name, position) => ({
+    id: crypto.randomUUID(),
+    name,
+    position,
+    created_at: now,
+    updated_at: now,
+  }));
+  const idByName = new Map(categories.map((category) => [category.name, category.id]));
+
+  const positions = new Map<string | null, number>();
+  const services = [...document.services]
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map(({ category, ...service }) => {
+      const categoryId = idByName.get(category?.trim() ?? "") ?? null;
+      const position = positions.get(categoryId) ?? 0;
+      positions.set(categoryId, position + 1);
+      return { ...service, category_id: categoryId, position };
+    });
+
+  return { ...document, version: BACKUP_VERSION, categories, services, settings };
+}
+
+function parseBackupDocument(input: unknown): ApiResult<BackupDocument> {
+  const envelope = backupEnvelopeSchema.safeParse(input);
+  if (!envelope.success) {
+    return apiFail(400, envelope.error.issues[0]?.message ?? "invalid backup file");
   }
 
-  const document = parsed.data;
+  if (envelope.data.version === 1) {
+    const parsed = backupDocumentV1Schema.safeParse(input);
+    return parsed.success
+      ? apiOk(upgradeV1Document(parsed.data))
+      : apiFail(400, parsed.error.issues[0]?.message ?? "invalid backup file");
+  }
+
+  const parsed = backupDocumentV2Schema.safeParse(input);
+  return parsed.success
+    ? apiOk(parsed.data)
+    : apiFail(400, parsed.error.issues[0]?.message ?? "invalid backup file");
+}
+
+/**
+ * Replaces all categories, services, settings and icons with the backup's contents. A pre-import
+ * snapshot is taken first, the database swap runs in one transaction, and the icons directory is
+ * swapped only after the transaction commits.
+ */
+export function importBackup(input: unknown): ApiResult<ImportSummary> {
+  const parsed = parseBackupDocument(input);
+  if (!parsed.success) {
+    return parsed;
+  }
+
+  const document = parsed.value;
   const db = getDb();
   const dataDir = getDataDir();
   const iconsDir = getIconsDir();
   const icons = decodeIcons(document);
+  const categoryIds = new Set(document.categories.map((category) => category.id));
 
   const stagingDir = path.join(dataDir, `icons.import-${crypto.randomUUID()}`);
   fs.mkdirSync(stagingDir, { recursive: true });
@@ -151,15 +275,29 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
 
     const snapshot = createSnapshot(db, dataDir, "pre-import");
 
+    const insertCategory = db.prepare(
+      "INSERT INTO categories (id, name, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+    );
     const insertService = db.prepare(
-      `INSERT INTO services (id, name, url, description, icon, category, open_in_new_tab, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO services (id, name, url, description, icon, category_id, position, open_in_new_tab, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
 
     db.transaction(() => {
       db.exec("DELETE FROM services");
+      db.exec("DELETE FROM categories");
       db.exec("DELETE FROM settings");
+
+      for (const category of document.categories) {
+        insertCategory.run(
+          category.id,
+          category.name.trim(),
+          category.position,
+          category.created_at,
+          category.updated_at
+        );
+      }
 
       for (const service of document.services) {
         insertService.run(
@@ -168,7 +306,8 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
           normalizeServiceUrl(service.url)!,
           service.description?.trim() || null,
           service.icon && icons.has(service.icon) ? service.icon : null,
-          service.category?.trim() || null,
+          service.category_id && categoryIds.has(service.category_id) ? service.category_id : null,
+          service.position,
           service.open_in_new_tab ? 1 : 0,
           service.created_at,
           service.updated_at

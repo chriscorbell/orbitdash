@@ -38,7 +38,11 @@ form validation.
 - `server/services/service-payloads.ts` parses service request bodies,
   `service-operations.ts` owns service CRUD behavior, and `icon-storage.ts` owns icon validation,
   download, and persistence.
-- `server/db.ts` and `server/migrations.ts` own SQLite access and schema evolution. Runtime startup,
+- Categories are rows in their own table (`server/services/category-store.ts`) with a `position`;
+  services reference them by `category_id` and carry their own `position` within a category. API
+  responses still include the category name as `category` for display and older clients.
+- `server/db.ts` and `server/migrations.ts` own SQLite access and schema evolution. Migrations can
+  run SQL statements and an optional `up(db)` data step inside one transaction. Runtime startup,
   health, metrics collection, and observability stay in their dedicated `server/` modules.
 - `shared/` owns client/server contracts, runtime schemas, URL normalization, service form-data
   handling, and category-order rules.

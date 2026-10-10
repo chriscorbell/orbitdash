@@ -13,10 +13,38 @@ export interface Service {
   url: string;
   description: string | null;
   icon: string | null; // filename of uploaded icon
-  category: string | null;
+  category: string | null; // category name, kept for display and older clients
+  category_id: string | null;
+  position: number; // order within its category
   open_in_new_tab: boolean;
   created_at: number;
   updated_at: number;
+}
+
+/** A named group of services; empty categories are allowed */
+export interface Category {
+  id: string;
+  name: string;
+  position: number;
+  created_at: number;
+  updated_at: number;
+}
+
+/** Response shape for GET /api/categories */
+export interface CategoriesResponse {
+  categories: Category[];
+}
+
+/** Payload for moving a service to a category (null = uncategorized) at an index */
+export interface MoveServicePayload {
+  category_id: string | null;
+  index: number;
+}
+
+/** Payload for reordering services within one category */
+export interface ReorderServicesPayload {
+  category_id: string | null;
+  ids: string[];
 }
 
 /** Payload for creating a service */
