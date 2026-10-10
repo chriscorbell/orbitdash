@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { invalidateRequestCache, request, requestJson, requestJsonCached } from "@/lib/api/client";
+import { jsonBody, request, requestJson } from "@/lib/api/client";
 import { TAB_ID } from "@/lib/tab-id";
 
 const payloadSchema = z.object({
@@ -9,7 +9,6 @@ const payloadSchema = z.object({
 
 describe("api client", () => {
   beforeEach(() => {
-    invalidateRequestCache("/api/test");
     vi.restoreAllMocks();
   });
 
@@ -40,19 +39,12 @@ describe("api client", () => {
     expect(new Headers(getInit.headers).has("X-Orbitdash-Origin")).toBe(false);
   });
 
-  it("caches parsed GET responses", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: "Orbit" })));
-
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(requestJsonCached("/api/test", {}, "Failed", payloadSchema)).resolves.toEqual({
-      name: "Orbit",
+  it("builds JSON request bodies", () => {
+    expect(jsonBody("PUT", { a: 1 })).toEqual({
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: '{"a":1}',
     });
-    await expect(requestJsonCached("/api/test", {}, "Failed", payloadSchema)).resolves.toEqual({
-      name: "Orbit",
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects invalid response shapes", async () => {

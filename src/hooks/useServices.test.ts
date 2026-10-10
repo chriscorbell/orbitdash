@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createQueryWrapper } from "@/test/query";
 import { useServices } from "@/hooks/useServices";
 import * as servicesApi from "@/lib/api/services";
 import type { Service } from "@shared/types";
@@ -43,7 +44,7 @@ describe("useServices", () => {
   it("loads services on mount", async () => {
     fetchServicesMock.mockResolvedValue([existingService]);
 
-    const { result } = renderHook(() => useServices());
+    const { result } = renderHook(() => useServices(), { wrapper: createQueryWrapper().wrapper });
 
     expect(result.current.loading).toBe(true);
 
@@ -52,19 +53,19 @@ describe("useServices", () => {
     });
 
     expect(result.current.error).toBeNull();
-    expect(result.current.services).toEqual([existingService]);
+    await waitFor(() => expect(result.current.services).toEqual([existingService]));
   });
 
   it("captures load errors", async () => {
     fetchServicesMock.mockRejectedValue(new Error("load failed"));
 
-    const { result } = renderHook(() => useServices());
+    const { result } = renderHook(() => useServices(), { wrapper: createQueryWrapper().wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.services).toEqual([]);
+    await waitFor(() => expect(result.current.services).toEqual([]));
     expect(result.current.error).toBe("load failed");
   });
 
@@ -75,10 +76,12 @@ describe("useServices", () => {
       name: "Orbit (copy)",
     };
 
-    fetchServicesMock.mockResolvedValue([existingService]);
+    fetchServicesMock
+      .mockResolvedValueOnce([existingService])
+      .mockResolvedValueOnce([existingService, duplicatedService]);
     duplicateServiceMock.mockResolvedValue(duplicatedService);
 
-    const { result } = renderHook(() => useServices());
+    const { result } = renderHook(() => useServices(), { wrapper: createQueryWrapper().wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -89,7 +92,9 @@ describe("useServices", () => {
     });
 
     expect(duplicateServiceMock).toHaveBeenCalledWith(existingService.id);
-    expect(result.current.services).toEqual([existingService, duplicatedService]);
+    await waitFor(() =>
+      expect(result.current.services).toEqual([existingService, duplicatedService])
+    );
   });
 
   it("updates local state for create, update, delete, and reload", async () => {
@@ -112,7 +117,7 @@ describe("useServices", () => {
     updateServiceMock.mockResolvedValue(updatedService);
     deleteServiceMock.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useServices());
+    const { result } = renderHook(() => useServices(), { wrapper: createQueryWrapper().wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -125,7 +130,7 @@ describe("useServices", () => {
       });
     });
 
-    expect(result.current.services).toEqual([createdService, existingService]);
+    await waitFor(() => expect(result.current.services).toEqual([createdService, existingService]));
 
     await act(async () => {
       await result.current.update(existingService.id, {
@@ -133,19 +138,19 @@ describe("useServices", () => {
       });
     });
 
-    expect(result.current.services).toEqual([updatedService, createdService]);
+    await waitFor(() => expect(result.current.services).toEqual([updatedService, createdService]));
 
     await act(async () => {
       await result.current.remove(createdService.id);
     });
 
-    expect(result.current.services).toEqual([updatedService]);
+    await waitFor(() => expect(result.current.services).toEqual([updatedService]));
 
     await act(async () => {
       await result.current.reload();
     });
 
     expect(fetchServicesMock).toHaveBeenCalledTimes(2);
-    expect(result.current.services).toEqual([updatedService]);
+    await waitFor(() => expect(result.current.services).toEqual([updatedService]));
   });
 });

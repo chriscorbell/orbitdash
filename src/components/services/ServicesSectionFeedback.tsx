@@ -1,11 +1,9 @@
 import { SectionStateCard } from "@/components/common/SectionStateCard";
 
 interface ServicesSectionFeedbackProps {
-  actionError: string | null;
   categoryOrderError: string | null;
   error: string | null;
   isReorderMode: boolean;
-  onClearActionError: () => void;
   onRetry: () => void;
   showInitialError: boolean;
   showInitialLoading: boolean;
@@ -13,11 +11,9 @@ interface ServicesSectionFeedbackProps {
 }
 
 export function ServicesSectionFeedback({
-  actionError,
   categoryOrderError,
   error,
   isReorderMode,
-  onClearActionError,
   onRetry,
   showInitialError,
   showInitialLoading,
@@ -40,16 +36,6 @@ export function ServicesSectionFeedback({
           tone="error"
           title="Category ordering is unavailable"
           description={categoryOrderError}
-        />
-      )}
-
-      {actionError && (
-        <SectionStateCard
-          tone="error"
-          title="Service action failed"
-          description={actionError}
-          actionLabel="Dismiss"
-          onAction={onClearActionError}
         />
       )}
 

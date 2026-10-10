@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { getIconUrl } from "@/lib/api/services";
 import type { CreateServicePayload, Service } from "@shared/types";
+import { normalizeIconUrl, normalizeServiceUrl } from "@shared/urls";
 
 export const NEW_CATEGORY_VALUE = "__new__";
 export const NONE_CATEGORY_VALUE = "__none__";
@@ -109,6 +110,33 @@ export function buildServicePayload(formState: ServiceDialogFormState): CreateSe
     category: resolveSelectedCategory(formState),
     open_in_new_tab: formState.openInNewTab,
   };
+}
+
+export type PreparedServicePayload =
+  { error: null; payload: CreateServicePayload } | { error: string; payload: null };
+
+/**
+ * Checks the form the same way the server will (required name, valid service and icon URLs) and
+ * returns the payload with URLs normalized. Kept free of zod so the form stays light; the server
+ * still validates everything it receives.
+ */
+export function prepareServicePayload(formState: ServiceDialogFormState): PreparedServicePayload {
+  const payload = buildServicePayload(formState);
+  if (!payload.name) {
+    return { error: "name is required", payload: null };
+  }
+
+  const url = normalizeServiceUrl(payload.url);
+  if (!url) {
+    return { error: "service url must be a valid URL", payload: null };
+  }
+
+  const iconUrl = payload.icon_url ? normalizeIconUrl(payload.icon_url) : null;
+  if (payload.icon_url && !iconUrl) {
+    return { error: "icon url must be a valid http(s) URL", payload: null };
+  }
+
+  return { error: null, payload: { ...payload, url, icon_url: iconUrl } };
 }
 
 export function isServiceDialogSubmittable(formState: ServiceDialogFormState): boolean {

@@ -1,9 +1,9 @@
 import { Hono, type Context } from "hono";
+import { isDeviceId } from "@shared/dashboard-settings";
 import {
   dashboardSettingsPatchSchema,
   deviceUpdateSchema,
-  isDeviceId,
-} from "@shared/dashboard-settings";
+} from "@shared/dashboard-settings-schemas";
 import { jsonError, jsonNotFound } from "../api-response";
 import { parseJsonBody, readValidatedJson } from "../request-body";
 import {

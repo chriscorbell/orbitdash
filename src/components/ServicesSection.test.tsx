@@ -33,6 +33,8 @@ vi.mock("@/components/services/CategorySectionList", () => ({
 }));
 
 import { ServicesSection } from "@/components/ServicesSection";
+import { Toaster } from "@/components/ui/toaster";
+import { resetToastsForTesting } from "@/lib/toast";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service } from "@shared/types";
 
@@ -131,18 +133,20 @@ describe("ServicesSection", () => {
     expect(screen.getByText("Failed to load category order")).toBeTruthy();
   });
 
-  it("surfaces delete confirmation failures in the section UI", async () => {
+  it("surfaces delete failures as an error toast", async () => {
     const onDelete = vi.fn().mockRejectedValue(new Error("Delete failed"));
 
+    render(<Toaster />);
     renderServicesSection({ services: [baseService], onDelete });
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Orbit" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("Service action failed")).toBeTruthy();
+      expect(screen.getByText("Couldn't delete the service")).toBeTruthy();
     });
 
     expect(screen.getByText("Delete failed")).toBeTruthy();
+    resetToastsForTesting();
   });
 });

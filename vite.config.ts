@@ -28,10 +28,12 @@ export default defineConfig({
               priority: 40,
             },
             {
-              // Zod only: the app's own schemas change with the app, so they
-              // ship in the entry and keep this chunk's hash stable.
+              // zod/mini and the core it shares with full zod: what the browser
+              // needs to parse API responses on first paint. Full zod (classic)
+              // is left out so it lands in the lazy service-dialog chunk, the
+              // only browser code that validates forms with it.
               name: "validation",
-              test: /[\\/]node_modules[\\/]zod[\\/]/,
+              test: /[\\/]node_modules[\\/]zod[\\/](v4[\\/](core|mini|locales)|mini|v4-mini)[\\/]/,
               priority: 30,
             },
             {

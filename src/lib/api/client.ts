@@ -1,20 +1,11 @@
-import type { ZodType } from "zod";
 import { ORIGIN_HEADER } from "@shared/events";
 import { TAB_ID } from "@/lib/tab-id";
 
 const API_BASE = "";
-const DEFAULT_REQUEST_CACHE_TTL_MS = 1_000;
 
-interface CachedJsonEntry {
-  data?: unknown;
-  expiresAt: number;
-  promise?: Promise<unknown>;
-}
-
-const requestCache = new Map<string, CachedJsonEntry>();
-
-function getRequestCacheKey(path: string, init: RequestInit): string {
-  return `${init.method ?? "GET"}:${path}`;
+/** Anything that validates an unknown value into T (zod and zod/mini schemas both fit). */
+export interface Parser<T> {
+  parse: (data: unknown) => T;
 }
 
 function getErrorMessage(data: unknown): string | null {
@@ -69,69 +60,20 @@ export async function requestJson<T>(
   path: string,
   init: RequestInit,
   fallbackMessage: string,
-  schema: ZodType<T>
+  schema: Parser<T>
 ): Promise<T> {
   const res = await request(path, init, fallbackMessage);
   const data = await res.json();
   return schema.parse(data);
 }
 
-export async function requestJsonCached<T>(
-  path: string,
-  init: RequestInit,
-  fallbackMessage: string,
-  schema: ZodType<T>,
-  ttlMs: number = DEFAULT_REQUEST_CACHE_TTL_MS
-): Promise<T> {
-  const method = (init.method ?? "GET").toUpperCase();
-  if (method !== "GET") {
-    return requestJson(path, init, fallbackMessage, schema);
-  }
-
-  const cacheKey = getRequestCacheKey(path, init);
-  const cached = requestCache.get(cacheKey);
-  const now = Date.now();
-
-  if (cached?.data !== undefined && cached.expiresAt > now) {
-    return schema.parse(cached.data);
-  }
-
-  if (cached?.promise) {
-    return cached.promise.then((data) => schema.parse(data));
-  }
-
-  const promise = request(path, init, fallbackMessage)
-    .then(async (res) => {
-      const data = await res.json();
-      const parsed = schema.parse(data);
-      requestCache.set(cacheKey, {
-        data: parsed,
-        expiresAt: Date.now() + ttlMs,
-      });
-      return parsed;
-    })
-    .then((data) => {
-      return data;
-    })
-    .catch((error) => {
-      requestCache.delete(cacheKey);
-      throw error;
-    });
-
-  requestCache.set(cacheKey, {
-    expiresAt: now + ttlMs,
-    promise,
-  });
-
-  return promise;
-}
-
-export function invalidateRequestCache(path: string): void {
-  for (const cacheKey of requestCache.keys()) {
-    if (cacheKey.endsWith(`:${path}`)) {
-      requestCache.delete(cacheKey);
-    }
-  }
+/** JSON request body helper for PUT/POST/PATCH. */
+export function jsonBody(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
 }
 
 export function buildApiUrl(path: string): string {

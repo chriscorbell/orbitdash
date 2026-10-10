@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_DASHBOARD_SETTINGS,
   dashboardSettingsPatchSchema,
   dashboardSettingsResponseSchema,
   deviceIdSchema,
   deviceUpdateSchema,
+} from "./dashboard-settings-schemas";
+import {
+  DEFAULT_DASHBOARD_SETTINGS,
   diffDashboardSettings,
   isDeviceId,
   isEmptySettingsPatch,
@@ -58,6 +60,10 @@ describe("patches", () => {
     });
     expect(parseDashboardSettingsPatch({ layout: { showStats: "no" } })).toEqual({});
     expect(parseDashboardSettingsPatch(undefined)).toEqual({});
+    expect(parseDashboardSettingsPatch({ layout: [] })).toEqual({});
+    expect(parseDashboardSettingsPatch({ layout: { gridColumns: 3, extra: 1 } })).toEqual({
+      layout: { gridColumns: 3 },
+    });
   });
 
   it("merges patches over a base", () => {
