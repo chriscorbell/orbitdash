@@ -47,6 +47,7 @@ version before creating the matching tag.
 ## Features
 
 - Live CPU, memory and disk usage in a compact strip with sparklines
+- A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
 - Inline search and filtering

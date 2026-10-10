@@ -39,6 +39,7 @@ function renderHeader(overrides: Partial<DialogProps> = {}) {
     settingsScope: "all",
     showServicesSection: true,
     showStatsSection: true,
+    showStatsPage: true,
     onAppearanceChange: vi.fn(),
     onAppearancePreview: vi.fn(),
     onDensityChange: vi.fn(),
@@ -48,6 +49,7 @@ function renderHeader(overrides: Partial<DialogProps> = {}) {
     onSettingsScopeChange: vi.fn(),
     onShowServicesSectionChange: vi.fn(),
     onShowStatsSectionChange: vi.fn(),
+    onShowStatsPageChange: vi.fn(),
     ...overrides,
   };
 

@@ -41,6 +41,7 @@ interface SettingsDialogProps {
   settingsScope: SettingsScope;
   showServicesSection: boolean;
   showStatsSection: boolean;
+  showStatsPage: boolean;
   onAppearanceChange: (appearance: Partial<DashboardAppearanceSettings>) => void;
   /** Shows unsaved appearance (wallpaper sliders) on the page while it is adjusted. */
   onAppearancePreview: (appearance: Partial<DashboardAppearanceSettings> | null) => void;
@@ -52,6 +53,7 @@ interface SettingsDialogProps {
   onSettingsScopeChange: (scope: SettingsScope) => void;
   onShowServicesSectionChange: (enabled: boolean) => void;
   onShowStatsSectionChange: (enabled: boolean) => void;
+  onShowStatsPageChange: (enabled: boolean) => void;
 }
 
 interface SettingsToggleRowProps {
@@ -197,6 +199,7 @@ export function SettingsDialog({
   settingsScope,
   showServicesSection,
   showStatsSection,
+  showStatsPage,
   onAppearanceChange,
   onAppearancePreview,
   onDensityChange,
@@ -207,6 +210,7 @@ export function SettingsDialog({
   onSettingsScopeChange,
   onShowServicesSectionChange,
   onShowStatsSectionChange,
+  onShowStatsPageChange,
 }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -280,6 +284,13 @@ export function SettingsDialog({
                 description="Show CPU, memory and disk usage"
                 checked={showStatsSection}
                 onCheckedChange={onShowStatsSectionChange}
+              />
+              <SettingsToggleRow
+                id="show-stats-page"
+                title="Stats page"
+                description="Show the Stats tab with charts and history"
+                checked={showStatsPage}
+                onCheckedChange={onShowStatsPageChange}
               />
             </div>
           </section>

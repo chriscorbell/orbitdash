@@ -1,7 +1,7 @@
 import { requestJson } from "@/lib/api/client";
 import { eventStream } from "@/lib/live/event-stream";
-import { metricHistorySchema, metricSampleSchema, metricsResponseSchema } from "@/lib/api/schemas";
-import type { MetricHistory, MetricHistoryRange, MetricSample } from "@shared/types";
+import { metricSampleSchema, metricsResponseSchema } from "@/lib/api/schemas";
+import type { MetricSample } from "@shared/types";
 
 /** Fetch recent metric samples */
 export async function fetchMetrics(windowSec: number = 30): Promise<MetricSample[]> {
@@ -12,16 +12,6 @@ export async function fetchMetrics(windowSec: number = 30): Promise<MetricSample
     metricsResponseSchema
   );
   return data.samples;
-}
-
-/** Fetch rolled-up metric history for a range, as columnar arrays */
-export function fetchMetricHistory(range: MetricHistoryRange): Promise<MetricHistory> {
-  return requestJson(
-    `/api/metrics/history?range=${range}`,
-    {},
-    "Failed to fetch metric history",
-    metricHistorySchema
-  );
 }
 
 /** Live samples over the shared event stream. Returns a cleanup function. */

@@ -50,6 +50,7 @@ describe("parseDashboardSettings", () => {
         statsPosition: "bottom",
         showServices: true,
         showStats: true,
+        showStatsPage: true,
       },
     });
   });

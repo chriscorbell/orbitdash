@@ -40,7 +40,13 @@ vi.mock("@/components/ServicesSection", () => ({
 vi.mock("@/components/settings/settings-preload", () => ({
   preloadSettingsDialog: vi.fn(),
   preloadEditableBoard: vi.fn(),
+  preloadStatsPage: vi.fn(),
   loadEditableBoard: async () => ({ EditableBoard: () => null }),
+  loadStatsPage: async () => ({
+    StatsPage: ({ themeKey }: { themeKey: string }) => (
+      <div data-testid="stats-page">{themeKey}</div>
+    ),
+  }),
   loadSettingsDialog: async () => ({
     SettingsDialog: ({
       open,
@@ -180,6 +186,7 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("App", () => {
@@ -260,5 +267,21 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "New category" }));
 
     expect(await screen.findByText("Couldn't create the category")).toBeTruthy();
+  });
+
+  it("opens the Stats page from its tab and comes back to services", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(await screen.findByRole("link", { name: "Stats" }));
+    expect((await screen.findByTestId("stats-page")).textContent).toBe("dark-ice");
+    expect(screen.queryByTestId("services-section")).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add service" })).toBeNull();
+    expect(window.location.pathname).toBe("/stats");
+
+    await user.click(screen.getByRole("link", { name: "Services" }));
+    expect(await screen.findByTestId("services-section")).toBeTruthy();
+    expect(window.location.pathname).toBe("/");
   });
 });

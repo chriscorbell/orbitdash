@@ -25,7 +25,7 @@ matches, so group priority decides where shared packages land:
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*`, `SettingsDialog-*` and `EditableBoard-*` must never be loaded up front. If React lands in one of them again,
+`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*` and `StatsPage-*` must never be loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
@@ -34,14 +34,15 @@ happens.
 
 | Asset group           | Budget raw | Budget gzip | Current baseline                             |
 | --------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`          |      64 kB |       21 kB | about 61 kB raw / 20.9 kB gzip / 18.5 kB br  |
-| `index-*.css`         |      84 kB |       14 kB | about 81 kB raw / 13.4 kB gzip / 11.4 kB br  |
+| `index-*.js`          |      68 kB |       23 kB | about 63 kB raw / 21.5 kB gzip / 19.0 kB br  |
+| `index-*.css`         |      84 kB |       14 kB | about 83 kB raw / 13.7 kB gzip / 11.6 kB br  |
 | `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`         |     110 kB |       34 kB | about 96 kB raw / 29.0 kB gzip / 26.0 kB br  |
 | `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
 | `ServiceDialog-*.js`  |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
 | `SettingsDialog-*.js` |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
 | `EditableBoard-*.js`  |      44 kB |       14 kB | about 38 kB raw / 12.0 kB gzip / 10.8 kB br  |
+| `StatsPage-*.js`      |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
 | `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
 
 Sizes are in KiB, as printed by the check script.
@@ -61,10 +62,15 @@ The check reads the built files in `dist/assets` and fails if:
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*` or `EditableBoard-*` chunk
+- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*` or `StatsPage-*` chunk
 
 ## History
 
+- The Stats page and uPlot live in a lazy `StatsPage-*` chunk (about 28 kB gzip, with its own small
+  CSS file), prefetched on hover or focus of the Stats tab. The host snapshot and history schemas
+  moved out of the entry into that chunk (about 0.4 kB gzip). The router, page tabs and Stats page
+  setting still added about 0.5 kB, and the entry is now many small app modules with no single
+  large split left, so its budget went from 64 kB / 21 kB to 68 kB / 23 kB.
 - Phone layouts (bottom-sheet dialogs, two-column grids, larger touch targets) and motion
   utilities added about 0.6 kB gzip of CSS, so the CSS budget went from 80 kB / 13 kB to
   84 kB / 14 kB. The CSS is one file shared by the entry and every lazy chunk, which is why lazy UI

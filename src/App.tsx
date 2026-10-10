@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AppHeader } from "@/components/header/AppHeader";
 import { ServicesSection } from "@/components/ServicesSection";
-import { loadSettingsDialog } from "@/components/settings/settings-preload";
+import { loadSettingsDialog, loadStatsPage } from "@/components/settings/settings-preload";
 import { StatsStrip } from "@/components/stats/StatsStrip";
 import { Wallpaper } from "@/components/Wallpaper";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,12 @@ import { useLiveQueries } from "@/hooks/useLiveQueries";
 import { useServices } from "@/hooks/useServices";
 import { uniqueCategoryName } from "@/lib/board-groups";
 import { useAppliedAppearance } from "@/lib/theme";
+import { usePathname } from "@/lib/router";
 import { toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { DashboardAppearanceSettings } from "@shared/dashboard-settings";
+
+const StatsPage = lazy(() => loadStatsPage().then((module) => ({ default: module.StatsPage })));
 
 const SettingsDialog = lazy(() =>
   loadSettingsDialog().then((module) => ({ default: module.SettingsDialog }))
@@ -52,7 +55,9 @@ function App() {
     [appearancePreview, settings.appearance]
   );
   useAppliedAppearance(appearance);
-  const { density, mode, statsPosition, showServices, showStats } = settings.layout;
+  const { density, mode, statsPosition, showServices, showStats, showStatsPage } = settings.layout;
+  const pathname = usePathname();
+  const page = showStatsPage && pathname === "/stats" ? "stats" : "services";
 
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -96,6 +101,8 @@ function App() {
       />
       <AppHeader
         title={appearance.title}
+        page={page}
+        showStatsPage={showStatsPage}
         editing={editing}
         search={search}
         canEditLayout={showServices}
@@ -106,42 +113,62 @@ function App() {
         onOpenSettings={openSettings}
         onSearchChange={setSearch}
       />
-      <main className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6">
-        {statsPosition === "top" && stats}
-        {showServices && (
-          <ServicesSection
-            services={services}
-            categories={categories}
-            loading={servicesLoading}
-            error={servicesError}
-            density={density}
-            mode={mode}
-            search={search}
-            editing={editing}
-            renamingKey={renamingKey}
-            addOpen={addOpen}
-            onAddOpenChange={setAddOpen}
-            onRenamingKeyChange={setRenamingKey}
-            onSearchChange={setSearch}
-            onRetry={reload}
-            onCreate={create}
-            onUpdate={update}
-            onDelete={remove}
-            onRestore={restore}
-            onDuplicate={duplicate}
-            onMove={move}
-          />
-        )}
-        {statsPosition === "bottom" && stats}
-        {!showServices && !showStats && (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
-            <p className="text-sm font-medium">Nothing is shown right now</p>
-            <Button variant="outline" size="sm" onClick={openSettings}>
-              Open settings
-            </Button>
-          </div>
-        )}
-      </main>
+      {page === "stats" ? (
+        <main key="stats" className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+          <Suspense
+            fallback={
+              <div
+                role="status"
+                className="h-96 animate-pulse rounded-xl bg-muted/50 motion-reduce:animate-none"
+              >
+                <span className="sr-only">Loading stats</span>
+              </div>
+            }
+          >
+            <StatsPage themeKey={`${appearance.theme}-${appearance.accent}`} />
+          </Suspense>
+        </main>
+      ) : (
+        <main
+          key="services"
+          className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6"
+        >
+          {statsPosition === "top" && stats}
+          {showServices && (
+            <ServicesSection
+              services={services}
+              categories={categories}
+              loading={servicesLoading}
+              error={servicesError}
+              density={density}
+              mode={mode}
+              search={search}
+              editing={editing}
+              renamingKey={renamingKey}
+              addOpen={addOpen}
+              onAddOpenChange={setAddOpen}
+              onRenamingKeyChange={setRenamingKey}
+              onSearchChange={setSearch}
+              onRetry={reload}
+              onCreate={create}
+              onUpdate={update}
+              onDelete={remove}
+              onRestore={restore}
+              onDuplicate={duplicate}
+              onMove={move}
+            />
+          )}
+          {statsPosition === "bottom" && stats}
+          {!showServices && !showStats && (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
+              <p className="text-sm font-medium">Nothing is shown right now</p>
+              <Button variant="outline" size="sm" onClick={openSettings}>
+                Open settings
+              </Button>
+            </div>
+          )}
+        </main>
+      )}
       <Footer />
       {settingsMounted && (
         <Suspense fallback={null}>
@@ -165,6 +192,8 @@ function App() {
             onSettingsScopeChange={setSettingsScope}
             onShowServicesSectionChange={(visible) => updateLayout({ showServices: visible })}
             onShowStatsSectionChange={(visible) => updateLayout({ showStats: visible })}
+            showStatsPage={showStatsPage}
+            onShowStatsPageChange={(visible) => updateLayout({ showStatsPage: visible })}
           />
         </Suspense>
       )}

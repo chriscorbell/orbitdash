@@ -27,6 +27,8 @@ export interface DashboardLayoutSettings {
   statsPosition: StatsPosition;
   showServices: boolean;
   showStats: boolean;
+  /** The Stats page and its tab in the header. */
+  showStatsPage: boolean;
 }
 
 export interface DashboardAppearanceSettings {
@@ -69,6 +71,7 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
     statsPosition: "top",
     showServices: true,
     showStats: true,
+    showStatsPage: true,
   },
 };
 
@@ -109,6 +112,7 @@ const FIELD_VALIDATORS: {
     statsPosition: oneOf(STATS_POSITION_OPTIONS),
     showServices: isBoolean,
     showStats: isBoolean,
+    showStatsPage: isBoolean,
   },
 };
 

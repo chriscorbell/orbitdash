@@ -141,6 +141,7 @@ describe("dashboard settings routes", () => {
         statsPosition: "top",
         showServices: true,
         showStats: true,
+        showStatsPage: true,
       },
     };
     expect(body).toEqual({ device: null, effective: defaults, settings: defaults, stored: false });

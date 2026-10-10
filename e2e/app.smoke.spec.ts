@@ -128,6 +128,23 @@ test("primary dashboard journey works end to end", async ({ page }) => {
     .toEqual(["Collapse Movies category", "Collapse Infrastructure category"]);
 });
 
+test("the Stats page shows live readings and switches ranges", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Stats" }).click();
+  await expect(page).toHaveURL(/\/stats$/);
+
+  const readings = page.getByRole("region", { name: "Current readings" });
+  await expect(readings).toBeVisible();
+  await expect(page.getByRole("img", { name: "CPU over time" })).toBeVisible();
+
+  await page.getByRole("radio", { name: "1h" }).click();
+  await expect(page.getByRole("radio", { name: "1h" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("region", { name: "Memory chart" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Services" }).click();
+  await expect(page.getByRole("heading", { name: "Services" })).toBeAttached();
+});
+
 test("changes made in one browser show up in another without a reload", async ({ browser }) => {
   const first = await browser.newPage();
   const second = await browser.newPage();
