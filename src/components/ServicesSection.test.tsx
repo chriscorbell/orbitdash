@@ -7,10 +7,6 @@ vi.mock("@/components/ServiceDialog", () => ({
   ServiceDialog: () => null,
 }));
 
-vi.mock("@/components/services/CategoryReorderDialog", () => ({
-  CategoryReorderDialog: () => null,
-}));
-
 vi.mock("@/components/services/CategorySectionList", () => ({
   CategorySectionList: ({
     services,

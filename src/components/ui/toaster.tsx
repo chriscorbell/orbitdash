@@ -5,7 +5,7 @@ import { dismissToast, useToasts, type ToastItem } from "@/lib/toast";
 
 function ToastIcon({ tone }: { tone: ToastItem["tone"] }) {
   if (tone === "success") {
-    return <CircleCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />;
+    return <CircleCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-success" />;
   }
   if (tone === "error") {
     return <CircleAlert aria-hidden="true" className="text-destructive mt-0.5 h-4 w-4 shrink-0" />;

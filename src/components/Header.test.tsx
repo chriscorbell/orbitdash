@@ -35,12 +35,14 @@ const categoryOrderStub: UseCategoryOrderResult = {
 
 function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = {}) {
   const props: React.ComponentProps<typeof Header> = {
+    appearance: { accent: "ice", theme: "dark" },
     categoryOrder: categoryOrderStub,
     columnCount: 4,
     servicesFirst: true,
     settingsScope: "all",
     showServicesSection: true,
     showStatsSection: true,
+    onAppearanceChange: vi.fn(),
     onColumnCountChange: vi.fn(),
     onServicesFirstChange: vi.fn(),
     onSettingsScopeChange: vi.fn(),
@@ -56,6 +58,21 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = 
 }
 
 describe("Header", () => {
+  it("changes the theme and accent from settings", async () => {
+    const user = userEvent.setup();
+    const { props } = renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(screen.getByRole("radio", { name: "Dark" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "Ice" }).getAttribute("aria-checked")).toBe("true");
+
+    await user.click(screen.getByRole("radio", { name: "Light" }));
+    expect(props.onAppearanceChange).toHaveBeenCalledWith({ theme: "light" });
+
+    await user.click(screen.getByRole("radio", { name: "Mint" }));
+    expect(props.onAppearanceChange).toHaveBeenCalledWith({ accent: "mint" });
+  });
+
   it("switches between shared and per-device settings", async () => {
     const user = userEvent.setup();
     const { props } = renderHeader();
@@ -64,7 +81,7 @@ describe("Header", () => {
     expect(screen.getByRole("button", { name: "All devices" }).getAttribute("aria-pressed")).toBe(
       "true"
     );
-    expect(screen.getByText("Visibility and layout changes apply to every browser.")).toBeTruthy();
+    expect(screen.getByText("Appearance and layout changes apply to every browser.")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "This device" }));
     expect(props.onSettingsScopeChange).toHaveBeenCalledWith("device");
@@ -77,7 +94,7 @@ describe("Header", () => {
     await user.click(screen.getByRole("button", { name: "Open settings" }));
 
     expect(
-      screen.getByText("Visibility and layout changes apply only to this browser.")
+      screen.getByText("Appearance and layout changes apply only to this browser.")
     ).toBeTruthy();
     expect(screen.getByText("Failed to save settings")).toBeTruthy();
   });

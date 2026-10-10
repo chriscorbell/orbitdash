@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Settings } from "lucide-react";
+import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,10 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { AppearanceSettingsSection } from "@/components/settings/AppearanceSettingsSection";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import { CategoryOrderSaveStatus } from "@/components/settings/CategoryOrderSaveStatus";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
+import type { DashboardAppearanceSettings } from "@shared/dashboard-settings";
 
 // The sortable list pulls in dnd-kit, so it loads on demand. Hovering or
 // focusing the settings button starts the download before the dialog opens.
@@ -40,6 +43,7 @@ function CategoryOrderListFallback({ count }: { count: number }) {
 }
 
 interface HeaderProps {
+  appearance: DashboardAppearanceSettings;
   categoryOrder: UseCategoryOrderResult;
   columnCount: 3 | 4 | 5;
   servicesFirst: boolean;
@@ -47,6 +51,7 @@ interface HeaderProps {
   settingsScope: SettingsScope;
   showServicesSection: boolean;
   showStatsSection: boolean;
+  onAppearanceChange: (appearance: Partial<DashboardAppearanceSettings>) => void;
   onColumnCountChange: (columnCount: 3 | 4 | 5) => void;
   onServicesFirstChange: (enabled: boolean) => void;
   onSettingsScopeChange: (scope: SettingsScope) => void;
@@ -79,19 +84,12 @@ function SettingsToggleRow({
           {description}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <span
-          className={`text-xs font-medium ${checked ? "text-emerald-500" : "text-muted-foreground"}`}
-        >
-          {checked ? "On" : "Off"}
-        </span>
-        <Switch
-          id={id}
-          checked={checked}
-          aria-describedby={descriptionId}
-          onCheckedChange={onCheckedChange}
-        />
-      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        aria-describedby={descriptionId}
+        onCheckedChange={onCheckedChange}
+      />
     </div>
   );
 }
@@ -111,6 +109,7 @@ function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function Header({
+  appearance,
   categoryOrder,
   columnCount,
   servicesFirst,
@@ -118,6 +117,7 @@ export function Header({
   settingsScope,
   showServicesSection,
   showStatsSection,
+  onAppearanceChange,
   onColumnCountChange,
   onServicesFirstChange,
   onSettingsScopeChange,
@@ -143,7 +143,7 @@ export function Header({
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <img src="/orbitdash.svg" alt="orbitdash" className="h-7 w-7" />
+          <Logo className="h-7 w-7 text-foreground" />
           <span className="text-lg font-semibold tracking-tight text-foreground">orbitdash</span>
         </div>
         <>
@@ -190,12 +190,20 @@ export function Header({
                   </div>
                   <p id="settings-scope-label" className="text-muted-foreground text-xs">
                     {settingsScope === "device"
-                      ? "Visibility and layout changes apply only to this browser."
-                      : "Visibility and layout changes apply to every browser."}
+                      ? "Appearance and layout changes apply only to this browser."
+                      : "Appearance and layout changes apply to every browser."}
                   </p>
                   {settingsError && (
                     <p className="text-destructive text-sm font-medium">{settingsError}</p>
                   )}
+                </section>
+
+                <section className="space-y-3">
+                  <SettingsSectionLabel>Appearance</SettingsSectionLabel>
+                  <AppearanceSettingsSection
+                    appearance={appearance}
+                    onChange={onAppearanceChange}
+                  />
                 </section>
 
                 {/* Visibility */}

@@ -1,6 +1,7 @@
 import {
   isEmptySettingsPatch,
   mergeDashboardSettings,
+  mergeSettingsPatches,
   parseDashboardSettings,
   parseDashboardSettingsPatch,
   type DashboardSettings,
@@ -71,7 +72,7 @@ export function updateDevice(id: string, update: DeviceUpdate): DeviceSettings {
       ? current.overrides
       : update.overrides === null
         ? {}
-        : { layout: { ...current.overrides.layout, ...update.overrides.layout } };
+        : mergeSettingsPatches(current.overrides, update.overrides);
 
   const stored: StoredDevice = {
     name,

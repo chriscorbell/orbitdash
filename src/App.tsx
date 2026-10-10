@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLiveQueries } from "@/hooks/useLiveQueries";
+import { useAppliedAppearance } from "@/lib/theme";
 import { useServices } from "@/hooks/useServices";
 
 function App() {
@@ -31,8 +32,10 @@ function App() {
     scope: settingsScope,
     settings,
     setScope: setSettingsScope,
+    updateAppearance,
     updateLayout,
   } = useDashboardSettings();
+  useAppliedAppearance(settings.appearance);
   const {
     gridColumns: columnCount,
     servicesFirst,
@@ -73,6 +76,7 @@ function App() {
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <Header
+        appearance={settings.appearance}
         categoryOrder={categoryOrder}
         columnCount={columnCount}
         servicesFirst={servicesFirst}
@@ -80,6 +84,7 @@ function App() {
         settingsScope={settingsScope}
         showServicesSection={showServicesSection}
         showStatsSection={showStatsSection}
+        onAppearanceChange={updateAppearance}
         onColumnCountChange={(gridColumns) => updateLayout({ gridColumns })}
         onServicesFirstChange={(servicesFirst) => updateLayout({ servicesFirst })}
         onSettingsScopeChange={setSettingsScope}
