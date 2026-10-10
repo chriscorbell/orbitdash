@@ -2,6 +2,7 @@ import { lazy, memo, Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ServiceIcon } from "@/components/services/ServiceIcon";
 import { getIconUrl } from "@/lib/api/services";
+import { serviceHref, type LinkTarget } from "@/lib/link-target";
 import { cn } from "@/lib/utils";
 import type { CardDensity } from "@shared/dashboard-settings";
 import type { Service } from "@shared/types";
@@ -15,6 +16,12 @@ const ServiceStatusIndicator = lazy(() =>
 );
 const ServiceStatusTooltip = lazy(() =>
   loadServiceStatus().then((module) => ({ default: module.ServiceStatusTooltip }))
+);
+// The same for the menu of cards with named links or a second URL.
+const ServiceLinksMenu = lazy(() =>
+  import("@/components/services/ServiceLinksMenu").then((module) => ({
+    default: module.ServiceLinksMenu,
+  }))
 );
 
 const DENSITY_STYLES: Record<
@@ -65,6 +72,8 @@ interface ServiceCardFaceProps {
   className?: string;
   density?: CardDensity;
   service: Service;
+  /** Classes for the status dot beside the name (not the tiles badge). */
+  statusClassName?: string;
 }
 
 /** What a service card looks like, without the link; edit mode wraps it in a drag handle. */
@@ -72,6 +81,7 @@ export const ServiceCardFace = memo(function ServiceCardFace({
   className,
   density = "comfortable",
   service,
+  statusClassName,
 }: ServiceCardFaceProps) {
   const description = service.description?.trim() || null;
   const showDescription = density === "comfortable" && description !== null;
@@ -111,7 +121,13 @@ export const ServiceCardFace = memo(function ServiceCardFace({
             <p className="truncate text-xs leading-tight text-muted-foreground">{description}</p>
           )}
         </div>
-        {density !== "tiles" && status}
+        {density !== "tiles" &&
+          status &&
+          (statusClassName ? (
+            <span className={cn("flex shrink-0", statusClassName)}>{status}</span>
+          ) : (
+            status
+          ))}
       </CardContent>
     </Card>
   );
@@ -120,22 +136,34 @@ export const ServiceCardFace = memo(function ServiceCardFace({
 interface ServiceCardProps {
   service: Service;
   density?: CardDensity;
+  linkTarget?: LinkTarget;
 }
 
-function ServiceCardView({ service, density = "comfortable" }: ServiceCardProps) {
-  const safeUrl = normalizeServiceUrl(service.url);
+function ServiceCardView({
+  service,
+  density = "comfortable",
+  linkTarget = "internal",
+}: ServiceCardProps) {
+  const safeUrl = normalizeServiceUrl(serviceHref(service, linkTarget));
+  // Named links and a second URL go in a menu beside the link, since a link can't hold a button.
+  const hasMenu = service.links.length > 0 || service.external_url !== null;
+  // The menu takes the status dot's place while it shows; touch screens show both side by side.
+  const sideMenu = hasMenu && density !== "tiles";
 
   // The status details repeat the hint, so a card with checks drops the native title.
   const renderLink = (withHint: boolean) => (
     <a
-      data-flip-key={service.id}
+      data-flip-key={hasMenu ? undefined : service.id}
       href={safeUrl || "#"}
       target={service.open_in_new_tab ? "_blank" : "_self"}
       rel={service.open_in_new_tab ? "noopener noreferrer" : undefined}
       title={
         withHint ? cardHint(service.name, service.description?.trim() || null, density) : undefined
       }
-      className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={cn(
+        "block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        hasMenu ? "h-full" : "group"
+      )}
       aria-disabled={!safeUrl}
       onClick={(event) => {
         if (!safeUrl) {
@@ -143,20 +171,40 @@ function ServiceCardView({ service, density = "comfortable" }: ServiceCardProps)
         }
       }}
     >
-      <ServiceCardFace service={service} density={density} />
+      <ServiceCardFace
+        service={service}
+        density={density}
+        className={sideMenu ? "pointer-coarse:pr-6" : undefined}
+        statusClassName={
+          sideMenu
+            ? "transition-opacity group-hover:opacity-0 group-has-focus-visible:opacity-0"
+            : undefined
+        }
+      />
     </a>
   );
 
-  if (!service.check_enabled) {
-    return renderLink(true);
-  }
-
-  return (
+  const card = service.check_enabled ? (
     <Suspense fallback={renderLink(true)}>
       <ServiceStatusTooltip density={density} service={service}>
         {renderLink(false)}
       </ServiceStatusTooltip>
     </Suspense>
+  ) : (
+    renderLink(true)
+  );
+
+  if (!hasMenu) {
+    return card;
+  }
+
+  return (
+    <div data-flip-key={service.id} className="group relative">
+      {card}
+      <Suspense fallback={null}>
+        <ServiceLinksMenu density={density} linkTarget={linkTarget} service={service} />
+      </Suspense>
+    </div>
   );
 }
 

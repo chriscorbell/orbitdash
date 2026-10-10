@@ -1,4 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSystemInfo } from "@/lib/api/system";
 import { Footer } from "@/components/Footer";
 import { AppHeader } from "@/components/header/AppHeader";
 import { ServicesSection } from "@/components/ServicesSection";
@@ -20,6 +22,7 @@ import { useLiveQueries } from "@/hooks/useLiveQueries";
 import { usePaletteShortcuts } from "@/hooks/usePaletteShortcuts";
 import { useServices } from "@/hooks/useServices";
 import { uniqueCategoryName } from "@/lib/board-groups";
+import { resolveLinkTarget } from "@/lib/link-target";
 import { useAppliedAppearance } from "@/lib/theme";
 import { navigate, usePathname } from "@/lib/router";
 import { toastError } from "@/lib/toast";
@@ -31,6 +34,13 @@ const StatsPage = lazy(() => loadStatsPage().then((module) => ({ default: module
 
 const CommandPalette = lazy(() =>
   loadCommandPalette().then((module) => ({ default: module.CommandPalette }))
+);
+
+// Only editors on hosts with Docker load the discovery banner.
+const DiscoveryBanner = lazy(() =>
+  import("@/components/discovery/DiscoveryBanner").then((module) => ({
+    default: module.DiscoveryBanner,
+  }))
 );
 
 // Widgets load only once one is turned on.
@@ -67,6 +77,12 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     reload,
   } = useServices();
   const categories = useCategories();
+  // Shared with the header and the stats strip; says whether Docker is set up.
+  const { data: system } = useQuery({
+    queryKey: ["system"],
+    queryFn: fetchSystemInfo,
+    staleTime: 10 * 60_000,
+  });
   const {
     error: settingsError,
     scope: settingsScope,
@@ -85,7 +101,9 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     [appearancePreview, settings.appearance]
   );
   useAppliedAppearance(appearance);
-  const { density, mode, statsPosition, showServices, showStats, showStatsPage } = settings.layout;
+  const { density, linkPreference, mode, statsPosition, showServices, showStats, showStatsPage } =
+    settings.layout;
+  const linkTarget = resolveLinkTarget(linkPreference, window.location.hostname);
   const { widgets } = settings;
   const rowWidgets =
     widgets.placement === "row" && (widgets.clock || widgets.weather || widgets.agenda);
@@ -215,6 +233,14 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             </Suspense>
           )}
           {statsPosition === "top" && stats}
+          {showServices && canEdit && system?.docker && (
+            <Suspense fallback={null}>
+              <DiscoveryBanner
+                categories={categories.categories.map((category) => category.name)}
+                onCreate={create}
+              />
+            </Suspense>
+          )}
           {showServices && (
             <ServicesSection
               services={services}
@@ -223,6 +249,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
               error={servicesError}
               density={density}
               mode={mode}
+              linkTarget={linkTarget}
               editing={editing}
               readOnly={!canEdit}
               renamingKey={renamingKey}
@@ -262,6 +289,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             onOpenChange={setSettingsOpen}
             appearance={appearance}
             density={density}
+            linkPreference={linkPreference}
             mode={mode}
             statsPosition={statsPosition}
             settingsError={settingsError}
@@ -272,6 +300,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             onAppearancePreview={setAppearancePreview}
             onDensityChange={(value) => updateLayout({ density: value })}
             onEditLayout={startEditing}
+            onLinkPreferenceChange={(value) => updateLayout({ linkPreference: value })}
             search={settings.search}
             onSearchChange={updateSearch}
             widgets={widgets}
@@ -293,6 +322,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             open={palette.open}
             initialQuery={palette.query}
             services={services}
+            linkTarget={linkTarget}
             context={paletteContext}
             search={settings.search}
             onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}

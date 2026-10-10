@@ -19,7 +19,8 @@ orbitdash also backs itself up while it runs, without stopping:
   consistent copy of the database (taken with SQLite `VACUUM INTO`) plus the `icons/` directory.
   The newest 7 are kept; set `ORBITDASH_BACKUP_KEEP` to change that.
 - **Export** (Settings, then Data, then Export, or `GET /api/backup/export`) downloads one JSON file
-  with every service, setting and icon.
+  with every service, setting and icon. Each service carries its external URL, extra links and
+  tags; files exported before those existed import without them.
 - **Import** (Settings, then Data, then Import, or `POST /api/backup/import` with the exported JSON)
   validates the file, takes a `pre-import` snapshot, and then replaces all services, settings and
   icons in one step.

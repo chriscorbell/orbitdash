@@ -6,7 +6,9 @@ const distDir = path.resolve(process.cwd(), "dist");
 const distAssetsDir = path.join(distDir, "assets");
 
 const budgets = [
-  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 68, maxGzipKb: 23 },
+  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 66, maxGzipKb: 22.5 },
+  // Response schemas and settings defaults, loaded with the entry; see vite.config.ts.
+  { label: "api schemas", prefix: "api-schemas-", extension: ".js", maxRawKb: 7, maxGzipKb: 3 },
   {
     label: "entry css",
     prefix: "index-",
@@ -107,6 +109,13 @@ const budgets = [
     maxGzipKb: 4,
   },
   {
+    label: "service links menu",
+    prefix: "ServiceLinksMenu-",
+    extension: ".js",
+    maxRawKb: 4,
+    maxGzipKb: 2,
+  },
+  {
     label: "sign-in screen",
     prefix: "SignInScreen-",
     extension: ".js",
@@ -140,6 +149,8 @@ const lazyOnlyPrefixes = [
   "NotificationSettings-",
   // Status dots and details, loaded by the first card with checks on.
   "ServiceStatus-",
+  // A card's links menu, loaded by the first card with links or an external URL.
+  "ServiceLinksMenu-",
   // Only shown when auth is on and this browser isn't signed in.
   "SignInScreen-",
   // Loads with the first toast, or once the page is idle.

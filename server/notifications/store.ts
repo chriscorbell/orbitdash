@@ -5,7 +5,7 @@ import type { NotificationChannel, NotificationDelivery, NotificationOptions } f
 
 /**
  * SQL for notifications. Channels (with their secrets) and options are JSON in `settings`, so
- * backups carry them; deliveries and incidents have their own tables (migration 11).
+ * backups carry them; deliveries and incidents have their own tables (migration 12).
  */
 
 export const CHANNELS_KEY = "notifications.channels";
@@ -156,9 +156,11 @@ export function deleteIncident(db: Database, serviceId: string) {
 }
 
 /** The name and link of a service, for messages. */
-export function readServiceInfo(db: Database, id: string): { name: string; url: string } | null {
-  return db.prepare("SELECT name, url FROM services WHERE id = ?").get(id) as {
-    name: string;
-    url: string;
-  } | null;
+export function readServiceInfo(
+  db: Database,
+  id: string
+): { name: string; url: string; externalUrl: string | null } | null {
+  return db
+    .prepare("SELECT name, url, external_url AS externalUrl FROM services WHERE id = ?")
+    .get(id) as { name: string; url: string; externalUrl: string | null } | null;
 }

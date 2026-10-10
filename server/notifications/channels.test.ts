@@ -17,7 +17,7 @@ import {
 } from "./test-fixtures";
 
 const ctx = { now: Date.UTC(2026, 9, 10, 14, 30), timeZone: "UTC" };
-const service = { id: "svc", name: "Jellyfin", url: "http://10.0.0.20:8096/" };
+const service = { id: "svc", name: "Jellyfin", url: "http://10.0.0.20:8096/", externalUrl: null };
 const down = serviceDownMessage(service, Date.UTC(2026, 9, 10, 14, 2), "Connection refused", ctx);
 const up = serviceRecoveredMessage(
   service,
@@ -119,6 +119,7 @@ describe("buildChannelRequest", () => {
         id: "svc",
         name: "Jellyfin",
         url: service.url,
+        externalUrl: null,
         error: "Connection refused",
         downSince: "2026-10-10T14:02:00.000Z",
         recoveredAt: null,

@@ -1,6 +1,7 @@
 import type {
   CreateServicePayload,
   ServiceCheckConfig,
+  ServiceLink,
   StatusCheckMethod,
   UpdateServicePayload,
 } from "./types";
@@ -19,11 +20,14 @@ export const SERVICE_FORM_DATA_KEYS = {
   checkMethod: "check_method",
   checkTarget: "check_target",
   description: "description",
+  externalUrl: "external_url",
   iconFile: "icon_file",
   iconUrl: "icon_url",
+  links: "links",
   name: "name",
   openInNewTab: "open_in_new_tab",
   removeIcon: "remove_icon",
+  tags: "tags",
   url: "url",
 } as const;
 
@@ -72,6 +76,41 @@ function readOptionalBoolean(formData: ServiceFormDataReader, key: string): bool
   return value === null ? undefined : value === "true";
 }
 
+/**
+ * A list sent as JSON (links, tags), or undefined when absent. Text that isn't JSON comes back as
+ * is, so validation reports it instead of it being dropped.
+ */
+function readJsonList(formData: ServiceFormDataReader, key: string): unknown {
+  const value = readOptionalString(formData, key);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+type ListFields = Pick<UpdateServicePayload, "links" | "tags">;
+
+/** Links and tags that are present; the server validates their shape. */
+function readListFields(formData: ServiceFormDataReader): ListFields {
+  const fields: ListFields = {};
+  const links = readJsonList(formData, SERVICE_FORM_DATA_KEYS.links);
+  const tags = readJsonList(formData, SERVICE_FORM_DATA_KEYS.tags);
+
+  if (links !== undefined) {
+    fields.links = links as ServiceLink[];
+  }
+  if (tags !== undefined) {
+    fields.tags = tags as string[];
+  }
+
+  return fields;
+}
+
 /** Status check fields that are present; a non-numeric interval becomes NaN so validation fails. */
 function readCheckFields(formData: ServiceFormDataReader): Partial<ServiceCheckConfig> {
   const fields: Partial<ServiceCheckConfig> = {};
@@ -114,6 +153,15 @@ export function buildServiceFormData(
 
   appendOptionalField(formData, SERVICE_FORM_DATA_KEYS.name, payload.name);
   appendOptionalField(formData, SERVICE_FORM_DATA_KEYS.url, payload.url);
+  appendOptionalField(formData, SERVICE_FORM_DATA_KEYS.externalUrl, payload.external_url, {
+    includeEmptyString: includeEmptyFields,
+  });
+  if (payload.links !== undefined) {
+    formData.append(SERVICE_FORM_DATA_KEYS.links, JSON.stringify(payload.links));
+  }
+  if (payload.tags !== undefined) {
+    formData.append(SERVICE_FORM_DATA_KEYS.tags, JSON.stringify(payload.tags));
+  }
   appendOptionalField(formData, SERVICE_FORM_DATA_KEYS.description, payload.description, {
     includeEmptyString: includeEmptyFields,
   });
@@ -155,6 +203,8 @@ export function createServicePayloadFromFormData(
   return {
     name: String(formData.get(SERVICE_FORM_DATA_KEYS.name) ?? ""),
     url: String(formData.get(SERVICE_FORM_DATA_KEYS.url) ?? ""),
+    external_url: trimToNull(readOptionalString(formData, SERVICE_FORM_DATA_KEYS.externalUrl)),
+    ...readListFields(formData),
     description: trimToNull(readOptionalString(formData, SERVICE_FORM_DATA_KEYS.description)),
     category: trimToNull(readOptionalString(formData, SERVICE_FORM_DATA_KEYS.category)),
     icon_url: trimToNull(readOptionalString(formData, SERVICE_FORM_DATA_KEYS.iconUrl)),
@@ -166,9 +216,13 @@ export function createServicePayloadFromFormData(
 export function updateServicePayloadFromFormData(
   formData: ServiceFormDataReader
 ): UpdateServicePayload {
-  const payload: UpdateServicePayload = readCheckFields(formData);
+  const payload: UpdateServicePayload = {
+    ...readCheckFields(formData),
+    ...readListFields(formData),
+  };
   const name = readOptionalString(formData, SERVICE_FORM_DATA_KEYS.name);
   const url = readOptionalString(formData, SERVICE_FORM_DATA_KEYS.url);
+  const externalUrl = readOptionalString(formData, SERVICE_FORM_DATA_KEYS.externalUrl);
   const description = readOptionalString(formData, SERVICE_FORM_DATA_KEYS.description);
   const category = readOptionalString(formData, SERVICE_FORM_DATA_KEYS.category);
   const iconUrl = readOptionalString(formData, SERVICE_FORM_DATA_KEYS.iconUrl);
@@ -179,6 +233,9 @@ export function updateServicePayloadFromFormData(
   }
   if (url !== undefined) {
     payload.url = url;
+  }
+  if (externalUrl !== undefined) {
+    payload.external_url = trimToNull(externalUrl);
   }
   if (description !== undefined) {
     payload.description = trimToNull(description);

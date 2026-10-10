@@ -28,7 +28,7 @@ import type { StoredIncident } from "./store";
 export interface EngineDeps {
   now: () => number;
   readOptions: () => NotificationOptions;
-  lookupService: (id: string) => { name: string; url: string } | null;
+  lookupService: (id: string) => Omit<ServiceSubject, "id"> | null;
   saveIncident: (incident: StoredIncident) => void;
   deleteIncident: (serviceId: string) => void;
   send: (message: NotificationMessage) => void;

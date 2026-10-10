@@ -14,6 +14,24 @@ const STATES = new Set<ContainerState>([
   "dead",
 ]);
 
+/**
+ * Labels discovery reads: orbitdash.*, homepage.* except homepage.widget.* (it holds API keys),
+ * and the compose service name. They stay on the server; the browser only sees suggestions.
+ */
+export function discoveryLabels(entry: unknown): Record<string, string> {
+  if (!isRecord(entry) || !isRecord(entry.Labels)) return {};
+  const picked: Record<string, string> = {};
+  for (const [key, value] of Object.entries(entry.Labels)) {
+    if (typeof value !== "string") continue;
+    const wanted =
+      key.startsWith("orbitdash.") ||
+      key === "com.docker.compose.service" ||
+      (key.startsWith("homepage.") && !key.startsWith("homepage.widget"));
+    if (wanted) picked[key] = value.slice(0, 500);
+  }
+  return picked;
+}
+
 function parseHealth(entry: Record<string, unknown>, status: string): ContainerInfo["health"] {
   const health = isRecord(entry.Health) ? entry.Health.Status : null;
   const value =

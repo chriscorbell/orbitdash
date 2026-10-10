@@ -36,6 +36,10 @@ export const serviceSchema = z.object({
   check_target: z._default(z.nullable(z.string()), null),
   check_interval: z._default(z.number(), 60),
   check_ignore_tls: z._default(z.boolean(), false),
+  // And before external URLs, links and tags.
+  external_url: z._default(z.nullable(z.string()), null),
+  links: z._default(z.array(z.object({ label: z.string(), url: z.string() })), () => []),
+  tags: z._default(z.array(z.string()), () => []),
 });
 
 export const servicesResponseSchema = z.array(serviceSchema);
@@ -67,14 +71,24 @@ export const importSummarySchema = z.object({
   snapshot: z.string(),
 });
 
-const layoutSchema = z.object({
+const linkPreferenceSchema = z.enum(["auto", "internal", "external"]);
+
+const layoutShape = {
   mode: z.enum(["columns", "rows"]),
   density: z.enum(["compact", "comfortable", "tiles"]),
   statsPosition: z.enum(["top", "bottom"]),
   showServices: z.boolean(),
   showStats: z.boolean(),
   showStatsPage: z.boolean(),
+};
+
+// Settings cached before link preferences existed read as auto. Overrides keep no default, since
+// a partial schema would otherwise fill one in as if the device had chosen it.
+const layoutSchema = z.object({
+  ...layoutShape,
+  linkPreference: z._default(linkPreferenceSchema, "auto"),
 });
+const layoutOverridesSchema = z.object({ ...layoutShape, linkPreference: linkPreferenceSchema });
 
 const appearanceSchema = z.object({
   accent: z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]),
@@ -122,7 +136,7 @@ export const dashboardSettingsResponseSchema = z.object({
       name: z.nullable(z.string()),
       overrides: z.object({
         appearance: z.optional(z.partial(appearanceSchema)),
-        layout: z.optional(z.partial(layoutSchema)),
+        layout: z.optional(z.partial(layoutOverridesSchema)),
         search: z.optional(z.partial(searchSchema)),
         widgets: z.optional(z.partial(widgetsSchema)),
       }),

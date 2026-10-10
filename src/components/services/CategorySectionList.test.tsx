@@ -24,6 +24,9 @@ const monitoringService: Service = {
   check_target: null,
   check_interval: 60,
   check_ignore_tls: false,
+  external_url: null,
+  links: [],
+  tags: [],
 };
 
 const storageService: Service = {
@@ -42,6 +45,7 @@ function renderCategoryList(
 ) {
   return render(
     <CategorySectionList
+      linkTarget="internal"
       groups={[
         {
           key: "cat-monitoring",
@@ -137,7 +141,11 @@ describe("CategorySectionList", () => {
 
   it("keeps the uncategorized-only grid free of disclosure controls", () => {
     render(
-      <ServiceGrid density="comfortable" services={[{ ...monitoringService, category: null }]} />
+      <ServiceGrid
+        density="comfortable"
+        linkTarget="internal"
+        services={[{ ...monitoringService, category: null }]}
+      />
     );
 
     expect(screen.queryByRole("button", { name: /category/ })).toBeNull();

@@ -80,7 +80,7 @@ Use this file as a practical handoff for future agents working in this repositor
   - This is intentional so production-only installs inside Docker do not fail when dev dependencies are absent.
 - `src/components/board/ServiceActionsMenu.tsx` uses `DropdownMenu modal={false}` intentionally.
   - This prevents pointer-event lockups after opening the edit dialog from the service action menu.
-- Outside edit mode service cards are plain links with no menu. Editing, duplicating, deleting and arranging happen in edit mode (`src/components/board/EditableBoard.tsx`, loaded lazily with dnd-kit).
+- Outside edit mode service cards are plain links. Cards with extra links or an external URL get a links menu button beside the link (never inside it), loaded lazily from `src/components/services/ServiceLinksMenu.tsx`. Editing, duplicating, deleting, arranging and bulk edits happen in edit mode (`src/components/board/EditableBoard.tsx`, loaded lazily with dnd-kit).
 - The main bundle budget should not be raised casually.
   - Chunking uses Rolldown `codeSplitting.groups` in `vite.config.ts`. A group also captures its modules' dependencies, so group priority decides where shared packages like React land. `docs/bundle-size-budget.md` explains the layout and the tracked budgets.
   - If bundle budgets fail again, inspect chunk boundaries before raising thresholds.

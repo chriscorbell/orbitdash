@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bulkDeleteServicesResponseSchema,
   categoriesResponseSchema,
   categoryOrderResponseSchema,
   iconLibraryResponseSchema,
@@ -19,6 +20,9 @@ import {
   categoryUpdateSchema,
   metricHistoryQuerySchema,
   metricsQuerySchema,
+  serviceBulkChecksSchema,
+  serviceBulkIdsSchema,
+  serviceBulkMoveSchema,
   serviceMoveSchema,
   serviceReorderSchema,
 } from "@shared/server-schemas";
@@ -41,6 +45,9 @@ describe("serviceCreateSchema", () => {
     ).toEqual({
       name: "Orbit",
       url: "https://example.com/orbit",
+      external_url: null,
+      links: [],
+      tags: [],
       description: "Dashboard",
       category: "Infra",
       icon_url: "https://example.com/icon.svg",
@@ -68,6 +75,9 @@ describe("serviceCreateSchema", () => {
     ).toEqual({
       name: "Orbit",
       url: "https://example.com/orbit",
+      external_url: null,
+      links: [],
+      tags: [],
       description: null,
       category: null,
       icon_url: null,
@@ -192,6 +202,62 @@ describe("serviceUpdateSchema", () => {
   });
 });
 
+describe("service external URL, links and tags", () => {
+  const base = { name: "Jellyfin", url: "10.0.0.20:8096" };
+  const messageOf = (input: Record<string, unknown>) =>
+    serviceCreateSchema.safeParse({ ...base, ...input }).error?.issues[0]?.message;
+
+  it("normalize like the form does", () => {
+    expect(
+      serviceCreateSchema.parse({
+        ...base,
+        external_url: " jellyfin.example.com ",
+        links: [
+          { label: " Admin ", url: "10.0.0.20:8096/admin" },
+          { label: " ", url: "" },
+        ],
+        tags: ["Media", "media", " Home  Lab "],
+      })
+    ).toMatchObject({
+      external_url: "https://jellyfin.example.com/",
+      links: [{ label: "Admin", url: "http://10.0.0.20:8096/admin" }],
+      tags: ["media", "home lab"],
+    });
+    expect(serviceCreateSchema.parse({ ...base, external_url: "  " }).external_url).toBeNull();
+  });
+
+  it("are left out of updates that don't send them, and clear when sent empty", () => {
+    expect(serviceUpdateSchema.parse({ name: "Jelly" })).toEqual({ name: "Jelly" });
+    expect(serviceUpdateSchema.parse({ external_url: "", links: [], tags: [] })).toEqual({
+      external_url: null,
+      links: [],
+      tags: [],
+    });
+    expect(serviceUpdateSchema.parse({ external_url: null }).external_url).toBeNull();
+    expect(serviceUpdateSchema.parse({ external_url: "nas:5000" }).external_url).toBe(
+      "http://nas:5000/"
+    );
+  });
+
+  it("report the first problem in a readable way", () => {
+    expect(messageOf({ external_url: "ftp://files" })).toBe("external url must be a valid URL");
+    expect(messageOf({ external_url: 5 })).toBe("external url must be a valid URL");
+    expect(messageOf({ links: {} })).toBe("links must be a list of { label, url }");
+    expect(messageOf({ links: ["Admin"] })).toBe("links must be a list of { label, url }");
+    expect(messageOf({ links: [{ label: 1, url: "x" }] })).toBe(
+      "links must be a list of { label, url }"
+    );
+    expect(messageOf({ links: [{ label: "Admin", url: "" }] })).toBe(
+      "Admin: link url must be a valid URL"
+    );
+    expect(messageOf({ tags: "media" })).toBe("tags must be a list of strings");
+    expect(messageOf({ tags: [1] })).toBe("tags must be a list of strings");
+    expect(messageOf({ tags: Array.from({ length: 11 }, (_, index) => `t${index}`) })).toBe(
+      "a service can have up to 10 tags"
+    );
+  });
+});
+
 describe("categoryOrderUpdateSchema", () => {
   it("sanitizes duplicate and empty category names", () => {
     expect(
@@ -298,11 +364,19 @@ describe("response schemas", () => {
       check_ignore_tls: false,
     };
 
-    expect(serviceSchema.parse(service)).toEqual(service);
-    expect(servicesResponseSchema.parse([service])).toEqual([service]);
+    const parsed = { ...service, external_url: null, links: [], tags: [] };
+    expect(serviceSchema.parse(service)).toEqual(parsed);
+    expect(servicesResponseSchema.parse([service])).toEqual([parsed]);
+
+    const extras = {
+      external_url: "https://orbit.example.com/",
+      links: [{ label: "Admin", url: "https://orbit.example.com/admin" }],
+      tags: ["infra"],
+    };
+    expect(serviceSchema.parse({ ...service, ...extras })).toEqual({ ...service, ...extras });
 
     const downloaded = {
-      ...service,
+      ...parsed,
       icon: "svc-1-a1b2c3d4.svg",
       icon_source_url: "https://example.com/icon.svg",
     };
@@ -463,6 +537,59 @@ describe("service ordering schemas", () => {
       category_id: null,
       ids: ["a"],
     });
+  });
+});
+
+describe("bulk service schemas", () => {
+  it("drop repeated ids and require at least one", () => {
+    expect(serviceBulkIdsSchema.parse({ ids: ["a", "b", "a"] })).toEqual({ ids: ["a", "b"] });
+    for (const ids of [[], [""], "a", undefined]) {
+      expect(serviceBulkIdsSchema.safeParse({ ids }).error?.issues[0]?.message).toBe(
+        "ids must be a non-empty array of service ids"
+      );
+    }
+    expect(
+      serviceBulkIdsSchema.safeParse({ ids: Array.from({ length: 1001 }, (_, i) => `s${i}`) }).error
+        ?.issues[0]?.message
+    ).toBe("ids can list up to 1000 services");
+  });
+
+  it("move to a category or out of all of them", () => {
+    expect(serviceBulkMoveSchema.parse({ ids: ["a"], category_id: null })).toEqual({
+      ids: ["a"],
+      category_id: null,
+    });
+    expect(serviceBulkMoveSchema.safeParse({ ids: ["a"] }).success).toBe(false);
+  });
+
+  it("change check settings only when one is given", () => {
+    expect(serviceBulkChecksSchema.parse({ ids: ["a"], check_enabled: false })).toEqual({
+      ids: ["a"],
+      check_enabled: false,
+    });
+    expect(serviceBulkChecksSchema.parse({ ids: ["a"], check_interval: 300 })).toEqual({
+      ids: ["a"],
+      check_interval: 300,
+    });
+    expect(serviceBulkChecksSchema.safeParse({ ids: ["a"] }).error?.issues[0]?.message).toBe(
+      "nothing to change: give check_enabled or check_interval"
+    );
+    expect(
+      serviceBulkChecksSchema.safeParse({ ids: ["a"], check_interval: 10 }).error?.issues[0]
+        ?.message
+    ).toBe("check interval must be a whole number of seconds from 15 to 3600");
+    expect(
+      serviceBulkChecksSchema.safeParse({ ids: ["a"], check_enabled: "yes" }).error?.issues[0]
+        ?.message
+    ).toBe("check_enabled must be true or false");
+  });
+
+  it("parse bulk delete replies", () => {
+    const reply = { success: true, deleted: 2, restorableUntil: 5 };
+    expect(bulkDeleteServicesResponseSchema.parse(reply)).toEqual(reply);
+    expect(bulkDeleteServicesResponseSchema.safeParse({ ...reply, deleted: "2" }).success).toBe(
+      false
+    );
   });
 });
 

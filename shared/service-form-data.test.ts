@@ -86,6 +86,7 @@ describe("service form data helpers", () => {
     expect(createServicePayloadFromFormData(formData)).toEqual({
       name: "Orbit",
       url: "https://example.com/orbit",
+      external_url: null,
       description: "Dashboard",
       category: "Infra",
       icon_url: "https://example.com/icon.svg",
@@ -101,6 +102,7 @@ describe("service form data helpers", () => {
     expect(createServicePayloadFromFormData(formData)).toEqual({
       name: "Orbit",
       url: "https://example.com/orbit",
+      external_url: null,
       description: null,
       category: null,
       icon_url: null,
@@ -112,6 +114,7 @@ describe("service form data helpers", () => {
     expect(createServicePayloadFromFormData(new FormData())).toEqual({
       name: "",
       url: "",
+      external_url: null,
       description: null,
       category: null,
       icon_url: null,
@@ -192,6 +195,7 @@ describe("service form data helpers", () => {
     expect(createServicePayloadFromFormData(formData)).toEqual({
       name: "Proxmox",
       url: "https://pve.lan:8006",
+      external_url: null,
       description: null,
       category: null,
       icon_url: null,
@@ -221,6 +225,55 @@ describe("service form data helpers", () => {
         check_ignore_tls: false,
       });
     }
+  });
+
+  it("round-trips the external URL, links and tags", () => {
+    const links = [{ label: "Admin", url: "https://pve.lan:8006/admin" }];
+    const formData = buildServiceFormData({
+      name: "Proxmox",
+      url: "https://pve.lan:8006",
+      external_url: "https://pve.example.com",
+      links,
+      tags: ["infra", "home lab"],
+    });
+
+    expect(createServicePayloadFromFormData(formData)).toMatchObject({
+      external_url: "https://pve.example.com",
+      links,
+      tags: ["infra", "home lab"],
+    });
+    expect(updateServicePayloadFromFormData(formData)).toMatchObject({
+      external_url: "https://pve.example.com",
+      links,
+      tags: ["infra", "home lab"],
+    });
+  });
+
+  it("sends cleared lists and an empty external URL on update", () => {
+    const formData = buildServiceFormData(
+      { external_url: "", links: [], tags: [] },
+      { allowEmptyFields: true }
+    );
+    expect(formData.get(SERVICE_FORM_DATA_KEYS.externalUrl)).toBe("");
+    expect(updateServicePayloadFromFormData(formData)).toEqual({
+      external_url: null,
+      links: [],
+      tags: [],
+    });
+  });
+
+  it("leaves lists out when the form doesn't send them, and passes on ones that aren't JSON", () => {
+    expect(createServicePayloadFromFormData(new FormData())).not.toHaveProperty("links");
+    expect(updateServicePayloadFromFormData(new FormData())).toEqual({});
+
+    const formData = new FormData();
+    formData.set(SERVICE_FORM_DATA_KEYS.tags, "media, video");
+    formData.set(SERVICE_FORM_DATA_KEYS.links, "{");
+    // Validation then reports these as the wrong shape instead of silently dropping them.
+    expect(updateServicePayloadFromFormData(formData)).toEqual({
+      links: "{",
+      tags: "media, video",
+    });
   });
 
   it("preserves an explicit true open-in-new-tab update value", () => {

@@ -64,6 +64,7 @@ function eventPayload(message: NotificationMessage) {
           id: service.id,
           name: service.name,
           url: service.url,
+          externalUrl: service.externalUrl,
           error: service.error,
           downSince: iso(service.downSince),
           recoveredAt: iso(service.upAt),

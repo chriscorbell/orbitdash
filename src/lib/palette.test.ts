@@ -21,6 +21,9 @@ function service(name: string, extra: Partial<Service> = {}): Service {
     check_target: null,
     check_interval: 60,
     check_ignore_tls: false,
+    external_url: null,
+    links: [],
+    tags: [],
     ...extra,
   };
 }
@@ -65,6 +68,21 @@ describe("rankPaletteItems", () => {
     ).toHaveLength(8);
     const byHost = service("Router", { url: "http://10.0.0.1:8443/admin" });
     expect(ids(rankPaletteItems("10.0.0.1", [byHost], []))).toEqual(["router", "web-search"]);
+  });
+
+  it("finds services by tag or external host, and says which tags matched", () => {
+    const services = [
+      service("Grafana", { tags: ["monitoring", "metrics"] }),
+      service("Kuma", { tags: ["monitoring"], external_url: "https://status.example.org/" }),
+      service("Plex", { tags: ["media"] }),
+    ];
+    const byTag = rankPaletteItems("monitor", services, []);
+    expect(ids(byTag)).toEqual(["grafana", "kuma", "web-search"]);
+    expect(byTag[0]).toMatchObject({ kind: "service", tags: ["monitoring"] });
+
+    const byHost = rankPaletteItems("status.example", services, []);
+    expect(ids(byHost)).toEqual(["kuma", "web-search"]);
+    expect(byHost[0]).toMatchObject({ tags: [] });
   });
 
   it("keeps the query for the web search", () => {

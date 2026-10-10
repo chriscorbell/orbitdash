@@ -6,6 +6,7 @@ import { MINUTE_MS } from "./history/rollup";
 import { cancelAllJobs, scheduleJob } from "./jobs";
 import { startCollection, stopCollection } from "./metrics";
 import { dockerMonitor } from "./docker/monitor";
+import { integrationPoller } from "./integrations/poller-instance";
 import { applySeedIfFresh } from "./importers/service";
 import { writeLog } from "./observability";
 import { runNightlySnapshotIfDue } from "./services/backup-schedule";
@@ -140,6 +141,7 @@ function flushMetricHistory() {
 export function shutdown() {
   cancelAllJobs();
   dockerMonitor.stop();
+  integrationPoller.stop();
   // Before the database closes: running checks are cancelled and their results dropped, and so
   // are deliveries still in flight.
   statusMonitor.stop();
@@ -194,6 +196,7 @@ export function initializeServer(options: InitializeServerOptions = {}) {
   if (options.startJobs !== false) {
     startBackgroundJobs();
     dockerMonitor.start();
+    integrationPoller.start();
     // A seed file only matters on a fresh install; icons download in the background.
     void applySeedIfFresh();
   }

@@ -51,8 +51,12 @@ version before creating the matching tag.
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
 - Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
 - Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
+- Running containers that aren't on the dashboard yet are suggested, from their labels or published ports
 - An optional Prometheus `/metrics` endpoint with host, status check and container metrics
 - Simple service links with icons and categories; dark icons get a light plate automatically
+- An internal and an external URL per service: cards open the one that fits the address you
+  reached the dashboard at, plus up to 5 extra named links (Admin, Logs) in a menu on the card
+- Tags on services, found by the command palette
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
 - Notifications for outages and metric alerts on ntfy, Gotify, Discord or any webhook, with a delay that ignores blips, quiet hours that end with a summary, and a test button per channel
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
@@ -60,7 +64,8 @@ version before creating the matching tag.
 - A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
 - UI-native service management (no config file needed)
 - Categories as balanced columns or stacked rows, with compact, card or tile styles
-- Edit mode: drag cards and categories, rename categories in place, add services to a category
+- Edit mode: drag cards and categories, rename categories in place, add services to a category,
+  and select several cards to move, delete (with undo) or change their status checks together
 - A wallpaper with blur and dim, your own dashboard name, an accent-colored favicon, and custom CSS
 - Settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
 - Collapse category sections with saved per-browser state
@@ -426,6 +431,27 @@ group id from `stat -c %g /var/run/docker.sock`). orbitdash finds a socket at
 `tcp://host:port` or `unix:///path/to/socket`, and `ORBITDASH_DOCKER_HOST=off` turns Docker
 support off.
 
+### Adding containers as services
+
+When running containers aren't on the dashboard yet, a line above the board says so, and
+**Review** lists them with a name, link, icon and category filled in, ready to add or dismiss.
+Suggestions come from container labels first:
+
+| Label                                            | Used for                                       |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `orbitdash.name` / `homepage.name`               | Service name                                   |
+| `orbitdash.url` / `homepage.href`                | Link                                           |
+| `orbitdash.icon` / `homepage.icon`               | Icon: a URL or a dashboard-icons/selfh.st name |
+| `orbitdash.category` / `homepage.group`          | Category                                       |
+| `orbitdash.description` / `homepage.description` | Description                                    |
+| `orbitdash.enable=false`                         | Never suggest this container                   |
+
+A container without labels is suggested when it publishes a port that looks like a web UI, linked
+on the host you opened the dashboard from, with its name and icon matched against the icon
+library ("media-qbittorrent-1" becomes qBittorrent). Containers already on the dashboard (same link,
+or same port) aren't suggested, and dismissed ones stay hidden until you bring them back from the
+same dialog. Homepage's `homepage.widget.*` labels, which hold API keys, are never read.
+
 ## Status Checks
 
 Status checks are off until you turn one on in a service's settings, so upgrading never makes
@@ -557,6 +583,7 @@ answer counts as delivered. The body:
     "id": "0b7e6a52-…",
     "name": "Jellyfin",
     "url": "http://10.0.0.20:8096/",
+    "externalUrl": "https://jellyfin.example.com/",
     "error": "Connection refused",
     "downSince": "2026-10-10T14:02:00.000Z",
     "recoveredAt": null,
@@ -570,7 +597,10 @@ answer counts as delivered. The body:
 - `event`: `service.down`, `service.recovered`, `alert.firing`, `alert.resolved`, `summary` (sent
   when quiet hours end) or `test`.
 - `severity`: `critical` (a service is down), `warning` (an alert fired), `resolved` or `info`.
-- `service`, for status events: `recoveredAt` and `downtimeSeconds` are set once it is back up.
+- `service`, for status events: `externalUrl` is the service's outside link (or `null`), and
+  `recoveredAt` and `downtimeSeconds` are set once it is back up. ntfy, Gotify and Discord
+  notifications open the outside link when a service has one, since they are often read away from
+  home, and its main link otherwise.
 - `alert`, for alert events: `id`, `metric` (`cpu`, `memory`, `disk` or `temperature`), `subject`
   (the mountpoint for disk alerts), `threshold`, `durationSeconds`, `value`, `peak`, `startedAt`,
   `firedAt` and `resolvedAt`.
@@ -604,6 +634,40 @@ calendar's name and host, plus event titles, times and locations. The server che
 is added, refreshes each calendar every 15 minutes, and reports a calendar that stops loading
 without hiding the others. With [authentication](#authentication) on, guests can see the widgets
 but only a signed-in user can add or remove calendars. Calendar links are included in backups.
+
+## Links, Tags And Bulk Edits
+
+Each service has a **URL**, the one used on your own network, and optionally an **External URL**
+for when you're away (a reverse proxy or tunnel address, for example). A card opens:
+
+- the URL when this dashboard was opened at a private address: `localhost`, `10.x`, `172.16-31.x`,
+  `192.168.x`, Tailscale's `100.64.0.0/10`, IPv6 unique-local and link-local addresses, single-word
+  names like `nas`, and names ending in `.local`, `.lan`, `.home`, `.home.arpa`, `.internal` or
+  `.ts.net`
+- the External URL everywhere else, falling back to the URL for services without one
+
+Settings → Layout → **Service links** overrides this with Internal or External, and like every
+layout setting it can apply to one device only: a wall tablet on your network that reaches the
+dashboard by its public name can be set to Internal. Status checks always use the URL (or their
+own check target), since they run from the server.
+
+A service can also have up to 5 **links**, each a label and a URL, such as "Admin" or "Logs". On
+cards that have links or an External URL, a menu button appears beside the status dot when you
+hover or focus the card (touch screens always show it). It lists the named links and the URL the
+card isn't using. In edit mode the same links are in the card's menu.
+
+**Tags** are free-form words such as `media` or `home lab`, up to 10 per service. They are stored
+in lowercase with single spaces, so `Media` and `media` are the same tag. The service dialog adds a
+tag on Enter or a comma and suggests tags other services use; the command palette finds services by
+tag and shows the tag that matched.
+
+In edit mode, hovering a card shows a checkbox in its corner; shift-click selects a run of cards,
+Ctrl- or ⌘-click on a card selects it, and each category has a checkbox for all of its cards. A bar
+at the bottom then moves the selection to a category, turns status checks on or off or sets their
+interval, or deletes the selection, with one Undo for all of it. Each action is a single request
+(`POST /api/services/bulk/move`, `/bulk/delete`, `/bulk/restore` and `/bulk/checks`, all taking
+`{ "ids": [...] }`), applied in one transaction. External URLs, links and tags are part of backups;
+older backup files import without them.
 
 ## Prometheus
 
@@ -689,6 +753,12 @@ and the service dialog submit path. The current canonical rules are:
 - service names are required after trimming
 - service URLs must normalize to valid `http` or `https` URLs
 - icon URLs, when provided, must normalize to valid `http` or `https` URLs
+- external URLs follow the same rules as service URLs; empty clears them
+- a service has up to 5 links, each with a label of up to 40 characters and a valid URL; rows left
+  completely blank are dropped
+- a service has up to 10 tags of up to 32 characters, stored trimmed, single-spaced and lowercase,
+  without repeats; commas separate tags
+- bulk actions take 1 to 1000 service ids
 - remote icon downloads are limited to 2 MB, time out after 5 seconds, and verify the downloaded
   bytes match a supported image format
 - category and description fields are trimmed and normalized to `null` when empty

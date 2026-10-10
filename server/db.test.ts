@@ -111,7 +111,8 @@ describe("database integration", () => {
       { id: 8, name: "metric-alerts" },
       { id: 9, name: "status-checks" },
       { id: 10, name: "auth-sessions" },
-      { id: 11, name: "notifications" },
+      { id: 11, name: "service-urls-links-tags" },
+      { id: 12, name: "notifications" },
     ]);
   });
 
@@ -162,6 +163,24 @@ describe("database integration", () => {
     ).toThrow();
   });
 
+  it("gives every service in an upgraded database no external URL, links or tags", () => {
+    const legacy = new Database(path.join(testDataDir!, "orbitdash.db"));
+    applyLegacyV02Schema(legacy);
+    legacy.exec(
+      `INSERT INTO services VALUES ('svc-1', 'Orbit', 'https://example.com', NULL, NULL, NULL, 1, 1, 1)`
+    );
+    legacy.close();
+
+    initializeDb({ dataDir: testDataDir! });
+
+    expect(
+      getDb().prepare("SELECT external_url, links, tags FROM services WHERE id = ?").get("svc-1")
+    ).toEqual({ external_url: null, links: "[]", tags: "[]" });
+    // Links and tags stay JSON arrays.
+    expect(() => getDb().exec("UPDATE services SET links = 'admin' WHERE id = 'svc-1'")).toThrow();
+    expect(() => getDb().exec(`UPDATE services SET tags = '{}' WHERE id = 'svc-1'`)).toThrow();
+  });
+
   it("adds icon_source_url to databases that already ran the categories migration", () => {
     initializeDb({ dataDir: testDataDir! });
     getDb().exec(`
@@ -182,7 +201,7 @@ describe("database integration", () => {
           id: number;
         }>
       ).map((row) => row.id)
-    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   it("supports insert, update, and delete flows against the services table", () => {

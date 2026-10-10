@@ -14,7 +14,7 @@ import { alert } from "./test-fixtures";
 const NOW = Date.UTC(2026, 9, 10, 14, 30);
 const ctx = { now: NOW, timeZone: "UTC" };
 const at = (hours: number, minutes: number) => Date.UTC(2026, 9, 10, hours, minutes);
-const service = { id: "svc", name: "Jellyfin", url: "http://10.0.0.20:8096/" };
+const service = { id: "svc", name: "Jellyfin", url: "http://10.0.0.20:8096/", externalUrl: null };
 
 describe("formatTime", () => {
   it("writes a clock time today and adds the date before that", () => {
@@ -40,6 +40,9 @@ describe("messages", () => {
       service: { ...service, error: "Connection refused", downSince: at(14, 2), upAt: null },
     });
     expect(serviceDownMessage(service, at(14, 2), null, ctx).body).toBe("Down since 14:02.");
+    // Read away from home, a notification opens the outside link when there is one.
+    const outside = { ...service, externalUrl: "https://jellyfin.example.com/" };
+    expect(serviceDownMessage(outside, at(14, 2), null, ctx).url).toBe(outside.externalUrl);
   });
 
   it("says a service is back, with how long it was down", () => {

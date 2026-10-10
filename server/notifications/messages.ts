@@ -15,7 +15,11 @@ export interface ServiceSubject {
   id: string;
   name: string;
   url: string;
+  externalUrl: string | null; // the link for outside your network, when the service has one
 }
+
+/** A notification is often read away from home, so a click opens the outside link if there is one. */
+const clickUrl = (service: ServiceSubject) => service.externalUrl ?? service.url;
 
 /** Something that happened during quiet hours, for the summary sent when they end. */
 export type SummaryItem =
@@ -116,7 +120,7 @@ export function serviceDownMessage(
       sentence(error, `Down since ${formatTime(downSince, ctx)}`),
       ctx
     ),
-    url: service.url,
+    url: clickUrl(service),
     service: { ...service, error, downSince, upAt: null },
   };
 }
@@ -138,7 +142,7 @@ export function serviceRecoveredMessage(
       ),
       ctx
     ),
-    url: service.url,
+    url: clickUrl(service),
     service: { ...service, error: null, downSince, upAt },
   };
 }

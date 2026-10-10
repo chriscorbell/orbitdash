@@ -3,6 +3,7 @@ import * as iconLibraryMini from "@/lib/api/icon-library";
 import * as importMini from "@/lib/api/imports";
 import * as metricMini from "@/lib/api/metric-schemas";
 import * as mini from "@/lib/api/schemas";
+import { bulkDeleteResponseSchema as miniBulkDelete } from "@/lib/api/service-bulk";
 import * as full from "@shared/schemas";
 import { dashboardSettingsResponseSchema as fullSettings } from "@shared/dashboard-settings-schemas";
 import { DEFAULT_DASHBOARD_SETTINGS } from "@shared/dashboard-settings";
@@ -17,6 +18,8 @@ import * as fullStatus from "@shared/status-schemas";
 import * as miniStatus from "@/lib/api/status";
 import * as fullNotifications from "@shared/notification-schemas";
 import * as miniNotifications from "@/lib/api/notifications";
+import * as miniDocker from "@/lib/api/docker";
+import * as miniDiscovery from "@/lib/api/discovery";
 
 const serviceStatus = {
   id: "svc",
@@ -121,6 +124,9 @@ const service = {
   check_target: null,
   check_interval: 60,
   check_ignore_tls: false,
+  external_url: "https://jellyfin.example.com/",
+  links: [{ label: "Admin", url: "http://10.0.0.20:8096/web/#/dashboard" }],
+  tags: ["media"],
 };
 
 const settings = {
@@ -140,6 +146,7 @@ const settings = {
     showServices: true,
     showStats: false,
     showStatsPage: true,
+    linkPreference: "external",
   },
   search: { engine: "custom", customUrl: "https://searx.example.com/?q=%s" },
   widgets: {
@@ -234,6 +241,19 @@ const pairs = [
       { ...service, icon_source_url: undefined },
       { ...service, check_method: "icmp" },
       { ...service, check_interval: "60" },
+      { ...service, external_url: 5 },
+      { ...service, links: [{ label: "Admin" }] },
+      { ...service, tags: "media" },
+    ],
+  },
+  {
+    name: "bulk delete reply",
+    mini: miniBulkDelete,
+    full: full.bulkDeleteServicesResponseSchema,
+    valid: { success: true, deleted: 3, restorableUntil: 1_800_000 },
+    invalid: [
+      { success: false, deleted: 3, restorableUntil: 1 },
+      { success: true, deleted: "3", restorableUntil: 1 },
     ],
   },
   {
@@ -320,6 +340,55 @@ const pairs = [
     invalid: [
       { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
     ],
+  },
+  {
+    name: "docker snapshot",
+    mini: miniDocker.dockerSnapshotSchema,
+    full: fullHost.dockerSnapshotSchema,
+    valid: {
+      configured: true,
+      available: true,
+      error: null,
+      containers: [
+        {
+          id: "abc",
+          name: "web",
+          image: "nginx",
+          state: "exited",
+          status: "Exited (0) 1 hour ago",
+          health: "unhealthy",
+          createdAt: 1,
+          ports: [{ privatePort: 53, publicPort: 53, protocol: "udp" }],
+          composeProject: "media",
+          cpuPercent: null,
+          memoryBytes: null,
+          memoryLimitBytes: null,
+        },
+      ],
+      updatedAt: null,
+    },
+    invalid: [{ configured: true, available: "yes", error: null, containers: [], updatedAt: null }],
+  },
+  {
+    name: "discovery",
+    mini: miniDiscovery.discoveryResponseSchema,
+    full: fullHost.discoveryResponseSchema,
+    valid: {
+      suggestions: [
+        {
+          key: "web",
+          name: "Web",
+          url: "http://web.lan/",
+          port: null,
+          iconUrl: "https://cdn/x.svg",
+          category: "Infra",
+          description: "Front door",
+          source: "labels",
+        },
+      ],
+      dismissed: 2,
+    },
+    invalid: [{ suggestions: [], dismissed: "2" }],
   },
   {
     name: "service inspection",
@@ -464,7 +533,15 @@ const pairs = [
       settings,
       stored: true,
     },
-    invalid: [{ device: null, effective: settings, settings: { layout: {} }, stored: true }],
+    invalid: [
+      { device: null, effective: settings, settings: { layout: {} }, stored: true },
+      {
+        device: null,
+        effective: settings,
+        settings: { ...settings, layout: { ...settings.layout, linkPreference: "lan" } },
+        stored: true,
+      },
+    ],
   },
   {
     name: "host snapshot",
@@ -532,6 +609,30 @@ describe("browser response schemas", () => {
     };
     expect(mini.serviceSchema.parse(older)).toEqual(expected);
     expect(full.serviceSchema.parse(older)).toEqual(expected);
+  });
+
+  it("read a service cached before external URLs, links and tags with none of them", () => {
+    const { external_url: _external, links: _links, tags: _tags, ...older } = service;
+    const expected = { ...older, external_url: null, links: [], tags: [] };
+    expect(mini.serviceSchema.parse(older)).toEqual(expected);
+    expect(full.serviceSchema.parse(older)).toEqual(expected);
+    // Each parse gets its own lists, so editing one never changes another.
+    expect(mini.serviceSchema.parse(older).tags).not.toBe(mini.serviceSchema.parse(older).tags);
+  });
+
+  it("read settings cached before link preferences as auto, without inventing an override", () => {
+    const { linkPreference: _preference, ...olderLayout } = settings.layout;
+    const older = { ...settings, layout: olderLayout };
+    const response = {
+      device: { id: "device-1", name: null, overrides: { layout: { mode: "rows" } } },
+      effective: older,
+      settings: older,
+      stored: true,
+    };
+    const parsed = mini.dashboardSettingsResponseSchema.parse(response);
+    expect(parsed).toEqual(fullSettings.parse(response));
+    expect(parsed.settings.layout.linkPreference).toBe("auto");
+    expect(parsed.device?.overrides).toEqual({ layout: { mode: "rows" } });
   });
 
   it("fill in widgets for settings cached before they existed", () => {

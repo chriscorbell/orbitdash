@@ -1,10 +1,11 @@
 import { z } from "zod";
 import type {
+  DiscoveryResponse,
+  DockerSnapshot,
   HostSnapshot,
   MetricHistory,
   MetricHistoryRange,
   SystemInfo,
-  DockerSnapshot,
 } from "./types";
 
 /** Bumped when HostSnapshot changes in a way older clients can't read. */
@@ -130,3 +131,19 @@ export const dockerSnapshotSchema = z.object({
   ),
   updatedAt: z.number().nullable(),
 }) satisfies z.ZodType<DockerSnapshot>;
+
+export const discoveryResponseSchema = z.object({
+  suggestions: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      url: z.string().nullable(),
+      port: z.number().nullable(),
+      iconUrl: z.string().nullable(),
+      category: z.string().nullable(),
+      description: z.string().nullable(),
+      source: z.enum(["labels", "port"]),
+    })
+  ),
+  dismissed: z.number(),
+}) satisfies z.ZodType<DiscoveryResponse>;

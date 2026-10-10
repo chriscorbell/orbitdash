@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   CUSTOM_CSS_MAX_LENGTH,
   isSearchUrlTemplate,
+  LINK_PREFERENCE_OPTIONS,
   SEARCH_ENGINE_OPTIONS,
   TITLE_MAX_LENGTH,
   WALLPAPER_BLUR_MAX,
@@ -26,6 +27,7 @@ const wallpaperSchema = z
 const wallpaperBlurSchema = z.number().int().min(0).max(WALLPAPER_BLUR_MAX);
 const wallpaperDimSchema = z.number().int().min(0).max(WALLPAPER_DIM_MAX);
 const searchEngineSchema = z.enum(SEARCH_ENGINE_OPTIONS);
+const linkPreferenceSchema = z.enum(LINK_PREFERENCE_OPTIONS);
 const searchUrlSchema = z
   .string()
   .refine(isSearchUrlTemplate, "custom search URL must be an http(s) URL with %s for the query");
@@ -76,6 +78,7 @@ export const dashboardSettingsPatchSchema = z
         showServices: z.boolean().optional(),
         showStats: z.boolean().optional(),
         showStatsPage: z.boolean().optional(),
+        linkPreference: linkPreferenceSchema.optional(),
       })
       .strict()
       .optional(),
@@ -104,6 +107,8 @@ export const dashboardSettingsSchema = z.object({
     showServices: z.boolean(),
     showStats: z.boolean(),
     showStatsPage: z.boolean(),
+    // Settings saved or cached before link preferences existed read as auto.
+    linkPreference: linkPreferenceSchema.default("auto"),
   }),
   search: z.object({ engine: searchEngineSchema, customUrl: searchUrlSchema }),
   widgets: z.object(widgetsShape),

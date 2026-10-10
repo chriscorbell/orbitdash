@@ -26,6 +26,9 @@ const service = (id: string, name: string, extra: Partial<Service> = {}): Servic
   check_target: null,
   check_interval: 60,
   check_ignore_tls: false,
+  external_url: null,
+  links: [],
+  tags: [],
   ...extra,
 });
 

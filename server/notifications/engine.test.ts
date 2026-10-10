@@ -14,7 +14,9 @@ function setup(overrides: Partial<NotificationOptions> = {}, stored: StoredIncid
   const state = {
     now: DAY_START + 12 * 60 * MIN,
     options: { ...DEFAULT_NOTIFICATION_OPTIONS, timeZone: "UTC", ...overrides },
-    services: new Map([["svc", { name: "Jellyfin", url: "http://jf.lan/" }]]),
+    services: new Map<string, { name: string; url: string; externalUrl: string | null }>([
+      ["svc", { name: "Jellyfin", url: "http://jf.lan/", externalUrl: null }],
+    ]),
   };
   const sent: NotificationMessage[] = [];
   const summaries: SummaryItem[][] = [];
@@ -163,7 +165,7 @@ describe("quiet hours", () => {
     // Down past the delay and still down at the end.
     engine.status("svc", status("down", state.now));
     // A second service that goes down and comes back during the night.
-    state.services.set("plex", { name: "Plex", url: "http://plex.lan/" });
+    state.services.set("plex", { name: "Plex", url: "http://plex.lan/", externalUrl: null });
     engine.status("plex", { ...status("down", state.now), id: "plex" });
     advance(3 * MIN);
     engine.tick();

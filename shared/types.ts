@@ -142,11 +142,22 @@ export interface ServiceCheckConfig {
   check_ignore_tls: boolean; // accept self-signed and otherwise untrusted certificates
 }
 
+/** An extra named link on a service, such as "Admin" or "Logs", listed in its menu. */
+export interface ServiceLink {
+  label: string;
+  url: string;
+}
+
 /** Service link stored in the database */
 export interface Service extends ServiceCheckConfig {
   id: string;
   name: string;
+  /** The main link: opened on your own network, and what status checks reach by default. */
   url: string;
+  /** Opened instead of `url` when the dashboard is reached from outside your network. */
+  external_url: string | null;
+  links: ServiceLink[];
+  tags: string[]; // lowercase, unique
   description: string | null;
   icon: string | null; // filename of uploaded icon
   icon_source_url: string | null; // URL a downloaded icon came from
@@ -232,6 +243,9 @@ export interface ReorderServicesPayload {
 export interface CreateServicePayload extends Partial<ServiceCheckConfig> {
   name: string;
   url: string;
+  external_url?: string | null;
+  links?: ServiceLink[];
+  tags?: string[];
   description?: string | null;
   icon?: string | null;
   icon_url?: string | null;
@@ -243,11 +257,34 @@ export interface CreateServicePayload extends Partial<ServiceCheckConfig> {
 export interface UpdateServicePayload extends Partial<ServiceCheckConfig> {
   name?: string;
   url?: string;
+  external_url?: string | null;
+  links?: ServiceLink[];
+  tags?: string[];
   description?: string | null;
   icon?: string | null;
   icon_url?: string | null;
   category?: string | null;
   open_in_new_tab?: boolean;
+}
+
+/** Payload for POST /api/services/bulk/move: the services keep their order, appended at the end. */
+export interface BulkMoveServicesPayload {
+  ids: string[];
+  category_id: string | null;
+}
+
+/** Payload for POST /api/services/bulk/checks; only the fields given change. */
+export interface BulkServiceChecksPayload {
+  ids: string[];
+  check_enabled?: boolean;
+  check_interval?: number;
+}
+
+/** Response shape for POST /api/services/bulk/delete */
+export interface BulkDeleteServicesResponse {
+  success: true;
+  deleted: number;
+  restorableUntil: number;
 }
 
 /** Response shape for GET /api/metrics */
@@ -579,4 +616,67 @@ export interface ServiceTestResult {
   latencyMs: number | null;
   statusCode: number | null;
   error: string | null;
+}
+
+/** One input an integration needs, for the form in the service dialog. */
+export interface IntegrationField {
+  key: string;
+  label: string;
+  kind: "url" | "text" | "secret" | "toggle";
+  required: boolean;
+  placeholder?: string;
+  help?: string;
+}
+
+/** An app orbitdash can read figures from, from GET /api/integrations/types. */
+export interface IntegrationType {
+  id: string;
+  name: string;
+  /** dashboard-icons/selfh.st slug, for the picker. */
+  icon: string;
+  fields: IntegrationField[];
+}
+
+/** A service's integration as the browser sees it: secrets are only marked as set. */
+export interface ServiceIntegration {
+  type: string;
+  values: Record<string, string | boolean>;
+  /** Secret fields that have a stored value. */
+  secretsSet: string[];
+}
+
+export interface IntegrationStat {
+  label: string;
+  /** Already formatted, e.g. "3", "12.4 MB/s" or "18%". */
+  value: string;
+  tone?: "good" | "warning" | "bad";
+}
+
+/** What an integration reported last, from GET /api/integrations/data. */
+export interface IntegrationReading {
+  type: string;
+  stats: IntegrationStat[];
+  error: string | null;
+  updatedAt: number;
+}
+
+/** A running container that could become a service, from GET /api/discovery. */
+export interface DiscoverySuggestion {
+  /** The container's name, which stays the same when compose recreates it. */
+  key: string;
+  name: string;
+  /** A link from the container's labels. */
+  url: string | null;
+  /** Otherwise its published web port; the browser links it on the host it was opened from. */
+  port: number | null;
+  iconUrl: string | null;
+  category: string | null;
+  description: string | null;
+  source: "labels" | "port";
+}
+
+export interface DiscoveryResponse {
+  suggestions: DiscoverySuggestion[];
+  /** How many were dismissed, so they can be brought back. */
+  dismissed: number;
 }

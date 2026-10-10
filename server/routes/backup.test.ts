@@ -244,6 +244,62 @@ describe("backup routes", () => {
     ]);
   });
 
+  it("carries external URLs, links and tags, and reads files from before them", async () => {
+    const created = await app.request("/api/services", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Grafana",
+        url: "http://grafana.lan:3000",
+        external_url: "https://grafana.example.com",
+        links: [{ label: "Explore", url: "http://grafana.lan:3000/explore" }],
+        tags: ["monitoring"],
+      }),
+    });
+    expect(created.status).toBe(201);
+
+    const document = await exportDocument();
+    expect(document.services[0]).toMatchObject({
+      external_url: "https://grafana.example.com/",
+      links: [{ label: "Explore", url: "http://grafana.lan:3000/explore" }],
+      tags: ["monitoring"],
+    });
+
+    const { external_url: _external, links: _links, tags: _tags, ...older } = document.services[0];
+    expect((await importDocument({ ...document, services: [older] })).status).toBe(200);
+    const [service] = (await (await app.request("/api/services")).json()) as Service[];
+    expect(service).toMatchObject({ external_url: null, links: [], tags: [] });
+
+    expect((await importDocument(document)).status).toBe(200);
+    expect((await exportDocument()).services).toEqual(document.services);
+  });
+
+  it("rejects links and tags the service form couldn't have saved", async () => {
+    await createServiceWithIcon("Keep", "Media");
+    const document = await exportDocument();
+
+    const badLink = await importDocument({
+      ...document,
+      services: [{ ...document.services[0], links: [{ label: "Admin", url: "ftp://x" }] }],
+    });
+    expect(badLink.status).toBe(400);
+    expect(await badLink.json()).toEqual({ error: "Keep: Admin: link url must be a valid URL" });
+
+    const tooManyTags = await importDocument({
+      ...document,
+      services: [
+        { ...document.services[0], tags: Array.from({ length: 11 }, (_, index) => `t${index}`) },
+      ],
+    });
+    expect(tooManyTags.status).toBe(400);
+
+    const badExternal = await importDocument({
+      ...document,
+      services: [{ ...document.services[0], external_url: "not a url at all" }],
+    });
+    expect(badExternal.status).toBe(400);
+  });
+
   it("imports version 1 backups from orbitdash 0.2", async () => {
     const v1 = {
       format: "orbitdash-backup",
