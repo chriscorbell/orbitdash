@@ -81,6 +81,42 @@ export interface HostNetworkInterface {
   txBytesPerSec: number | null;
 }
 
+/** Time ranges GET /api/metrics/history serves. */
+export type MetricHistoryRange = "1h" | "24h" | "7d" | "30d";
+
+/** One metric's columns, index-aligned with MetricHistory.ts. Null means no reading. */
+export interface MetricHistorySeries {
+  avg: Array<number | null>; // time-weighted average over the bucket
+  max: Array<number | null>; // highest sample in the bucket
+}
+
+/**
+ * Response shape for GET /api/metrics/history: columnar arrays, ready to hand to a chart. Buckets
+ * without data are left out; where buckets are missing between two points, one entry with every
+ * value null sits at the first missing bucket, so a line chart breaks there instead of bridging
+ * the gap.
+ */
+export interface MetricHistory {
+  range: MetricHistoryRange;
+  resolutionMs: number; // bucket size
+  from: number; // ms since epoch, start of the first bucket the range covers
+  to: number; // ms since epoch, when the response was built
+  ts: number[]; // bucket starts, ascending
+  series: {
+    cpu: MetricHistorySeries; // percentage 0-100
+    memory: MetricHistorySeries; // percentage 0-100
+    disk: MetricHistorySeries; // percentage 0-100 of the main disk, like MetricSample.disk
+    load1: MetricHistorySeries; // 1-minute load average
+    temperature: MetricHistorySeries; // CPU temperature in °C
+    netRx: MetricHistorySeries; // bytes/s received, summed over counted interfaces
+    netTx: MetricHistorySeries; // bytes/s sent, summed over counted interfaces
+    diskRead: MetricHistorySeries; // bytes/s read, summed over physical disks
+    diskWrite: MetricHistorySeries; // bytes/s written, summed over physical disks
+  };
+}
+
+export type MetricHistoryMetric = keyof MetricHistory["series"];
+
 /** Response shape for GET /api/system: facts about the host that rarely change. */
 export interface SystemInfo {
   cpuCount: number;

@@ -146,6 +146,12 @@ one every second. `GET /api/system` returns the hostname, OS, kernel, CPU model 
 Anything that can't be read on a platform (macOS, or a restricted container) is left out rather
 than failing.
 
+orbitdash also keeps history, even when nobody has the dashboard open. It stores CPU, memory,
+disk, load, CPU temperature, network and disk I/O at 1-minute resolution for 48 hours and
+15-minute resolution for 90 days, which comes to about 2 MB in the data directory.
+`GET /api/metrics/history?range=1h|24h|7d|30d` returns the average and peak of each metric per
+point: 1-minute points for `1h`, 5-minute points for `24h`, and 15-minute points for `7d` and `30d`.
+
 ### Seeing the host from Docker
 
 Inside a container, orbitdash already sees the host's CPU, memory, temperatures and disk I/O. It
@@ -244,6 +250,7 @@ and the service dialog submit path. The current canonical rules are:
 - category and description fields are trimmed and normalized to `null` when empty
 - the `Uncategorized` section cannot be manually included in saved category ordering
 - metrics `window` must be a positive integer and is bounded to 60 seconds (the sample retention period)
+- metric history `range` must be `1h`, `24h`, `7d` or `30d` (default `1h`)
 
 ## Contributing
 

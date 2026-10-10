@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { HOST_SNAPSHOT_VERSION, hostSnapshotSchema, systemInfoSchema } from "./host-schemas";
-import type { HostSnapshot, SystemInfo } from "./types";
+import {
+  HOST_SNAPSHOT_VERSION,
+  hostSnapshotSchema,
+  METRIC_HISTORY_RANGES,
+  metricHistorySchema,
+  systemInfoSchema,
+} from "./host-schemas";
+import type { HostSnapshot, MetricHistory, SystemInfo } from "./types";
 
 const hostSnapshot: HostSnapshot = {
   version: 1,
@@ -83,5 +89,50 @@ describe("system info schema", () => {
     const sparse = { ...systemInfo, cpuModel: null, hostname: null, kernel: null, osName: null };
     expect(systemInfoSchema.parse(sparse)).toEqual(sparse);
     expect(systemInfoSchema.safeParse({ ...systemInfo, osName: undefined }).success).toBe(false);
+  });
+});
+
+describe("metric history schema", () => {
+  const series = { avg: [12.5, null, 20], max: [30, null, 41.5] };
+  const history: MetricHistory = {
+    range: "1h",
+    resolutionMs: 60_000,
+    from: 1_700_000_000_000,
+    to: 1_700_003_570_000,
+    ts: [1_700_000_000_000, 1_700_000_060_000, 1_700_000_180_000],
+    series: {
+      cpu: series,
+      memory: series,
+      disk: series,
+      load1: series,
+      temperature: { avg: [null, null, null], max: [null, null, null] },
+      netRx: series,
+      netTx: series,
+      diskRead: series,
+      diskWrite: series,
+    },
+  };
+
+  it("accepts columnar history, gaps as null, for every range", () => {
+    expect(METRIC_HISTORY_RANGES).toEqual(["1h", "24h", "7d", "30d"]);
+    for (const range of METRIC_HISTORY_RANGES) {
+      expect(metricHistorySchema.parse({ ...history, range })).toEqual({ ...history, range });
+    }
+    const empty = { ...history, ts: [], series: { ...history.series, cpu: { avg: [], max: [] } } };
+    expect(metricHistorySchema.parse(empty)).toEqual(empty);
+  });
+
+  it("rejects unknown ranges and missing or malformed series", () => {
+    expect(metricHistorySchema.safeParse({ ...history, range: "2h" }).success).toBe(false);
+    const { diskWrite: _omitted, ...withoutDiskWrite } = history.series;
+    expect(metricHistorySchema.safeParse({ ...history, series: withoutDiskWrite }).success).toBe(
+      false
+    );
+    expect(
+      metricHistorySchema.safeParse({
+        ...history,
+        series: { ...history.series, cpu: { avg: ["12"], max: [1] } },
+      }).success
+    ).toBe(false);
   });
 });

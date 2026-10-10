@@ -161,6 +161,27 @@ const migrations: Migration[] = [
       `CREATE INDEX service_trash_deleted_at_idx ON service_trash (deleted_at)`,
     ],
   },
+  {
+    id: 7,
+    name: "metric-history",
+    // Rolled-up host metrics (server/history/): one row per bucket, keyed by its start in ms.
+    // weight_ms is how much sampled time the bucket covers; a NULL value means no reading.
+    statements: ["metric_history_1m", "metric_history_15m"].map(
+      (table) => `CREATE TABLE ${table} (
+        ts INTEGER PRIMARY KEY,
+        weight_ms INTEGER NOT NULL CHECK (weight_ms > 0),
+        cpu_avg REAL, cpu_max REAL,
+        mem_avg REAL, mem_max REAL,
+        disk_avg REAL, disk_max REAL,
+        load1_avg REAL, load1_max REAL,
+        temp_avg REAL, temp_max REAL,
+        net_rx_avg REAL, net_rx_max REAL,
+        net_tx_avg REAL, net_tx_max REAL,
+        disk_read_avg REAL, disk_read_max REAL,
+        disk_write_avg REAL, disk_write_max REAL
+      )`
+    ),
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {

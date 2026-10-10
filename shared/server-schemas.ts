@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getValidationMessage } from "./service-schemas";
 import { sanitizeCategoryOrder, UNCATEGORIZED_CATEGORY } from "./category-order";
+import { METRIC_HISTORY_RANGES } from "./host-schemas";
 
 const ORDER_TYPE_ERROR = "order must be an array of category names";
 
@@ -110,6 +111,14 @@ export const metricsQuerySchema = z.object({
     .default(30),
 });
 
+export const metricHistoryQuerySchema = z.object({
+  range: z
+    .enum(METRIC_HISTORY_RANGES, {
+      error: `range must be one of ${METRIC_HISTORY_RANGES.join(", ")}`,
+    })
+    .default("1h"),
+});
+
 export { getValidationMessage };
 
 export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
@@ -118,4 +127,5 @@ export type ServiceReorderInput = z.infer<typeof serviceReorderSchema>;
 export type CategoryOrderUpdateInput = z.infer<typeof categoryOrderUpdateSchema>;
 export type CategoryRenameInput = z.infer<typeof categoryRenameSchema>;
 export type MetricsQueryInput = z.infer<typeof metricsQuerySchema>;
+export type MetricHistoryQueryInput = z.infer<typeof metricHistoryQuerySchema>;
 export type { ServiceUpdateInput } from "./service-schemas";
