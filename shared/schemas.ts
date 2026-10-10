@@ -26,6 +26,10 @@ export const serviceSchema = z.object({
   check_target: z.string().nullable().default(null),
   check_interval: z.number().default(60),
   check_ignore_tls: z.boolean().default(false),
+  // Same for responses from before external URLs, links and tags.
+  external_url: z.string().nullable().default(null),
+  links: z.array(z.object({ label: z.string(), url: z.string() })).default(() => []),
+  tags: z.array(z.string()).default(() => []),
 });
 
 export const categorySchema = z.object({
@@ -54,6 +58,12 @@ export const iconLibraryResponseSchema = z.object({
 });
 
 export const servicesResponseSchema = z.array(serviceSchema);
+
+export const bulkDeleteServicesResponseSchema = z.object({
+  success: z.literal(true),
+  deleted: z.number(),
+  restorableUntil: z.number(),
+});
 
 export const metricsResponseSchema = z.object({
   samples: z.array(metricSampleSchema),

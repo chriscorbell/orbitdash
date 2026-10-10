@@ -53,6 +53,7 @@ describe("parseDashboardSettings", () => {
         showServices: true,
         showStats: true,
         showStatsPage: true,
+        linkPreference: "auto",
       },
     });
   });
@@ -167,6 +168,37 @@ describe("devices", () => {
       stored: false,
     };
     expect(dashboardSettingsResponseSchema.parse(response)).toEqual(response);
+  });
+});
+
+describe("link preference", () => {
+  it("defaults to auto and keeps only the known choices", () => {
+    expect(DEFAULT_DASHBOARD_SETTINGS.layout.linkPreference).toBe("auto");
+    expect(parseDashboardSettings({ layout: { linkPreference: "external" } }).layout).toMatchObject(
+      { linkPreference: "external" }
+    );
+    expect(
+      parseDashboardSettings({ layout: { linkPreference: "public" } }).layout.linkPreference
+    ).toBe("auto");
+    expect(dashboardSettingsPatchSchema.parse({ layout: { linkPreference: "internal" } })).toEqual({
+      layout: { linkPreference: "internal" },
+    });
+    expect(
+      dashboardSettingsPatchSchema.safeParse({ layout: { linkPreference: "lan" } }).success
+    ).toBe(false);
+  });
+
+  it("reads settings saved before it existed as auto", () => {
+    const { linkPreference: _omitted, ...olderLayout } = DEFAULT_DASHBOARD_SETTINGS.layout;
+    const older = { ...DEFAULT_DASHBOARD_SETTINGS, layout: olderLayout };
+    const parsed = dashboardSettingsResponseSchema.parse({
+      device: null,
+      effective: older,
+      settings: older,
+      stored: true,
+    });
+    expect(parsed.settings.layout.linkPreference).toBe("auto");
+    expect(parsed.effective.layout.linkPreference).toBe("auto");
   });
 });
 

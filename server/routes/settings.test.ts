@@ -142,6 +142,7 @@ describe("dashboard settings routes", () => {
         showServices: true,
         showStats: true,
         showStatsPage: true,
+        linkPreference: "auto",
       },
       search: { engine: "duckduckgo", customUrl: "" },
     };

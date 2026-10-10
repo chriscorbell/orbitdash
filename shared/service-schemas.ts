@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { normalizeServiceLinks } from "./service-links";
 import { CHECK_INTERVAL_MAX_S, CHECK_INTERVAL_MIN_S, STATUS_CHECK_METHODS } from "./status";
+import { normalizeTags } from "./tags";
 import { normalizeIconUrl, normalizeServiceUrl } from "./urls";
 
 function trimString(value: unknown): unknown {
@@ -57,6 +59,58 @@ const optionalServiceUrlSchema = z
   )
   .transform((value) => (value === undefined ? undefined : normalizeServiceUrl(value)!));
 
+/** An optional second URL: blank clears it, anything else must normalize like the main link. */
+const externalUrlSchema = z.preprocess(
+  trimNullableString,
+  z
+    .string({ error: "external url must be a valid URL" })
+    .nullable()
+    .optional()
+    .refine((value) => !value || normalizeServiceUrl(value) !== null, {
+      message: "external url must be a valid URL",
+    })
+    .transform((value) => (value ? normalizeServiceUrl(value)! : value))
+);
+
+const createExternalUrlSchema = externalUrlSchema.transform((value) => value ?? null);
+
+const LINKS_TYPE_ERROR = "links must be a list of { label, url }";
+
+const linksSchema = z
+  .array(
+    z.object(
+      {
+        label: z.string({ error: LINKS_TYPE_ERROR }),
+        url: z.string({ error: LINKS_TYPE_ERROR }),
+      },
+      { error: LINKS_TYPE_ERROR }
+    ),
+    { error: LINKS_TYPE_ERROR }
+  )
+  .transform((links, ctx) => {
+    const result = normalizeServiceLinks(links);
+    if (!result.ok) {
+      ctx.addIssue({ code: "custom", message: result.error });
+      return z.NEVER;
+    }
+    return result.value;
+  })
+  .optional();
+
+const TAGS_TYPE_ERROR = "tags must be a list of strings";
+
+const tagsSchema = z
+  .array(z.string({ error: TAGS_TYPE_ERROR }), { error: TAGS_TYPE_ERROR })
+  .transform((tags, ctx) => {
+    const result = normalizeTags(tags);
+    if (!result.ok) {
+      ctx.addIssue({ code: "custom", message: result.error });
+      return z.NEVER;
+    }
+    return result.value;
+  })
+  .optional();
+
 const createIconUrlSchema = z
   .preprocess(
     trimNullableString,
@@ -105,7 +159,7 @@ const updateIconUrlSchema = z
     return normalizeIconUrl(value)!;
   });
 
-const CHECK_INTERVAL_MESSAGE = `check interval must be a whole number of seconds from ${CHECK_INTERVAL_MIN_S} to ${CHECK_INTERVAL_MAX_S}`;
+export const CHECK_INTERVAL_MESSAGE = `check interval must be a whole number of seconds from ${CHECK_INTERVAL_MIN_S} to ${CHECK_INTERVAL_MAX_S}`;
 
 /**
  * Status check settings, all optional: service-operations fills in the defaults (checks off) or
@@ -132,6 +186,9 @@ const checkFields = {
 export const serviceCreateSchema = z.object({
   name: requiredNameSchema,
   url: requiredServiceUrlSchema,
+  external_url: createExternalUrlSchema,
+  links: linksSchema.transform((links) => links ?? []),
+  tags: tagsSchema.transform((tags) => tags ?? []),
   description: createTextFieldSchema,
   icon_url: createIconUrlSchema,
   category: createTextFieldSchema,
@@ -142,6 +199,9 @@ export const serviceCreateSchema = z.object({
 export const serviceUpdateSchema = z.object({
   name: optionalNameSchema,
   url: optionalServiceUrlSchema,
+  external_url: externalUrlSchema,
+  links: linksSchema,
+  tags: tagsSchema,
   description: updateTextFieldSchema,
   icon_url: updateIconUrlSchema,
   category: updateTextFieldSchema,
