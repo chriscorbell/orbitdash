@@ -53,6 +53,7 @@ version before creating the matching tag.
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
+- Paste a link when adding a service and its name and icon fill in from the page; a Test button checks it before saving
 - A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
 - UI-native service management (no config file needed)
 - Categories as balanced columns or stacked rows, with compact, card or tile styles
