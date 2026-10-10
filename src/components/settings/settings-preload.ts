@@ -20,3 +20,5 @@ export function preloadStatsPage() {
 export function preloadCommandPalette() {
   void loadCommandPalette();
 }
+
+export const loadImportDialog = () => import("@/components/settings/ImportDialog");

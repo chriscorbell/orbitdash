@@ -69,6 +69,7 @@ export function parseEventTopics(value: string | null | undefined): EventTopic[]
  */
 export function configScopeForMutation(path: string): ConfigScope | null {
   if (path === "/api/backup/import") return "all";
+  if (path === "/api/import/apply") return "layout";
   if (path.startsWith("/api/backup")) return null;
   if (path.startsWith("/api/settings/category-order")) return "layout";
   if (path.startsWith("/api/settings") || path.startsWith("/api/alerts")) return "settings";

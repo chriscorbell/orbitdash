@@ -3,6 +3,7 @@ import { metricHistory, nextFlushDelayMs } from "./history/recorder";
 import { MINUTE_MS } from "./history/rollup";
 import { cancelAllJobs, scheduleJob } from "./jobs";
 import { startCollection, stopCollection } from "./metrics";
+import { applySeedIfFresh } from "./importers/service";
 import { writeLog } from "./observability";
 import { runNightlySnapshotIfDue } from "./services/backup-schedule";
 import { metricAlerts } from "./alerts/service";
@@ -150,6 +151,8 @@ export function initializeServer(options: InitializeServerOptions = {}) {
 
   if (options.startJobs !== false) {
     startBackgroundJobs();
+    // A seed file only matters on a fresh install; icons download in the background.
+    void applySeedIfFresh();
   }
 
   if (options.registerSignalHandlers !== false) {

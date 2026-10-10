@@ -65,6 +65,13 @@ const budgets = [
     maxGzipKb: 4,
   },
   {
+    label: "import dialog",
+    prefix: "ImportDialog-",
+    extension: ".js",
+    maxRawKb: 16,
+    maxGzipKb: 6,
+  },
+  {
     label: "drag and drop",
     prefix: "drag-drop-",
     extension: ".js",
@@ -90,6 +97,7 @@ const lazyOnlyPrefixes = [
   "EditableBoard-",
   "StatsPage-",
   "CommandPalette-",
+  "ImportDialog-",
   // Status dots and details, loaded by the first card with checks on.
   "ServiceStatus-",
   // Service worker setup, loaded after the page has.
