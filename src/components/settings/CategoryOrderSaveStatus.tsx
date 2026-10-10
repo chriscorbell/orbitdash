@@ -16,7 +16,7 @@ export function CategoryOrderSaveStatus({ state }: CategoryOrderSaveStatusProps)
         </span>
       )}
       {state === "saved" && (
-        <span className="inline-flex items-center gap-1 text-emerald-500 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+        <span className="inline-flex items-center gap-1 text-success animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
           <Check className="size-3" aria-hidden="true" />
           Saved
         </span>

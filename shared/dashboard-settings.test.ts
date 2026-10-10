@@ -11,6 +11,7 @@ import {
   isDeviceId,
   isEmptySettingsPatch,
   mergeDashboardSettings,
+  mergeSettingsPatches,
   parseDashboardSettings,
   parseDashboardSettingsPatch,
 } from "./dashboard-settings";
@@ -23,6 +24,12 @@ describe("parseDashboardSettings", () => {
     expect(parseDashboardSettings({})).toEqual(DEFAULT_DASHBOARD_SETTINGS);
   });
 
+  it("reads appearance and falls back for unknown themes and accents", () => {
+    expect(
+      parseDashboardSettings({ appearance: { theme: "light", accent: "teal" } }).appearance
+    ).toEqual({ theme: "light", accent: "ice" });
+  });
+
   it("keeps valid fields and replaces only the invalid ones", () => {
     expect(
       parseDashboardSettings({
@@ -30,6 +37,7 @@ describe("parseDashboardSettings", () => {
         future: { setting: true },
       })
     ).toEqual({
+      ...DEFAULT_DASHBOARD_SETTINGS,
       layout: { gridColumns: 4, servicesFirst: false, showServices: true, showStats: true },
     });
   });
@@ -88,11 +96,32 @@ describe("patches", () => {
     expect(diffDashboardSettings(next, next)).toEqual({});
   });
 
+  it("merges patches field by field across sections", () => {
+    expect(
+      mergeSettingsPatches(
+        { layout: { gridColumns: 3 } },
+        { layout: { showStats: false }, appearance: { accent: "mint" } }
+      )
+    ).toEqual({ layout: { gridColumns: 3, showStats: false }, appearance: { accent: "mint" } });
+    expect(mergeSettingsPatches({}, {})).toEqual({});
+  });
+
+  it("diffs appearance too", () => {
+    const next = mergeDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, {
+      appearance: { theme: "system" },
+    });
+    expect(diffDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, next)).toEqual({
+      appearance: { theme: "system" },
+    });
+  });
+
   it("detects empty patches", () => {
     expect(isEmptySettingsPatch(undefined)).toBe(true);
     expect(isEmptySettingsPatch(null)).toBe(true);
     expect(isEmptySettingsPatch({})).toBe(true);
     expect(isEmptySettingsPatch({ layout: {} })).toBe(true);
+    expect(isEmptySettingsPatch({ layout: {}, appearance: {} })).toBe(true);
+    expect(isEmptySettingsPatch({ appearance: { theme: "dark" } })).toBe(false);
     expect(isEmptySettingsPatch({ layout: { showStats: true } })).toBe(false);
   });
 });

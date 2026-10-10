@@ -3,10 +3,16 @@ import { z } from "zod";
 /** Request and response validation for settings; the zod-free logic lives in dashboard-settings. */
 
 const gridColumnsSchema = z.union([z.literal(3), z.literal(4), z.literal(5)]);
+const themeSchema = z.enum(["dark", "light", "system"]);
+const accentSchema = z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]);
 
 /** Request bodies are strict, so typos are reported instead of silently ignored. */
 export const dashboardSettingsPatchSchema = z
   .object({
+    appearance: z
+      .object({ accent: accentSchema.optional(), theme: themeSchema.optional() })
+      .strict()
+      .optional(),
     layout: z
       .object({
         gridColumns: gridColumnsSchema.optional(),
@@ -20,6 +26,7 @@ export const dashboardSettingsPatchSchema = z
   .strict();
 
 export const dashboardSettingsSchema = z.object({
+  appearance: z.object({ accent: accentSchema, theme: themeSchema }),
   layout: z.object({
     gridColumns: gridColumnsSchema,
     servicesFirst: z.boolean(),

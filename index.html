@@ -1,9 +1,29 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" data-accent="ice">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/orbitdash.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0e1116" />
+    <script>
+      // Apply the saved theme before first paint so the page never flashes the wrong colors.
+      (function () {
+        try {
+          var cached = JSON.parse(localStorage.getItem("orbitdash.settingsCache") || "{}");
+          var appearance = cached.appearance || {};
+          var theme = appearance.theme || "dark";
+          var dark =
+            theme === "dark" ||
+            (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var root = document.documentElement;
+          root.classList.toggle("dark", dark);
+          if (appearance.accent) root.dataset.accent = appearance.accent;
+        } catch (error) {
+          // Keep the defaults on the <html> element.
+        }
+      })();
+    </script>
     <title>orbitdash</title>
   </head>
   <body>
