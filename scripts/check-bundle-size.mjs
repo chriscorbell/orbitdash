@@ -83,6 +83,8 @@ const lazyOnlyPrefixes = [
   "EditableBoard-",
   "StatsPage-",
   "CommandPalette-",
+  // Service worker setup, loaded after the page has.
+  "pwa-",
 ];
 
 function formatKb(bytes) {

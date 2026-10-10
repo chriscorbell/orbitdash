@@ -114,8 +114,9 @@ dependencies and a larger runtime for the handful of rules orbitdash needs. The 
   previous build's cache. Pages load network first, so the next load is always the new build, and
   the app also checks for a new worker when it comes back into view. An open page that asks for a
   lazy chunk the new deploy no longer has reloads into the new build (`vite:preloadError`).
-- `src/lib/pwa.ts` registers the worker in production builds only; development unregisters any
-  worker a production build left on the same origin.
+- `src/lib/pwa.ts` registers the worker in production builds only, imported after the page's load
+  event so it stays out of the entry chunk; development unregisters any worker a production build
+  left on the same origin.
 
 ### Shared Types And Schemas
 

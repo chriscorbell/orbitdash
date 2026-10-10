@@ -25,7 +25,7 @@ matches, so group priority decides where shared packages land:
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*` and `CommandPalette-*` must never be loaded up front. If React lands in one of them again,
+`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*` and `pwa-*` (service worker setup, imported after the page has loaded) must never be loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
@@ -67,13 +67,14 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*` or `CommandPalette-*` chunk
+- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*` or `pwa-*` chunk
 
 ## History
 
-- The installable app added the service worker registration and the stale-chunk reload to the
-  entry, about 0.7 kB raw / 0.3 kB gzip, within its budget. The worker itself is the separate
-  `sw.js` with its own budget.
+- The installable app keeps its service worker setup (registration and the stale-chunk reload) out
+  of the entry: `main.tsx` imports it after the page's load event, as a `pwa-*` chunk of about
+  0.5 kB gzip. The entry only gained that import and the event stream's reconnect refresh, about
+  0.1 kB gzip. The worker itself is the separate `sw.js` with its own budget.
 - The command palette loads on demand in `CommandPalette-*` (about 3 kB gzip), prefetched a couple
   of seconds after load and on hover or focus of the search field, so the first keystroke opens it
   right away. Removing the inline search filter roughly offset the shortcut handling in the entry.
