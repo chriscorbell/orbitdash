@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import { useConfigChanges } from "@/hooks/useConfigChanges";
+import { invalidateRequestCache } from "@/lib/api/client";
 import * as api from "@/lib/api/services";
 import { renameCategory as renameCategoryRequest } from "@/lib/api/categories";
 
@@ -40,6 +42,12 @@ export function useServices() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  // Another device changed services or categories: refetch quietly, without a loading state.
+  useConfigChanges(["layout"], () => {
+    invalidateRequestCache("/api/services");
+    void load();
+  });
 
   const create = useCallback(async (payload: CreateServicePayload, iconFile?: File) => {
     const service = await api.createService(payload, iconFile);

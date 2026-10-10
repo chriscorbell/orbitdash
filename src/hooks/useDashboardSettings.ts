@@ -4,6 +4,7 @@ import {
   updateDeviceSettings,
   updateSharedSettings,
 } from "@/lib/api/dashboard-settings";
+import { useConfigChanges } from "@/hooks/useConfigChanges";
 import { getDeviceId } from "@/lib/device-id";
 import {
   DEFAULT_DASHBOARD_SETTINGS,
@@ -142,6 +143,15 @@ export function useDashboardSettings() {
       active = false;
     };
   }, [applyView, deviceId]);
+
+  // Another device changed shared settings (or this device's overrides): pick them up.
+  useConfigChanges(["settings"], () => {
+    fetchDashboardSettings(deviceId)
+      .then(applyView)
+      .catch(() => {
+        // Keep the current settings; the next change or reload will retry.
+      });
+  });
 
   const scope: SettingsScope =
     view?.device && !isEmptySettingsPatch(view.device.overrides) ? "device" : "all";

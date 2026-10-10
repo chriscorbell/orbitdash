@@ -19,11 +19,16 @@ local persistence requirements. It keeps deployment lightweight and works well w
 directory. Schema setup now runs through a small migration ledger so upgrades can become explicit
 and repeatable instead of relying on one large startup-only schema block.
 
-### SSE For Metrics
+### One Event Stream
 
-Metrics are streamed to the frontend over server-sent events because the app only needs one-way,
-low-frequency updates. SSE is simpler than WebSockets for this use case and works well with the
-current dashboard refresh model.
+The server pushes live data over a single server-sent event stream, `GET /api/events`, filtered by
+topic (`metrics`, `config`). SSE fits because updates only flow one way. Every successful mutation
+publishes a `config.changed` event naming what changed (`layout`, `settings`, or `all`) and the tab
+that made it, so other tabs and devices refresh without a reload and the originating tab can ignore
+its own echo. In the browser, `src/lib/live/event-stream.ts` keeps one connection per tab that
+subscribes to exactly the topics with listeners and closes while the tab is hidden; metrics
+sampling on the server speeds up to once a second only while some stream includes `metrics`. The
+older `/api/metrics/stream` endpoint remains for compatibility.
 
 ### Shared Types And Schemas
 

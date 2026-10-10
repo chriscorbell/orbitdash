@@ -1,4 +1,6 @@
 import type { ZodType } from "zod";
+import { ORIGIN_HEADER } from "@shared/events";
+import { TAB_ID } from "@/lib/tab-id";
 
 const API_BASE = "";
 const DEFAULT_REQUEST_CACHE_TTL_MS = 1_000;
@@ -52,7 +54,13 @@ export async function request(
   init: RequestInit,
   fallbackMessage: string
 ): Promise<Response> {
-  const res = await fetch(`${API_BASE}${path}`, init);
+  const method = (init.method ?? "GET").toUpperCase();
+  const headers = new Headers(init.headers);
+  if (method !== "GET" && method !== "HEAD") {
+    headers.set(ORIGIN_HEADER, TAB_ID);
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   await throwIfNotOk(res, fallbackMessage);
   return res;
 }
