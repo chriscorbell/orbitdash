@@ -17,7 +17,8 @@ test("an integration's Test reports why it couldn't connect", async ({ page }) =
   await dialog.getByLabel("Username *").fill("admin");
   await dialog.getByLabel("Password").fill("hunter2");
   await test.click();
-  await expect(dialog.getByText("Connection refused")).toBeVisible();
+  // Exact, because reading the page for the link can fail the same way a moment earlier.
+  await expect(dialog.getByText("Connection refused", { exact: true })).toBeVisible();
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
