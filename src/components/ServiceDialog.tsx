@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,25 @@ import { ServiceCategoryField } from "@/components/services/ServiceCategoryField
 import { ServiceDialogActions } from "@/components/services/ServiceDialogActions";
 import { ServiceIconField } from "@/components/services/ServiceIconField";
 import { ServiceLinksField } from "@/components/services/ServiceLinksField";
+import { ServiceIntegrationField } from "@/components/services/ServiceIntegrationField";
 import { ServiceStatusCheckField } from "@/components/services/ServiceStatusCheckField";
 import { ServiceTagsField } from "@/components/services/ServiceTagsField";
 import { ServiceUrlAssist } from "@/components/services/ServiceUrlAssist";
+import {
+  deleteServiceIntegration,
+  fetchIntegrationTypes,
+  fetchServiceIntegration,
+  saveServiceIntegration,
+} from "@/lib/api/integrations";
 import { inspectServiceUrl } from "@/lib/api/service-tools";
+import {
+  draftFrom,
+  draftProblem,
+  draftValues,
+  type IntegrationDraft,
+} from "@/lib/integration-draft";
+import { INTEGRATION_READINGS_KEY } from "@/lib/integration-readings";
+import { toastError } from "@/lib/toast";
 import { normalizeServiceUrl } from "@shared/urls";
 import {
   isServiceDialogSubmittable,
@@ -34,7 +49,12 @@ interface ServiceDialogProps {
   categoryOptions: string[];
   /** Category picked up front when adding, e.g. from a category's add tile. */
   defaultCategory?: string | null;
-  onSubmit: (payload: CreateServicePayload, iconFile?: File, removeIcon?: boolean) => Promise<void>;
+  /** Resolves with the saved service, so its integration can be saved under its id. */
+  onSubmit: (
+    payload: CreateServicePayload,
+    iconFile?: File,
+    removeIcon?: boolean
+  ) => Promise<Service | void>;
   onDelete?: () => Promise<void>;
   /** Every service, for suggesting the tags already in use. */
   services?: readonly Service[];
@@ -56,6 +76,20 @@ function ServiceDialogBody({
     () => [...new Set(services.flatMap((entry) => entry.tags))].sort(),
     [services]
   );
+  const queryClient = useQueryClient();
+  const integrationTypes = useQuery({
+    queryKey: ["integrations", "types"],
+    queryFn: fetchIntegrationTypes,
+    staleTime: Infinity,
+  });
+  const savedIntegration = useQuery({
+    queryKey: ["integrations", "service", service?.id ?? null],
+    queryFn: () => fetchServiceIntegration(service!.id),
+    enabled: isEdit,
+  });
+  // Null until the integration is touched, so an untouched one is never re-saved.
+  const [integrationEdit, setIntegrationEdit] = useState<IntegrationDraft | null>(null);
+  const integrationDraft = integrationEdit ?? draftFrom(savedIntegration.data);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -137,13 +171,44 @@ function ServiceDialogBody({
         setErrorMessage(prepared.error);
         return;
       }
+      const integrationType = integrationTypes.data?.find(
+        (entry) => entry.id === integrationEdit?.type
+      );
+      const integrationError = integrationEdit
+        ? draftProblem(integrationEdit, integrationType)
+        : null;
+      if (integrationError) {
+        setErrorMessage(integrationError);
+        return;
+      }
 
-      await onSubmit(prepared.payload, iconFile || undefined, removeIcon);
+      const saved = await onSubmit(prepared.payload, iconFile || undefined, removeIcon);
+      if (integrationEdit && saved) await saveIntegration(saved.id, integrationEdit);
       onOpenChange(false);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to save service");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  /** After the service: an integration can only be saved under the service's id. */
+  const saveIntegration = async (serviceId: string, draft: IntegrationDraft) => {
+    const type = integrationTypes.data?.find((entry) => entry.id === draft.type);
+    try {
+      if (type) {
+        await saveServiceIntegration(serviceId, {
+          type: type.id,
+          values: draftValues(draft, type),
+        });
+      } else if (savedIntegration.data) {
+        await deleteServiceIntegration(serviceId);
+      }
+      // This tab's own change doesn't come back as an event, so refresh here.
+      void queryClient.invalidateQueries({ queryKey: INTEGRATION_READINGS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["integrations", "service", serviceId] });
+    } catch (error) {
+      toastError(error, "The service was saved, but its integration wasn't");
     }
   };
 
@@ -313,6 +378,16 @@ function ServiceDialogBody({
           onChange={setCheck}
           value={{ checkEnabled, checkIgnoreTls, checkInterval, checkMethod, checkTarget }}
         />
+
+        {(!isEdit || savedIntegration.isFetched) && (
+          <ServiceIntegrationField
+            draft={integrationDraft}
+            original={savedIntegration.data ?? null}
+            serviceId={service?.id ?? null}
+            linkUrl={url}
+            onChange={setIntegrationEdit}
+          />
+        )}
 
         {errorMessage && <p className="text-sm font-medium text-destructive">{errorMessage}</p>}
 

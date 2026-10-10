@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { toHaveNoViolations } from "vitest-axe/dist/matchers.js";
 import { ServiceDialog } from "@/components/ServiceDialog";
@@ -43,6 +43,39 @@ vi.mock("@/lib/api/service-tools", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/service-tools")>()),
   ...toolsApi,
 }));
+
+const integrationsApi = vi.hoisted(() => ({
+  fetchIntegrationTypes: vi.fn(),
+  fetchServiceIntegration: vi.fn(),
+  saveServiceIntegration: vi.fn(),
+  deleteServiceIntegration: vi.fn(),
+  testIntegration: vi.fn(),
+}));
+
+vi.mock("@/lib/api/integrations", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/integrations")>()),
+  ...integrationsApi,
+}));
+
+const ADGUARD = {
+  id: "adguard",
+  name: "AdGuard Home",
+  icon: "adguard-home",
+  fields: [
+    { key: "url", label: "API address", kind: "url", required: false, help: "Only if different." },
+    { key: "username", label: "Username", kind: "text", required: true },
+    { key: "password", label: "Password", kind: "secret", required: true },
+    { key: "ignoreTls", label: "Allow self-signed certificates", kind: "toggle", required: false },
+  ],
+} as const;
+
+beforeEach(() => {
+  for (const mock of Object.values(integrationsApi)) mock.mockReset();
+  integrationsApi.fetchIntegrationTypes.mockResolvedValue([ADGUARD]);
+  integrationsApi.fetchServiceIntegration.mockResolvedValue(null);
+  integrationsApi.saveServiceIntegration.mockResolvedValue(null);
+  integrationsApi.deleteServiceIntegration.mockResolvedValue(undefined);
+});
 
 /** The dialog with the query client its icon library needs. */
 function render(ui: React.ReactElement) {
@@ -287,6 +320,14 @@ describe("ServiceDialog", () => {
   it("shows schema validation errors and prevents invalid submission", async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
 
+    toolsApi.inspectServiceUrl.mockResolvedValue({
+      url: "http://dns.lan/",
+      reachable: false,
+      error: "Connection refused",
+      name: null,
+      iconUrl: null,
+      selfSigned: false,
+    });
     render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={onSubmit} />);
 
     fireEvent.change(screen.getByLabelText("Name *"), {
@@ -695,5 +736,111 @@ describe("ServiceDialog external URL, tags and links", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText("each link needs a label")).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe("ServiceDialog integrations", () => {
+  function renderEdit(onSubmit = vi.fn().mockResolvedValue(baseService)) {
+    render(
+      <ServiceDialog
+        open
+        onOpenChange={vi.fn()}
+        service={baseService}
+        categoryOptions={["Monitoring"]}
+        onSubmit={onSubmit}
+      />
+    );
+    return { onSubmit, user: userEvent.setup() };
+  }
+
+  async function pickAdGuard(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("combobox", { name: "Integration" }));
+    await user.click(await screen.findByRole("option", { name: "AdGuard Home" }));
+  }
+
+  it("sets one up, tests it with the form's values and saves it with the service", async () => {
+    integrationsApi.testIntegration.mockResolvedValue({
+      type: "adguard",
+      stats: [{ label: "Queries", value: "1,000" }],
+      error: null,
+      updatedAt: 1,
+    });
+    const { onSubmit, user } = renderEdit();
+    await pickAdGuard(user);
+    expect(screen.getByText("Only if different.")).toBeTruthy();
+    expect(screen.getByLabelText("API address").getAttribute("placeholder")).toBe(
+      "https://example.com/orbit"
+    );
+    await user.type(screen.getByLabelText("Username *"), "me");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("switch", { name: "Allow self-signed certificates" }));
+    const testButtons = screen.getAllByRole("button", { name: "Test" });
+    await user.click(testButtons[testButtons.length - 1]);
+    expect(await screen.findByText("1,000")).toBeTruthy();
+    expect(integrationsApi.testIntegration.mock.calls[0][0]).toEqual({
+      serviceId: "svc-1",
+      url: "https://example.com/orbit",
+      type: "adguard",
+      values: { username: "me", password: "pw", ignoreTls: true },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(integrationsApi.saveServiceIntegration).toHaveBeenCalled());
+    expect(onSubmit).toHaveBeenCalled();
+    expect(integrationsApi.saveServiceIntegration).toHaveBeenCalledWith("svc-1", {
+      type: "adguard",
+      values: { username: "me", password: "pw", ignoreTls: true },
+    });
+  });
+
+  it("keeps a saved secret and removes the integration when set to none", async () => {
+    integrationsApi.fetchServiceIntegration.mockResolvedValue({
+      type: "adguard",
+      values: { username: "me" },
+      secretsSet: ["password"],
+    });
+    const { user } = renderEdit();
+    expect((await screen.findByLabelText("Password")).getAttribute("placeholder")).toBe(
+      "Saved; type to replace"
+    );
+    await user.click(screen.getByRole("combobox", { name: "Integration" }));
+    await user.click(await screen.findByRole("option", { name: "None" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(integrationsApi.deleteServiceIntegration).toHaveBeenCalledWith("svc-1")
+    );
+    expect(integrationsApi.saveServiceIntegration).not.toHaveBeenCalled();
+  });
+
+  it("doesn't save the service while a required field is empty", async () => {
+    const { onSubmit, user } = renderEdit();
+    await pickAdGuard(user);
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Username is required for the integration")).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("saves under a new service's id and reports a failed save without losing the service", async () => {
+    const created = { ...baseService, id: "new-id" };
+    const onSubmit = vi.fn().mockResolvedValue(created);
+    integrationsApi.saveServiceIntegration.mockRejectedValue(new Error("Password is required"));
+    toolsApi.inspectServiceUrl.mockResolvedValue({
+      url: "http://dns.lan/",
+      reachable: false,
+      error: "Connection refused",
+      name: null,
+      iconUrl: null,
+      selfSigned: false,
+    });
+    render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={onSubmit} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/^Name/), "DNS");
+    await user.type(screen.getByLabelText(/^URL/), "dns.lan");
+    await pickAdGuard(user);
+    await user.type(screen.getByLabelText("Username *"), "me");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: /Add service/ }));
+    await waitFor(() => expect(integrationsApi.saveServiceIntegration).toHaveBeenCalled());
+    expect(integrationsApi.saveServiceIntegration.mock.calls[0][0]).toBe("new-id");
   });
 });

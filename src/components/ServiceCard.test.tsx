@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ServiceCard } from "@/components/ServiceCard";
 import * as statusApi from "@/lib/api/status";
 import { createQueryWrapper } from "@/test/query";
+import { setIntegrationReadings } from "@/lib/integration-readings";
 import type { Service } from "@shared/types";
 
 vi.mock("@/lib/api/status", () => ({
@@ -53,6 +54,23 @@ const baseService: Service = {
 };
 
 describe("ServiceCard", () => {
+  it("shows integration figures on comfortable cards once they arrive", async () => {
+    setIntegrationReadings({
+      "svc-1": {
+        type: "sonarr",
+        stats: [{ label: "Queue", value: "3", tone: "good" }],
+        error: null,
+        updatedAt: 1,
+      },
+    });
+    render(<ServiceCard service={baseService} />);
+    expect(await screen.findByText("Queue")).toBeTruthy();
+    cleanup();
+    render(<ServiceCard service={baseService} density="compact" />);
+    expect(screen.queryByText("Queue")).toBeNull();
+    setIntegrationReadings({});
+  });
+
   it("uses character-based truncation for descriptions", () => {
     render(<ServiceCard service={baseService} />);
 

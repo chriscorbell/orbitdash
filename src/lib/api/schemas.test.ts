@@ -18,6 +18,8 @@ import * as fullStatus from "@shared/status-schemas";
 import * as miniStatus from "@/lib/api/status";
 import * as miniDocker from "@/lib/api/docker";
 import * as miniDiscovery from "@/lib/api/discovery";
+import * as miniIntegrations from "@/lib/api/integrations";
+import * as fullIntegrations from "@shared/integration-schemas";
 
 const serviceStatus = {
   id: "svc",
@@ -255,6 +257,60 @@ const pairs = [
     invalid: [
       { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
     ],
+  },
+  {
+    name: "integration types",
+    mini: miniIntegrations.integrationTypesSchema,
+    full: fullIntegrations.integrationTypesSchema,
+    valid: {
+      types: [
+        {
+          id: "pihole",
+          name: "Pi-hole",
+          icon: "pi-hole",
+          fields: [
+            { key: "url", label: "API address", kind: "url", required: false, help: "x" },
+            { key: "password", label: "Password", kind: "secret", required: true },
+          ],
+        },
+      ],
+    },
+    invalid: [{ types: [{ id: "x", name: "x", icon: "x", fields: [{ key: "a", kind: "date" }] }] }],
+  },
+  {
+    name: "service integration",
+    mini: miniIntegrations.serviceIntegrationSchema,
+    full: fullIntegrations.serviceIntegrationSchema,
+    valid: {
+      integration: {
+        type: "adguard",
+        values: { username: "me", ignoreTls: true },
+        secretsSet: ["password"],
+      },
+    },
+    invalid: [
+      { integration: { type: "adguard", values: { username: 3 }, secretsSet: [] } },
+      { integration: { type: "adguard", values: [], secretsSet: [] } },
+      { integration: { values: {}, secretsSet: [] } },
+      "nope",
+    ],
+  },
+  {
+    name: "integration readings",
+    mini: miniIntegrations.integrationReadingsSchema,
+    full: fullIntegrations.integrationReadingsSchema,
+    valid: {
+      readings: {
+        a: {
+          type: "sonarr",
+          stats: [{ label: "Queue", value: "3", tone: "good" }],
+          error: null,
+          updatedAt: 1,
+        },
+        b: { type: "plex", stats: [], error: "It refused the credentials", updatedAt: 2 },
+      },
+    },
+    invalid: [{ readings: { a: { type: "x", stats: [], error: null } } }, { readings: null }, null],
   },
   {
     name: "docker snapshot",

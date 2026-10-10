@@ -2,6 +2,7 @@ import { lazy, memo, Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ServiceIcon } from "@/components/services/ServiceIcon";
 import { getIconUrl } from "@/lib/api/services";
+import { useIntegrationReading } from "@/lib/integration-readings";
 import { serviceHref, type LinkTarget } from "@/lib/link-target";
 import { cn } from "@/lib/utils";
 import type { CardDensity } from "@shared/dashboard-settings";
@@ -16,6 +17,12 @@ const ServiceStatusIndicator = lazy(() =>
 );
 const ServiceStatusTooltip = lazy(() =>
   loadServiceStatus().then((module) => ({ default: module.ServiceStatusTooltip }))
+);
+// Integration figures arrive after the first paint, from the lazily loaded integration layer.
+const IntegrationStats = lazy(() =>
+  import("@/components/integrations/IntegrationStats").then((module) => ({
+    default: module.IntegrationStats,
+  }))
 );
 // The same for the menu of cards with named links or a second URL.
 const ServiceLinksMenu = lazy(() =>
@@ -85,6 +92,7 @@ export const ServiceCardFace = memo(function ServiceCardFace({
 }: ServiceCardFaceProps) {
   const description = service.description?.trim() || null;
   const showDescription = density === "comfortable" && description !== null;
+  const reading = useIntegrationReading(service.id);
   const styles = DENSITY_STYLES[density];
   const icon = (
     <ServiceIcon
@@ -119,6 +127,11 @@ export const ServiceCardFace = memo(function ServiceCardFace({
           <p className={`truncate leading-tight text-foreground ${styles.name}`}>{service.name}</p>
           {showDescription && (
             <p className="truncate text-xs leading-tight text-muted-foreground">{description}</p>
+          )}
+          {density === "comfortable" && reading && (
+            <Suspense fallback={null}>
+              <IntegrationStats reading={reading} />
+            </Suspense>
           )}
         </div>
         {density !== "tiles" &&

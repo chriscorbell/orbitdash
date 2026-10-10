@@ -43,6 +43,13 @@ const DiscoveryBanner = lazy(() =>
   }))
 );
 
+// Integration figures for cards load after the first paint.
+const IntegrationLayer = lazy(() =>
+  import("@/components/integrations/IntegrationLayer").then((module) => ({
+    default: module.IntegrationLayer,
+  }))
+);
+
 // Widgets load only once one is turned on.
 const WidgetRow = lazy(() => loadWidgets().then((module) => ({ default: module.WidgetRow })));
 const HeaderWidgets = lazy(() =>
@@ -327,6 +334,11 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             search={settings.search}
             onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}
           />
+        </Suspense>
+      )}
+      {services.length > 0 && (
+        <Suspense fallback={null}>
+          <IntegrationLayer />
         </Suspense>
       )}
       <LazyToaster />

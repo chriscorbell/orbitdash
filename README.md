@@ -53,6 +53,7 @@ version before creating the matching tag.
 - Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
 - Running containers that aren't on the dashboard yet are suggested, from their labels or published ports
 - An optional Prometheus `/metrics` endpoint with host, status check and container metrics
+- Integrations that put live figures on a service's card: AdGuard Home, Jellyfin, Pi-hole, Plex, Proxmox VE, qBittorrent, Radarr, Sonarr, or a linked Docker container
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - An internal and an external URL per service: cards open the one that fits the address you
   reached the dashboard at, plus up to 5 extra named links (Admin, Logs) in a menu on the card
@@ -526,6 +527,34 @@ interval, or deletes the selection, with one Undo for all of it. Each action is 
 (`POST /api/services/bulk/move`, `/bulk/delete`, `/bulk/restore` and `/bulk/checks`, all taking
 `{ "ids": [...] }`), applied in one transaction. External URLs, links and tags are part of backups;
 older backup files import without them.
+
+## Integrations
+
+An integration puts a few live figures on a service's card, like Sonarr's queue, Pi-hole's
+blocked share or how many people are watching on Plex. Pick one in the service dialog under
+**Integration**, fill in what that app needs, and use **Test** to check it before saving.
+
+| App              | Needs                                          | Shows                                          |
+| ---------------- | ---------------------------------------------- | ---------------------------------------------- |
+| AdGuard Home     | Username and password                          | Queries, blocked, blocked share, lookup time   |
+| Docker container | The container's name (picked from a list)      | State and health, CPU, memory                  |
+| Jellyfin         | API key                                        | Playing now, movies, series, songs             |
+| Pi-hole          | Password or app password (v6), API token (v5)  | Queries, blocked, blocked share, clients       |
+| Plex             | Plex token                                     | Playing now, movies, shows, libraries          |
+| Proxmox VE       | API token ID and secret (PVEAuditor is enough) | Guests running, nodes online, CPU, memory      |
+| qBittorrent      | Username and password                          | Download and upload speed, downloading, active |
+| Radarr, Sonarr   | API key                                        | Queue, missing, this week                      |
+
+The API address defaults to the service's own link, and self-signed certificates can be allowed
+per integration. The Docker option appears when [Docker](#docker-containers) is set up. Figures
+show on cards in the Cards style and refresh on their own (every 15 seconds to a minute,
+depending on the app) while the dashboard is open.
+
+Integrations only read. API keys, tokens and passwords stay on the server, encrypted with a key
+orbitdash creates in `/data/secret.key`; the browser never receives them, and editing an
+integration keeps a saved secret unless you type a new one. Keep `secret.key` with your backups:
+restored on another machine without it, integrations need their secrets typed again.
+[docs/integrations.md](docs/integrations.md) explains how adapters work and how to add one.
 
 ## Prometheus
 
