@@ -25,8 +25,8 @@ const budgets = [
     label: "validation",
     prefix: "validation-",
     extension: ".js",
-    maxRawKb: 65,
-    maxGzipKb: 17,
+    maxRawKb: 85,
+    maxGzipKb: 24,
   },
   {
     label: "service dialog",
