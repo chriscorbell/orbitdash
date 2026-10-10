@@ -86,13 +86,14 @@ When changing server routes or shared validation logic, run both `test:unit` and
 
 ## Environment Variables
 
-| Variable              | Default                                            | Purpose                                                      |
-| --------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
-| `ORBITDASH_DATA_DIR`  | `./data` outside Docker, `/data` in Docker         | Controls where the SQLite database and icon files are stored |
-| `ORBITDASH_DISK_PATH` | `/`                                                | Controls which mount path is used for disk usage collection  |
-| `PORT`                | `3001`                                             | Backend listen port                                          |
-| `NODE_ENV`            | unset in development, `production` for `npm start` | Standard runtime mode flag                                   |
-| `LOG_LEVEL`           | `info`                                             | Minimum log level: `debug`, `info`, `warn` or `error`        |
+| Variable              | Default                                            | Purpose                                                         |
+| --------------------- | -------------------------------------------------- | --------------------------------------------------------------- |
+| `ORBITDASH_DATA_DIR`  | `./data` outside Docker, `/data` in Docker         | Controls where the SQLite database and icon files are stored    |
+| `ORBITDASH_DISK_PATH` | `/`                                                | Controls which mount path is used for disk usage collection     |
+| `ORBITDASH_HOST_ROOT` | unset                                              | Where the host's `/` is mounted; host metrics are read under it |
+| `PORT`                | `3001`                                             | Backend listen port                                             |
+| `NODE_ENV`            | unset in development, `production` for `npm start` | Standard runtime mode flag                                      |
+| `LOG_LEVEL`           | `info`                                             | Minimum log level: `debug`, `info`, `warn` or `error`           |
 
 ## Architecture Notes
 

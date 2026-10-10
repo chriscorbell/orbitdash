@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { hostSnapshotSchema } from "@shared/host-schemas";
 import { app } from "../app";
 import { getEventSubscriberCount, publish } from "../events";
 import { stopCollection, tickCollection } from "../metrics";
@@ -126,6 +127,19 @@ describe("events stream", () => {
 
     expect(event.type).toBe("metrics");
     expect(event.sample.ts).toBe(sample!.ts);
+    stream.close();
+  });
+
+  it("streams full host snapshots on the host topic, from the same tick as the sample", async () => {
+    const stream = await openStream("?topics=metrics,host");
+    expect(await stream.next("ready")).toEqual({ topics: ["metrics", "host"] });
+
+    const sample = tickCollection(Date.now() + 8_000_000);
+    const event = (await stream.next("host")) as { type: string; snapshot: unknown };
+
+    expect(event.type).toBe("host");
+    const snapshot = hostSnapshotSchema.parse(event.snapshot);
+    expect(snapshot.ts).toBe(sample!.ts);
     stream.close();
   });
 

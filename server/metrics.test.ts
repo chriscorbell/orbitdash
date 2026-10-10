@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import os from "os";
+import { hostSnapshotSchema } from "@shared/host-schemas";
+import type { HostSnapshot } from "@shared/types";
+import { createFakeHostFs } from "./host/test-fixtures";
 import {
   ACTIVE_SAMPLE_INTERVAL_MS,
   getDiskUsage,
+  getLatestSnapshot,
   getRecentSamples,
   IDLE_SAMPLE_INTERVAL_MS,
   stopCollection,
   subscribe,
+  subscribeSnapshots,
   tickCollection,
 } from "./metrics";
 
@@ -64,6 +69,44 @@ describe("metrics collection", () => {
   });
 });
 
+describe("host snapshots", () => {
+  it("samples every second for snapshot subscribers and hands them the tick's snapshot", () => {
+    const snapshots: HostSnapshot[] = [];
+    unsubscribers.push(subscribeSnapshots((snapshot) => snapshots.push(snapshot)));
+    const start = Date.now() + 6_000_000;
+
+    const first = tickCollection(start);
+    const second = tickCollection(start + ACTIVE_SAMPLE_INTERVAL_MS);
+
+    expect(second).not.toBeNull();
+    expect(snapshots.map((snapshot) => snapshot.ts)).toEqual([first!.ts, second!.ts]);
+    expect(hostSnapshotSchema.parse(snapshots[1])).toEqual(snapshots[1]);
+    // The strip's sample and the snapshot come from the same reading.
+    expect(second!.cpu).toBe(snapshots[1].cpu.usage ?? 0);
+    expect(getLatestSnapshot()).toBe(snapshots[1]);
+  });
+
+  it("drops snapshot subscribers that throw", () => {
+    let calls = 0;
+    unsubscribers.push(
+      subscribeSnapshots(() => {
+        calls += 1;
+        throw new Error("gone");
+      })
+    );
+    const start = Date.now() + 7_000_000;
+
+    tickCollection(start);
+    tickCollection(start + IDLE_SAMPLE_INTERVAL_MS);
+
+    expect(calls).toBe(1);
+  });
+
+  it("always has a snapshot to serve", () => {
+    expect(hostSnapshotSchema.safeParse(getLatestSnapshot()).success).toBe(true);
+  });
+});
+
 describe("disk usage", () => {
   it("reads usage for a real mount without spawning processes", () => {
     const usage = getDiskUsage(os.tmpdir());
@@ -73,5 +116,16 @@ describe("disk usage", () => {
 
   it("returns 0 for a path that does not exist", () => {
     expect(getDiskUsage("/definitely/not/a/mount")).toBe(0);
+  });
+
+  it("reads the configured path on the host when a host root is set", () => {
+    const hostFs = createFakeHostFs(
+      {},
+      { "/srv": { blocks: 100, bsize: 4096, bavail: 25, bfree: 30 } },
+      "/mnt/host"
+    );
+    expect(getDiskUsage("/srv", hostFs)).toBe(75);
+    expect(getDiskUsage("/mnt/host/srv", hostFs)).toBe(75);
+    expect(getDiskUsage("/", hostFs)).toBe(0);
   });
 });

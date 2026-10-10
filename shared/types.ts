@@ -6,6 +6,92 @@ export interface MetricSample {
   disk: number; // percentage 0-100
 }
 
+/**
+ * Full host reading taken on the same tick as a MetricSample (GET /api/metrics/host and the `host`
+ * event topic). Rates are averages over `intervalMs`; a rate is null when there is no previous
+ * reading to compare against yet, or when a counter went backwards (reset, hotplug). Anything the
+ * server can't read on this platform is null or an empty list.
+ */
+export interface HostSnapshot {
+  version: 1;
+  ts: number; // ms since epoch
+  intervalMs: number | null; // time since the previous snapshot, null for the first
+  cpu: HostCpu;
+  memory: HostMemory | null;
+  temperatures: HostTemperature[];
+  filesystems: HostFilesystem[];
+  disks: HostDiskIo[];
+  network: HostNetworkInterface[];
+}
+
+export interface HostCpu {
+  usage: number | null; // percentage 0-100 across every core
+  cores: HostCpuCore[];
+  load: HostLoadAverage | null;
+  frequencyMhz: number | null; // average current frequency across cores
+  temperatureCelsius: number | null; // the CPU package (or closest equivalent) sensor
+}
+
+export interface HostCpuCore {
+  id: number; // N in /proc/stat's cpuN
+  usage: number | null; // percentage 0-100
+  frequencyMhz: number | null;
+}
+
+export interface HostLoadAverage {
+  one: number;
+  five: number;
+  fifteen: number;
+}
+
+export interface HostMemory {
+  totalBytes: number;
+  usedBytes: number; // total - available, the same figure MetricSample.ram is based on
+  availableBytes: number;
+  cachedBytes: number | null; // buffers + page cache + reclaimable slab, like free's buff/cache
+  swapTotalBytes: number | null;
+  swapUsedBytes: number | null;
+}
+
+export interface HostTemperature {
+  id: string; // stable for this boot, e.g. "hwmon3/temp1" or "thermal_zone0"
+  chip: string; // hwmon chip name (coretemp, k10temp, nvme, ...) or thermal zone type
+  label: string | null;
+  celsius: number;
+}
+
+export interface HostFilesystem {
+  mountpoint: string; // as the host sees it
+  device: string;
+  type: string;
+  totalBytes: number;
+  usedBytes: number; // total - available: reserved blocks count as used, like MetricSample.disk
+  availableBytes: number;
+}
+
+export interface HostDiskIo {
+  name: string; // whole-disk device name from /proc/diskstats, e.g. "sda" or "nvme0n1"
+  readBytesPerSec: number | null;
+  writeBytesPerSec: number | null;
+}
+
+export interface HostNetworkInterface {
+  name: string;
+  rxBytesPerSec: number | null;
+  txBytesPerSec: number | null;
+}
+
+/** Response shape for GET /api/system: facts about the host that rarely change. */
+export interface SystemInfo {
+  cpuCount: number;
+  cpuModel: string | null;
+  hostname: string | null;
+  kernel: string | null;
+  osName: string | null; // PRETTY_NAME from the host's os-release
+  platform: string;
+  uptimeSeconds: number;
+}
+
 /** Service link stored in the database */
 export interface Service {
   id: string;

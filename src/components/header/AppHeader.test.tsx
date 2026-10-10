@@ -4,7 +4,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppHeader } from "@/components/header/AppHeader";
+import { preloadSettingsDialog } from "@/components/settings/settings-preload";
 import { createQueryWrapper } from "@/test/query";
+
+// The real preload imports the whole settings dialog, which can finish after the test environment
+// is torn down and fail the run.
+vi.mock("@/components/settings/settings-preload", () => ({ preloadSettingsDialog: vi.fn() }));
 
 vi.mock("@/lib/api/system", () => ({
   fetchSystemInfo: vi.fn().mockResolvedValue({
@@ -67,6 +72,7 @@ describe("AppHeader", () => {
     await user.click(screen.getByRole("button", { name: "Open settings" }));
     expect(props.onAddService).toHaveBeenCalled();
     expect(props.onOpenSettings).toHaveBeenCalled();
+    expect(preloadSettingsDialog).toHaveBeenCalled();
 
     expect(await screen.findByText("nas")).toBeTruthy();
     expect(screen.getByText("up 3d 5h")).toBeTruthy();

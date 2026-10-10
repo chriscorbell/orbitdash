@@ -116,12 +116,65 @@ For backup and restore steps, including SQLite WAL files and icon assets, see
 The backend listens on port `3001` by default outside the container. Override it with `PORT=<port>`.
 
 The disk metric uses `/` by default. Override it with `ORBITDASH_DISK_PATH=/path/to/mount` when you
-need to track a different mount.
+need to track a different mount. With `ORBITDASH_HOST_ROOT` set (see below), this is a path on the
+host, and the default `/` is the host's root filesystem.
 
 Logs are JSON lines on stdout/stderr. `LOG_LEVEL` sets the minimum level written: `debug`, `info`
 (default), `warn` or `error`. Successful health checks, icon and asset requests, and the live
 event streams are logged at `debug`; other successful requests at `info`; 4xx responses at `warn`;
 5xx responses at `error`.
+
+## Host Metrics
+
+orbitdash reads metrics straight from the kernel's `/proc` and `/sys`; there is no agent to install.
+It collects:
+
+- **CPU**: total and per-core usage, load average, frequency, and the CPU temperature
+- **Temperatures**: hwmon sensors (`coretemp`, `k10temp`, NVMe drives and others), or thermal zones
+  where there are none
+- **Memory**: used, available, cache and swap
+- **Filesystems**: size and use of every local filesystem; virtual, network, snap and container
+  filesystems are left out
+- **Disk I/O**: read and write rates per physical disk
+- **Network**: receive and send rates per interface; loopback, Docker, bridge and VM interfaces are
+  left out
+
+`GET /api/metrics/host` returns the latest reading, and `GET /api/events?topics=host` streams a new
+one every second. `GET /api/system` returns the hostname, OS, kernel, CPU model and uptime.
+Anything that can't be read on a platform (macOS, or a restricted container) is left out rather
+than failing.
+
+### Seeing the host from Docker
+
+Inside a container, orbitdash already sees the host's CPU, memory, temperatures and disk I/O. It
+only sees its own network interfaces, its own mounts and its image's OS name. To show the host's,
+mount the host's root filesystem read-only and point `ORBITDASH_HOST_ROOT` at it:
+
+```yaml
+services:
+  orbitdash:
+    container_name: orbitdash
+    image: ghcr.io/chriscorbell/orbitdash:latest
+    restart: unless-stopped
+    ports:
+      - "7770:3000"
+    environment:
+      - ORBITDASH_HOST_ROOT=/mnt/host
+    volumes:
+      - ./orbitdash-data:/data
+      - /:/mnt/host:ro
+```
+
+With `docker run`, add `-e ORBITDASH_HOST_ROOT=/mnt/host -v /:/mnt/host:ro`.
+
+orbitdash then reads the host's `/proc`, `/sys`, mount table, `/etc/hostname` and `/etc/os-release`
+under `/mnt/host`. The mount is read-only and the container still runs as its unprivileged user:
+it needs no `privileged: true` and no extra capabilities. Use `/:/mnt/host:ro,rslave` instead if
+drives you mount after the container starts should show up too.
+
+If you only need the host's network interfaces, `network_mode: host` works without the mount.
+Docker then ignores `ports:`, and the dashboard listens on the host's port `3000` (change it with
+`PORT`).
 
 ## Health Checks
 
