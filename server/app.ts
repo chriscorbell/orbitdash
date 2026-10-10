@@ -7,14 +7,13 @@ import settingsRouter from "./routes/settings";
 import servicesRouter from "./routes/services";
 import { jsonError, jsonNotFound } from "./api-response";
 import { isDbHealthy } from "./db";
-import { getRequestMetricsSnapshot, logOperationalError, recordRequest } from "./observability";
+import { logOperationalError, recordRequest } from "./observability";
 import { getIconsDir } from "./services/icon-storage";
 
 export const app = new Hono();
 
 function createHealthPayload(status: "ok" | "error") {
   return {
-    observability: getRequestMetricsSnapshot(),
     status,
     service: "orbitdash",
     observedAt: new Date().toISOString(),

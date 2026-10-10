@@ -1,16 +1,34 @@
-interface RequestMetricsSnapshot {
-  failuresTotal: number;
-  lastFailureAt: string | null;
-  requestsTotal: number;
-}
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
-const requestMetrics = {
-  failuresTotal: 0,
-  lastFailureAt: null as string | null,
-  requestsTotal: 0,
+const LOG_LEVEL_RANK: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
 };
 
-function writeLog(level: "error" | "info", event: string, payload: Record<string, unknown>) {
+const DEFAULT_LOG_LEVEL: LogLevel = "info";
+
+// Successful hits on these are routine noise (Docker healthchecks, icon and asset fetches, the
+// long-lived metrics stream), so they only show up at LOG_LEVEL=debug.
+const QUIET_PATHS = new Set(["/healthz", "/readyz", "/api/health", "/api/metrics/stream"]);
+const QUIET_PATH_PREFIXES = ["/api/icons/", "/assets/"];
+
+function isLogLevel(value: string): value is LogLevel {
+  return Object.hasOwn(LOG_LEVEL_RANK, value);
+}
+
+/** Reads `LOG_LEVEL`, falling back to `info` when it is unset or not a known level. */
+export function getLogLevel(): LogLevel {
+  const configured = process.env.LOG_LEVEL?.trim().toLowerCase();
+  return configured && isLogLevel(configured) ? configured : DEFAULT_LOG_LEVEL;
+}
+
+export function writeLog(level: LogLevel, event: string, payload: Record<string, unknown> = {}) {
+  if (LOG_LEVEL_RANK[level] < LOG_LEVEL_RANK[getLogLevel()]) {
+    return;
+  }
+
   const line = JSON.stringify({
     level,
     event,
@@ -20,10 +38,27 @@ function writeLog(level: "error" | "info", event: string, payload: Record<string
 
   if (level === "error") {
     console.error(line);
-    return;
+  } else if (level === "warn") {
+    console.warn(line);
+  } else {
+    console.log(line);
+  }
+}
+
+function isQuietPath(path: string): boolean {
+  return QUIET_PATHS.has(path) || QUIET_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
+export function getRequestLogLevel(path: string, status: number): LogLevel {
+  if (status >= 500) {
+    return "error";
   }
 
-  console.log(line);
+  if (status >= 400) {
+    return "warn";
+  }
+
+  return isQuietPath(path) ? "debug" : "info";
 }
 
 export function recordRequest(
@@ -32,13 +67,7 @@ export function recordRequest(
   status: number,
   durationMs: number
 ): void {
-  requestMetrics.requestsTotal += 1;
-  if (status >= 400) {
-    requestMetrics.failuresTotal += 1;
-    requestMetrics.lastFailureAt = new Date().toISOString();
-  }
-
-  writeLog("info", "request.completed", {
+  writeLog(getRequestLogLevel(path, status), "request.completed", {
     durationMs,
     method,
     path,
@@ -62,14 +91,4 @@ export function logJobFailure(job: string, error: unknown): void {
     job,
     message: error instanceof Error ? error.message : "unknown error",
   });
-}
-
-export function getRequestMetricsSnapshot(): RequestMetricsSnapshot {
-  return { ...requestMetrics };
-}
-
-export function resetObservabilityForTesting(): void {
-  requestMetrics.failuresTotal = 0;
-  requestMetrics.lastFailureAt = null;
-  requestMetrics.requestsTotal = 0;
 }
