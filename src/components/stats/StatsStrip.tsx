@@ -1,9 +1,11 @@
 import { lazy, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Cpu, HardDrive, MemoryStick, type LucideIcon } from "lucide-react";
 import { Sparkline } from "@/components/stats/Sparkline";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useTweenedNumber } from "@/hooks/useTweenedNumber";
+import { fetchSystemInfo } from "@/lib/api/system";
 import { formatPercent } from "@/lib/format";
 import { MAX_POINTS } from "@/lib/live/metrics-store";
 import { sparklineCeiling } from "@/lib/sparkline";
@@ -82,13 +84,19 @@ function ConnectionNote({ status, hasData }: { hasData: boolean; status: string 
   );
 }
 
-/** Live host metrics as a compact row of tiles; the only component that subscribes to samples. */
-/** Firing threshold alerts above the tiles; its own component so samples don't re-render it. */
 // Alert wording and formatting load only once something is firing.
 const AlertList = lazy(() =>
   import("@/components/stats/AlertList").then((module) => ({ default: module.AlertList }))
 );
 
+// Only hosts with Docker set up load the containers tile.
+const ContainersTile = lazy(() =>
+  import("@/components/docker/ContainersTile").then((module) => ({
+    default: module.ContainersTile,
+  }))
+);
+
+/** Firing threshold alerts above the tiles; its own component so samples don't re-render it. */
 function StripAlerts() {
   const { active } = useAlerts();
   if (active.length === 0) return null;
@@ -99,14 +107,23 @@ function StripAlerts() {
   );
 }
 
-export function StatsStrip() {
+/** Live host metrics as a compact row of tiles; the only component that subscribes to samples. */
+export function StatsStrip({ linkToStats = false }: { linkToStats?: boolean }) {
   const { samples, latest, status, error } = useMetrics();
   const history = (key: MetricKey) => samples.map((sample: MetricSample) => sample[key]);
+  const { data: system } = useQuery({
+    queryKey: ["system"],
+    queryFn: fetchSystemInfo,
+    staleTime: 10 * 60_000,
+  });
+  const docker = system?.docker ?? false;
 
   return (
     <section aria-label="Live stats" className="space-y-2">
       <StripAlerts />
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div
+        className={cn("grid gap-2 sm:gap-3", docker ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3")}
+      >
         {METRICS.map(({ key, label, Icon }) => (
           <StatTile
             key={key}
@@ -116,6 +133,13 @@ export function StatsStrip() {
             value={latest ? latest[key] : null}
           />
         ))}
+        {docker && (
+          <Suspense
+            fallback={<div className="rounded-xl border bg-card shadow-xs" aria-hidden="true" />}
+          >
+            <ContainersTile linkToStats={linkToStats} />
+          </Suspense>
+        )}
       </div>
       {error && samples.length === 0 ? (
         <p className="text-xs text-destructive" role="status">

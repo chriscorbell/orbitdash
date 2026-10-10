@@ -43,7 +43,7 @@ export function BulkActionBar({
     <div
       role="toolbar"
       aria-label="Selected services"
-      className="fixed bottom-0 left-1/2 z-30 mb-4 flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-lg animate-in fade-in-0 slide-in-from-bottom-2 duration-200 motion-reduce:animate-none"
+      className="fixed bottom-0 left-1/2 z-30 mb-4 flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none"
       onKeyDown={(event) => {
         if (event.key === "Escape") onClear();
       }}

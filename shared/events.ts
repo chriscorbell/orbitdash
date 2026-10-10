@@ -1,11 +1,25 @@
-import type { HostSnapshot, MetricAlert, MetricSample, ServiceStatus } from "./types";
+import type {
+  DockerSnapshot,
+  HostSnapshot,
+  MetricAlert,
+  MetricSample,
+  ServiceStatus,
+} from "./types";
 
 /**
  * Topics a client can subscribe to on GET /api/events?topics=... `metrics` carries the small
  * per-tick sample; `host` carries the full HostSnapshot from the same tick, for views that need it;
- * `status` carries a service's status after each check.
+ * `status` carries a service's status after each check; `containers` the Docker container list
+ * whenever it changes.
  */
-export const EVENT_TOPICS = ["metrics", "config", "host", "alerts", "status"] as const;
+export const EVENT_TOPICS = [
+  "metrics",
+  "config",
+  "host",
+  "alerts",
+  "status",
+  "containers",
+] as const;
 export type EventTopic = (typeof EVENT_TOPICS)[number];
 
 /** What a config change touched, so clients refetch only what they need. */
@@ -41,11 +55,19 @@ export interface StatusEvent {
   type: "status";
 }
 
-export type ServerEvent = AlertEvent | ConfigChangedEvent | HostEvent | MetricsEvent | StatusEvent;
+/** The Docker container list after something changed (state, health, CPU or memory). */
+export interface ContainersEvent {
+  snapshot: DockerSnapshot;
+  type: "containers";
+}
+
+export type ServerEvent =
+  AlertEvent | ConfigChangedEvent | ContainersEvent | HostEvent | MetricsEvent | StatusEvent;
 
 export const TOPIC_BY_EVENT_TYPE: Record<ServerEvent["type"], EventTopic> = {
   alert: "alerts",
   "config.changed": "config",
+  containers: "containers",
   host: "host",
   metrics: "metrics",
   status: "status",
@@ -73,7 +95,9 @@ export function configScopeForMutation(path: string): ConfigScope | null {
   if (path.startsWith("/api/backup")) return null;
   if (path.startsWith("/api/settings/category-order")) return "layout";
   if (path.startsWith("/api/settings") || path.startsWith("/api/alerts")) return "settings";
-  if (path.startsWith("/api/widgets/agenda/feeds")) return "settings";
+  if (path.startsWith("/api/widgets/agenda/feeds") || path.startsWith("/api/discovery")) {
+    return "settings";
+  }
   if (path.startsWith("/api/services") || path.startsWith("/api/categories")) return "layout";
   return null;
 }

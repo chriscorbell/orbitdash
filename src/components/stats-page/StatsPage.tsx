@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertsCard } from "@/components/stats-page/AlertsCard";
+import { ContainersCard } from "@/components/docker/ContainersCard";
 import { TimeChart, type ChartSeries } from "@/components/stats-page/TimeChart";
 import { fetchHostSnapshot, subscribeHostSnapshots } from "@/lib/api/host";
 import { fetchMetricHistory } from "@/lib/api/history";
@@ -162,6 +163,8 @@ export function StatsPage({ themeKey }: StatsPageProps) {
       </div>
 
       {current && current.cpu.cores.length > 0 && <CoreHeatStrip snapshot={current} />}
+
+      <ContainersCard />
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="space-y-4">

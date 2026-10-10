@@ -105,13 +105,13 @@ export function ServiceTagsField({
           {tags.map((tag) => (
             <li
               key={tag}
-              className="inline-flex h-6 items-center gap-0.5 rounded-full bg-secondary pl-2.5 pr-0.5 text-xs font-medium text-secondary-foreground animate-in fade-in-0 zoom-in-95 duration-150 motion-reduce:animate-none"
+              className="inline-flex h-6 items-center gap-0.5 rounded-full bg-secondary p-0.5 pl-2.5 text-xs font-medium text-secondary-foreground animate-in fade-in-0 zoom-in-95 duration-150 motion-reduce:animate-none"
             >
               {tag}
               <button
                 type="button"
                 aria-label={`Remove tag ${tag}`}
-                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => remove(tag)}
               >
                 <X aria-hidden="true" className="h-3 w-3" />

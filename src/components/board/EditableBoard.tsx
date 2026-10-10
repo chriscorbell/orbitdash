@@ -614,7 +614,7 @@ function EditableCategory({
           <SelectToggle
             checked={groupSelectionState(selected, serviceIds)}
             label={`Select all in ${group.name}`}
-            className={cn("ml-1.5", !selecting && REVEAL_TOGGLE)}
+            className={cn("ml-2", !selecting && REVEAL_TOGGLE)}
             onToggle={() => onToggleGroup(serviceIds)}
           />
         )}

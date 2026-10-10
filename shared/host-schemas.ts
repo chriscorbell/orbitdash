@@ -1,5 +1,12 @@
 import { z } from "zod";
-import type { HostSnapshot, MetricHistory, MetricHistoryRange, SystemInfo } from "./types";
+import type {
+  DiscoveryResponse,
+  DockerSnapshot,
+  HostSnapshot,
+  MetricHistory,
+  MetricHistoryRange,
+  SystemInfo,
+} from "./types";
 
 /** Bumped when HostSnapshot changes in a way older clients can't read. */
 export const HOST_SNAPSHOT_VERSION = 1;
@@ -63,6 +70,7 @@ export const systemInfoSchema = z.object({
   osName: z.string().nullable(),
   platform: z.string(),
   uptimeSeconds: z.number(),
+  docker: z.boolean(),
 }) satisfies z.ZodType<SystemInfo>;
 
 /** Every range GET /api/metrics/history accepts, shortest first. */
@@ -94,3 +102,48 @@ export const metricHistorySchema = z.object({
     diskWrite: historySeries,
   }),
 }) satisfies z.ZodType<MetricHistory>;
+
+export const dockerSnapshotSchema = z.object({
+  configured: z.boolean(),
+  available: z.boolean(),
+  error: z.string().nullable(),
+  containers: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      image: z.string(),
+      state: z.enum(["created", "running", "paused", "restarting", "removing", "exited", "dead"]),
+      status: z.string(),
+      health: z.enum(["healthy", "unhealthy", "starting"]).nullable(),
+      createdAt: z.number(),
+      ports: z.array(
+        z.object({
+          privatePort: z.number(),
+          publicPort: z.number(),
+          protocol: z.enum(["tcp", "udp", "sctp"]),
+        })
+      ),
+      composeProject: z.string().nullable(),
+      cpuPercent: z.number().nullable(),
+      memoryBytes: z.number().nullable(),
+      memoryLimitBytes: z.number().nullable(),
+    })
+  ),
+  updatedAt: z.number().nullable(),
+}) satisfies z.ZodType<DockerSnapshot>;
+
+export const discoveryResponseSchema = z.object({
+  suggestions: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      url: z.string().nullable(),
+      port: z.number().nullable(),
+      iconUrl: z.string().nullable(),
+      category: z.string().nullable(),
+      description: z.string().nullable(),
+      source: z.enum(["labels", "port"]),
+    })
+  ),
+  dismissed: z.number(),
+}) satisfies z.ZodType<DiscoveryResponse>;

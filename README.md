@@ -50,6 +50,9 @@ version before creating the matching tag.
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
 - Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
+- Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
+- Running containers that aren't on the dashboard yet are suggested, from their labels or published ports
+- An optional Prometheus `/metrics` endpoint with host, status check and container metrics
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - An internal and an external URL per service: cards open the one that fits the address you
   reached the dashboard at, plus up to 5 extra named links (Admin, Logs) in a menu on the card
@@ -388,6 +391,66 @@ If you only need the host's network interfaces, `network_mode: host` works witho
 Docker then ignores `ports:`, and the dashboard listens on the host's port `3000` (change it with
 `PORT`).
 
+## Docker Containers
+
+With access to Docker, orbitdash shows a Containers tile in the stats strip (running out of total,
+plus anything unhealthy, restarting or stopped) and a Containers list on the Stats page with each
+container's state, health, CPU (as a share of the whole host), memory and published ports. Ports
+link to the same host the dashboard was opened on. Updates arrive within a second of Docker
+reporting a change; CPU and memory refresh every 15 seconds. orbitdash only ever reads from
+Docker.
+
+The safest setup is a [docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy)
+that only allows reading containers, so orbitdash never touches the socket itself:
+
+```yaml
+services:
+  orbitdash:
+    image: ghcr.io/chriscorbell/orbitdash:latest
+    environment:
+      - ORBITDASH_DOCKER_HOST=tcp://dockerproxy:2375
+    # ...ports and volumes as above
+
+  dockerproxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1 # list and inspect containers
+      - EVENTS=1 # live updates (on by default)
+      - POST=0 # nothing can be changed
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+Mounting the socket straight into orbitdash also works (`- /var/run/docker.sock:/var/run/docker.sock`),
+but it gives the container full control of Docker: `:ro` on a socket doesn't stop writes. The
+container runs as uid 1000, which also needs to be in the socket's group (`group_add:` with the
+group id from `stat -c %g /var/run/docker.sock`). orbitdash finds a socket at
+`/var/run/docker.sock` on its own; `ORBITDASH_DOCKER_HOST` (or `DOCKER_HOST`) takes
+`tcp://host:port` or `unix:///path/to/socket`, and `ORBITDASH_DOCKER_HOST=off` turns Docker
+support off.
+
+### Adding containers as services
+
+When running containers aren't on the dashboard yet, a line above the board says so, and
+**Review** lists them with a name, link, icon and category filled in, ready to add or dismiss.
+Suggestions come from container labels first:
+
+| Label                                            | Used for                                       |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `orbitdash.name` / `homepage.name`               | Service name                                   |
+| `orbitdash.url` / `homepage.href`                | Link                                           |
+| `orbitdash.icon` / `homepage.icon`               | Icon: a URL or a dashboard-icons/selfh.st name |
+| `orbitdash.category` / `homepage.group`          | Category                                       |
+| `orbitdash.description` / `homepage.description` | Description                                    |
+| `orbitdash.enable=false`                         | Never suggest this container                   |
+
+A container without labels is suggested when it publishes a port that looks like a web UI, linked
+on the host you opened the dashboard from, with its name and icon matched against the icon
+library ("media-qbittorrent-1" becomes qBittorrent). Containers already on the dashboard (same link,
+or same port) aren't suggested, and dismissed ones stay hidden until you bring them back from the
+same dialog. Homepage's `homepage.widget.*` labels, which hold API keys, are never read.
+
 ## Status Checks
 
 Status checks are off until you turn one on in a service's settings, so upgrading never makes
@@ -463,6 +526,29 @@ interval, or deletes the selection, with one Undo for all of it. Each action is 
 (`POST /api/services/bulk/move`, `/bulk/delete`, `/bulk/restore` and `/bulk/checks`, all taking
 `{ "ids": [...] }`), applied in one transaction. External URLs, links and tags are part of backups;
 older backup files import without them.
+
+## Prometheus
+
+Set `ORBITDASH_PROMETHEUS=true` to serve metrics at `/metrics` in Prometheus text format: CPU
+(total and per core), load, memory and swap, each filesystem, disk and network rates,
+temperatures, firing alerts, each service's status check (`orbitdash_service_up`,
+`orbitdash_service_slow`, `orbitdash_service_response_milliseconds`, labelled with the service and
+category names) and, with Docker set up, containers by state and each container's running,
+health, CPU and memory. It's off by default.
+
+Set `ORBITDASH_PROMETHEUS_TOKEN` to require `Authorization: Bearer <token>`. With
+[authentication](#authentication) on, the token is required: the endpoint stays closed until one is
+set, since a scraper can't sign in.
+
+```yaml
+scrape_configs:
+  - job_name: orbitdash
+    metrics_path: /metrics
+    authorization:
+      credentials: your-token
+    static_configs:
+      - targets: ["orbitdash:3000"]
+```
 
 ## Health Checks
 

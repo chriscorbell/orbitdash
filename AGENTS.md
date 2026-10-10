@@ -53,6 +53,8 @@ Use this file as a practical handoff for future agents working in this repositor
   - `ORBITDASH_DATA_DIR`
   - `ORBITDASH_DISK_PATH`
   - `ORBITDASH_HOST_ROOT` (a read-only mount of the host's `/`; host metrics are read under it)
+  - `ORBITDASH_DOCKER_HOST` (Docker endpoint: `tcp://dockerproxy:2375`, `unix:///...`, or `off`; a mounted `/var/run/docker.sock` is found without it)
+  - `ORBITDASH_PROMETHEUS` / `ORBITDASH_PROMETHEUS_TOKEN` (`/metrics` endpoint, off by default; the token is required while auth is on)
   - `ORBITDASH_SEED_FILE` (services to add on a fresh install; defaults to `/data/seed.yaml`)
   - `PORT`
   - `NODE_ENV`

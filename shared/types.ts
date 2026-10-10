@@ -126,6 +126,8 @@ export interface SystemInfo {
   osName: string | null; // PRETTY_NAME from the host's os-release
   platform: string;
   uptimeSeconds: number;
+  /** A Docker endpoint is set up and answering. */
+  docker: boolean;
 }
 
 /** How a status check reaches a service: an HTTP request, or a plain TCP connect. */
@@ -457,6 +459,37 @@ export interface ImportResult {
   snapshot: string | null; // the snapshot taken before importing
 }
 
+export type ContainerState =
+  "created" | "running" | "paused" | "restarting" | "removing" | "exited" | "dead";
+
+/** A Docker container as the dashboard shows it. */
+export interface ContainerInfo {
+  id: string; // short id
+  name: string;
+  image: string;
+  state: ContainerState;
+  /** Docker's own summary, e.g. "Up 3 hours (healthy)" or "Exited (0) 2 days ago". */
+  status: string;
+  health: "healthy" | "unhealthy" | "starting" | null;
+  createdAt: number; // ms
+  /** Published ports, deduplicated across IPv4 and IPv6. */
+  ports: Array<{ privatePort: number; publicPort: number; protocol: "tcp" | "udp" | "sctp" }>;
+  composeProject: string | null;
+  cpuPercent: number | null; // share of the whole host, 0 to 100
+  memoryBytes: number | null;
+  memoryLimitBytes: number | null;
+}
+
+/** Response shape for GET /api/docker */
+export interface DockerSnapshot {
+  /** Whether a Docker endpoint is configured or a socket is mounted. */
+  configured: boolean;
+  available: boolean;
+  error: string | null;
+  containers: ContainerInfo[];
+  updatedAt: number | null;
+}
+
 /** Response shape for POST /api/service-tools/inspect: what a link's page says about itself. */
 export interface ServiceInspection {
   /** The link as it will be saved. */
@@ -480,4 +513,25 @@ export interface ServiceTestResult {
   latencyMs: number | null;
   statusCode: number | null;
   error: string | null;
+}
+
+/** A running container that could become a service, from GET /api/discovery. */
+export interface DiscoverySuggestion {
+  /** The container's name, which stays the same when compose recreates it. */
+  key: string;
+  name: string;
+  /** A link from the container's labels. */
+  url: string | null;
+  /** Otherwise its published web port; the browser links it on the host it was opened from. */
+  port: number | null;
+  iconUrl: string | null;
+  category: string | null;
+  description: string | null;
+  source: "labels" | "port";
+}
+
+export interface DiscoveryResponse {
+  suggestions: DiscoverySuggestion[];
+  /** How many were dismissed, so they can be brought back. */
+  dismissed: number;
 }

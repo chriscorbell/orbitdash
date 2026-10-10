@@ -6,7 +6,7 @@ const distDir = path.resolve(process.cwd(), "dist");
 const distAssetsDir = path.join(distDir, "assets");
 
 const budgets = [
-  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 64, maxGzipKb: 21.5 },
+  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 66, maxGzipKb: 22.5 },
   // Response schemas and settings defaults, loaded with the entry; see vite.config.ts.
   { label: "api schemas", prefix: "api-schemas-", extension: ".js", maxRawKb: 7, maxGzipKb: 3 },
   {

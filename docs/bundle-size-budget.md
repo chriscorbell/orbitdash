@@ -44,9 +44,9 @@ happens.
 
 | Asset group             | Budget raw | Budget gzip | Current baseline                             |
 | ----------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`            |      64 kB |     21.5 kB | about 62 kB raw / 21.1 kB gzip / 18.6 kB br  |
+| `index-*.js`            |      66 kB |     22.5 kB | about 65 kB raw / 21.9 kB gzip / 19.3 kB br  |
 | `api-schemas-*.js`      |       7 kB |        3 kB | about 5 kB raw / 2.3 kB gzip / 2.0 kB br     |
-| `index-*.css`           |      92 kB |       15 kB | about 91 kB raw / 14.7 kB gzip / 12.3 kB br  |
+| `index-*.css`           |      92 kB |       15 kB | about 92 kB raw / 14.9 kB gzip / 12.4 kB br  |
 | `react-vendor-*.js`     |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`           |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
 | `validation-*.js`       |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
@@ -94,20 +94,21 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 
 - Internal and external URLs, extra links, tags and bulk edits. The first paint gained the new
   service fields in the response schema, the link preference setting, the address check that picks
-  a card's URL (`src/lib/link-target.ts`) and the hook-up for the links menu: about 1.0 kB gzip,
-  plus 0.2 kB in `icons-*`, which holds every Lucide icon the app uses.
-  Everything else is lazy: the links menu of a card (`ServiceLinksMenu-*`, 0.5 kB gzip, plus the
+  a card's URL (`src/lib/link-target.ts`) and the hook-up for the links menu: about 0.9 kB gzip,
+  plus 0.4 kB in `icons-*`, which holds every Lucide icon the app uses. Everything else is lazy: the links menu of a card (`ServiceLinksMenu-*`, 0.5 kB gzip, plus the
   dropdown menu it shares with the editor, about 6.5 kB gzip), the dialog fields (in
   `ServiceDialog-*`) and selection with the bulk bar and its API calls (in `EditableBoard-*`). Since
   the editor's bulk actions parse responses with the same schemas as the first render, the bundler
   split `src/lib/api/schemas.ts` out of the entry on its own; it is now the named `api-schemas`
   group, loaded with the entry and tracked with its own budget of 7 kB / 3 kB. The entry fell to
-  about 62 kB / 21.1 kB gzip, so its budget comes down from 68 kB / 23 kB to 64 kB / 21.5 kB:
-  together the two leave about 1 kB gzip of headroom, close to the 0.7 kB the entry had. The
+  about 65 kB / 21.9 kB gzip (it also took in Vite's small preload helper, which used to be a
+  chunk of its own), so its budget comes down from 68 kB / 23 kB to 66 kB / 22.5 kB. Together the
+  two leave about 1.3 kB gzip of headroom, against about 0.6 kB for the entry alone before. The
   dropdown menu moved from `EditableBoard-*` into a chunk it shares with the links menu, so the
-  editor chunk itself shrank to about 6.9 kB gzip. The CSS stays at about 91 kB raw: the card
-  menu, the selection checkboxes and the bulk bar reuse existing utilities apart from a handful of
-  hover and focus variants.
+  editor chunk itself shrank to about 6.9 kB gzip. The card menu, the selection checkboxes and the
+  bulk bar reuse existing utilities apart from a handful of hover and focus variants, which took
+  the CSS from about 91.3 kB to 91.9 kB raw of its 92 kB budget: the next UI change has to trim
+  CSS or raise that budget with a note.
 - Clock, weather and agenda widgets load in a lazy `Widgets-*` chunk (about 3.6 kB gzip) only once
   one is turned on, and their settings in `WidgetSettings-*` (about 2.5 kB gzip) as the settings
   dialog opens. The entry gained the widgets settings section and the clock format. The event

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  discoveryResponseSchema,
+  dockerSnapshotSchema,
   HOST_SNAPSHOT_VERSION,
   hostSnapshotSchema,
   METRIC_HISTORY_RANGES,
@@ -53,7 +55,69 @@ const systemInfo: SystemInfo = {
   osName: "Ubuntu 24.04.1 LTS",
   platform: "linux",
   uptimeSeconds: 90_061,
+  docker: true,
 };
+
+describe("discovery schema", () => {
+  it("accepts suggestions and rejects unknown sources", () => {
+    const response = {
+      suggestions: [
+        {
+          key: "jellyfin",
+          name: "Jellyfin",
+          url: null,
+          port: 8096,
+          iconUrl: null,
+          category: null,
+          description: null,
+          source: "port",
+        },
+      ],
+      dismissed: 0,
+    } as const;
+    expect(discoveryResponseSchema.parse(response)).toEqual(response);
+    expect(
+      discoveryResponseSchema.safeParse({
+        ...response,
+        suggestions: [{ ...response.suggestions[0], source: "guess" }],
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe("docker snapshot schema", () => {
+  it("accepts snapshots and rejects unknown states", () => {
+    const snapshot = {
+      configured: true,
+      available: true,
+      error: null,
+      containers: [
+        {
+          id: "abc",
+          name: "web",
+          image: "nginx",
+          state: "running",
+          status: "Up 1 hour",
+          health: null,
+          createdAt: 1,
+          ports: [{ privatePort: 80, publicPort: 8080, protocol: "tcp" }],
+          composeProject: null,
+          cpuPercent: 1.5,
+          memoryBytes: 10,
+          memoryLimitBytes: null,
+        },
+      ],
+      updatedAt: 2,
+    } as const;
+    expect(dockerSnapshotSchema.parse(snapshot)).toEqual(snapshot);
+    expect(
+      dockerSnapshotSchema.safeParse({
+        ...snapshot,
+        containers: [{ ...snapshot.containers[0], state: "zombie" }],
+      }).success
+    ).toBe(false);
+  });
+});
 
 describe("host snapshot schema", () => {
   it("accepts a full snapshot and one from a machine it could barely read", () => {
