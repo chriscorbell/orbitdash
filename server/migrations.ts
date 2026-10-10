@@ -276,6 +276,20 @@ const migrations: Migration[] = [
       )`,
     ],
   },
+  {
+    id: 11,
+    name: "service-urls-links-tags",
+    // A second URL for outside your network, extra named links, and tags. Links and tags are
+    // small JSON arrays on the row rather than tables of their own, so the trash (which keeps the
+    // whole row), duplicates and backups carry them without extra work.
+    statements: [
+      `ALTER TABLE services ADD COLUMN external_url TEXT`,
+      `ALTER TABLE services ADD COLUMN links TEXT NOT NULL DEFAULT '[]'
+       CHECK (json_valid(links) AND json_type(links) = 'array')`,
+      `ALTER TABLE services ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'
+       CHECK (json_valid(tags) AND json_type(tags) = 'array')`,
+    ],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {

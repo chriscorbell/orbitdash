@@ -10,6 +10,14 @@ export type ThemePreference = (typeof THEME_OPTIONS)[number];
 export const STATS_POSITION_OPTIONS = ["top", "bottom"] as const;
 export type StatsPosition = (typeof STATS_POSITION_OPTIONS)[number];
 
+/**
+ * Which URL a card opens when a service has an external one too: auto picks from the address this
+ * dashboard was opened at, the others always pick the same one (a wall tablet on your network that
+ * reaches the dashboard through its public name, say).
+ */
+export const LINK_PREFERENCE_OPTIONS = ["auto", "internal", "external"] as const;
+export type LinkPreference = (typeof LINK_PREFERENCE_OPTIONS)[number];
+
 export const ACCENT_OPTIONS = ["ice", "mint", "amber", "rose", "violet", "graphite"] as const;
 export type AccentPreset = (typeof ACCENT_OPTIONS)[number];
 
@@ -54,6 +62,7 @@ export interface DashboardLayoutSettings {
   showStats: boolean;
   /** The Stats page and its tab in the header. */
   showStatsPage: boolean;
+  linkPreference: LinkPreference;
 }
 
 export interface DashboardAppearanceSettings {
@@ -123,6 +132,7 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
     showServices: true,
     showStats: true,
     showStatsPage: true,
+    linkPreference: "auto",
   },
   search: {
     engine: "duckduckgo",
@@ -206,6 +216,7 @@ const FIELD_VALIDATORS: {
     showServices: isBoolean,
     showStats: isBoolean,
     showStatsPage: isBoolean,
+    linkPreference: oneOf(LINK_PREFERENCE_OPTIONS),
   },
   search: {
     engine: oneOf(SEARCH_ENGINE_OPTIONS),

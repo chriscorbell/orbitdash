@@ -23,12 +23,14 @@ import {
 } from "@/components/settings/SettingsRows";
 import { DashboardImportSettings } from "@/components/settings/DashboardImportSettings";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
+import { resolveLinkTarget } from "@/lib/link-target";
 import type {
   BoardMode,
   CardDensity,
   DashboardAppearanceSettings,
   DashboardSearchSettings,
   DashboardWidgetSettings,
+  LinkPreference,
   StatsPosition,
 } from "@shared/dashboard-settings";
 import { Columns3, LayoutGrid, LayoutList, List, LogOut, PencilRuler, Rows3 } from "lucide-react";
@@ -56,6 +58,7 @@ interface SettingsDialogProps {
   account?: SettingsAccount;
   appearance: DashboardAppearanceSettings;
   density: CardDensity;
+  linkPreference: LinkPreference;
   mode: BoardMode;
   open: boolean;
   search: DashboardSearchSettings;
@@ -70,6 +73,7 @@ interface SettingsDialogProps {
   onAppearancePreview: (appearance: Partial<DashboardAppearanceSettings> | null) => void;
   onDensityChange: (density: CardDensity) => void;
   onEditLayout: () => void;
+  onLinkPreferenceChange: (preference: LinkPreference) => void;
   onModeChange: (mode: BoardMode) => void;
   onSearchChange: (search: Partial<DashboardSearchSettings>) => void;
   onOpenChange: (open: boolean) => void;
@@ -94,6 +98,12 @@ const DENSITY_OPTIONS: readonly ChoiceOption<CardDensity>[] = [
 const STATS_POSITION_OPTIONS: readonly ChoiceOption<StatsPosition>[] = [
   { value: "top", label: "Above services" },
   { value: "bottom", label: "Below services" },
+];
+
+const LINK_PREFERENCE_OPTIONS: readonly ChoiceOption<LinkPreference>[] = [
+  { value: "auto", label: "Auto" },
+  { value: "internal", label: "Internal" },
+  { value: "external", label: "External" },
 ];
 
 function AccountRow({ account }: { account: SettingsAccount }) {
@@ -132,6 +142,7 @@ export function SettingsDialog({
   onWidgetsChange,
   appearance,
   density,
+  linkPreference,
   mode,
   open,
   search,
@@ -145,6 +156,7 @@ export function SettingsDialog({
   onAppearancePreview,
   onDensityChange,
   onEditLayout,
+  onLinkPreferenceChange,
   onModeChange,
   onSearchChange,
   onOpenChange,
@@ -256,6 +268,14 @@ export function SettingsDialog({
                 options={DENSITY_OPTIONS}
                 value={density}
                 onChange={onDensityChange}
+              />
+              <SettingsChoiceRow
+                id="link-preference"
+                title="Service links"
+                description={`For services with an external URL. Auto picks ${resolveLinkTarget("auto", window.location.hostname)} on this address.`}
+                options={LINK_PREFERENCE_OPTIONS}
+                value={linkPreference}
+                onChange={onLinkPreferenceChange}
               />
               <SettingsChoiceRow
                 id="stats-position"

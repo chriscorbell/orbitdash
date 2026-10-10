@@ -10,6 +10,7 @@ import type {
   MoveServicePayload,
   ReorderServicesPayload,
   ServiceCheckConfig,
+  ServiceLink,
   UpdateServicePayload,
 } from "@shared/types";
 import { apiFail, apiOk, getErrorMessage, type ApiResult } from "../api-response";
@@ -24,47 +25,65 @@ import {
 } from "./icon-storage";
 import type { ParsedServicePayload } from "./service-payloads";
 
-type ServiceRecord = Omit<Service, "open_in_new_tab" | "check_enabled" | "check_ignore_tls"> & {
+/** A services row as SQLite returns it: booleans as 0/1, links and tags as JSON text. */
+export type ServiceRecord = Omit<
+  Service,
+  "open_in_new_tab" | "check_enabled" | "check_ignore_tls" | "links" | "tags"
+> & {
   check_enabled: boolean | number;
   check_ignore_tls: boolean | number;
+  links: string;
   open_in_new_tab: boolean | number;
+  tags: string;
 };
-
-interface StoredServiceInput {
-  categoryId: string | null;
-  check: ServiceCheckConfig;
-  createdAt: number;
-  description: string | null;
-  icon: string | null;
-  iconSourceUrl: string | null;
-  id: string;
-  name: string;
-  openInNewTab: boolean;
-  position: number;
-  updatedAt: number;
-  url: string;
-}
 
 interface UpdatedServiceInput {
   categoryId: string | null;
   check: ServiceCheckConfig;
   description: string | null;
+  externalUrl: string | null;
   icon: string | null;
   iconSourceUrl: string | null;
+  links: ServiceLink[];
   name: string;
   openInNewTab: boolean;
   position: number;
+  tags: string[];
   updatedAt: number;
   url: string;
+}
+
+interface StoredServiceInput extends UpdatedServiceInput {
+  createdAt: number;
+  id: string;
 }
 
 const SERVICE_SELECT = `SELECT services.*, categories.name AS category
   FROM services LEFT JOIN categories ON categories.id = services.category_id`;
 
-function normalizeServiceRecord(service: ServiceRecord): Service {
+/** A JSON list column; the CHECK constraint keeps it an array, this guards the element shape. */
+function parseJsonList<T>(value: string, isItem: (item: unknown) => item is T): T[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(isItem) : [];
+  } catch {
+    return [];
+  }
+}
+
+const isTag = (item: unknown): item is string => typeof item === "string";
+const isLink = (item: unknown): item is ServiceLink =>
+  typeof item === "object" &&
+  item !== null &&
+  typeof (item as ServiceLink).label === "string" &&
+  typeof (item as ServiceLink).url === "string";
+
+export function normalizeServiceRecord(service: ServiceRecord): Service {
   return {
     ...service,
+    links: parseJsonList(service.links, isLink).map(({ label, url }) => ({ label, url })),
     open_in_new_tab: Boolean(service.open_in_new_tab),
+    tags: parseJsonList(service.tags, isTag),
     check_enabled: Boolean(service.check_enabled),
     check_ignore_tls: Boolean(service.check_ignore_tls),
   };
@@ -91,7 +110,7 @@ function checkColumnValues(check: ServiceCheckConfig): Array<string | number | n
   ];
 }
 
-function getServiceRecord(id: string): ServiceRecord | undefined {
+export function getServiceRecord(id: string): ServiceRecord | undefined {
   const db = getDb();
   return db.prepare(`${SERVICE_SELECT} WHERE services.id = ?`).get(id) as ServiceRecord | undefined;
 }
@@ -99,13 +118,16 @@ function getServiceRecord(id: string): ServiceRecord | undefined {
 function createStoredService(input: StoredServiceInput): Service {
   const db = getDb();
   db.prepare(
-    `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at,
+    `INSERT INTO services (id, name, url, external_url, links, tags, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at,
                            check_enabled, check_method, check_target, check_interval, check_ignore_tls)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     input.id,
     input.name,
     input.url,
+    input.externalUrl,
+    JSON.stringify(input.links),
+    JSON.stringify(input.tags),
     input.description,
     input.icon,
     input.iconSourceUrl,
@@ -124,13 +146,16 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
   const db = getDb();
   db.prepare(
     `UPDATE services SET
-       name = ?, url = ?, description = ?, icon = ?, icon_source_url = ?, category_id = ?,
-       position = ?, open_in_new_tab = ?, updated_at = ?,
+       name = ?, url = ?, external_url = ?, links = ?, tags = ?, description = ?, icon = ?,
+       icon_source_url = ?, category_id = ?, position = ?, open_in_new_tab = ?, updated_at = ?,
        check_enabled = ?, check_method = ?, check_target = ?, check_interval = ?, check_ignore_tls = ?
      WHERE id = ?`
   ).run(
     input.name,
     input.url,
+    input.externalUrl,
+    JSON.stringify(input.links),
+    JSON.stringify(input.tags),
     input.description,
     input.icon,
     input.iconSourceUrl,
@@ -208,12 +233,15 @@ export async function createService(
         check: check.value,
         createdAt: now,
         description: validatedPayload.description,
+        externalUrl: validatedPayload.external_url,
         icon: iconFilename,
         iconSourceUrl,
         id,
+        links: validatedPayload.links,
         name: validatedPayload.name,
         openInNewTab: validatedPayload.open_in_new_tab,
         position: nextServicePosition(categoryId),
+        tags: validatedPayload.tags,
         updatedAt: now,
         url: validatedPayload.url,
       });
@@ -238,6 +266,7 @@ export async function updateService(
   }
 
   const validatedPayload = validation.data;
+  const current = normalizeServiceRecord(existing);
   const check = resolveCheckConfig(storedCheckConfig(existing), validatedPayload);
   if (!check.ok) {
     return apiFail(400, check.error);
@@ -285,13 +314,19 @@ export async function updateService(
           validatedPayload.description !== undefined
             ? validatedPayload.description
             : existing.description,
+        externalUrl:
+          validatedPayload.external_url !== undefined
+            ? validatedPayload.external_url
+            : existing.external_url,
         icon: iconFilename,
         iconSourceUrl,
+        links: validatedPayload.links ?? current.links,
         name: validatedPayload.name !== undefined ? validatedPayload.name : existing.name,
         openInNewTab:
           validatedPayload.open_in_new_tab !== undefined
             ? validatedPayload.open_in_new_tab
             : Boolean(existing.open_in_new_tab),
+        tags: validatedPayload.tags ?? current.tags,
         updatedAt: Date.now(),
         url: validatedPayload.url !== undefined ? validatedPayload.url : existing.url,
       });
@@ -315,6 +350,7 @@ export function duplicateService(id: string): ApiResult<Service> {
   const newId = crypto.randomUUID();
   const now = Date.now();
   const db = getDb();
+  const copied = normalizeServiceRecord(existing);
   const icon = copyStoredIcon(existing.icon, newId);
 
   // The copy goes right after the original.
@@ -329,11 +365,14 @@ export function duplicateService(id: string): ApiResult<Service> {
       position: existing.position + 1,
       createdAt: now,
       description: existing.description,
+      externalUrl: existing.external_url,
       icon,
       iconSourceUrl: icon ? existing.icon_source_url : null,
       id: newId,
+      links: copied.links,
       name: `${existing.name} (copy)`,
       openInNewTab: Boolean(existing.open_in_new_tab),
+      tags: copied.tags,
       updatedAt: now,
       url: existing.url,
     });
@@ -355,7 +394,7 @@ export function restoreDeletedService(id: string): ApiResult<Service> {
   });
 }
 
-function listServiceIdsInCategory(categoryId: string | null, excludeId?: string): string[] {
+export function listServiceIdsInCategory(categoryId: string | null, excludeId?: string): string[] {
   return (
     getDb()
       .prepare("SELECT id FROM services WHERE category_id IS ? ORDER BY position ASC, name ASC")
@@ -365,7 +404,7 @@ function listServiceIdsInCategory(categoryId: string | null, excludeId?: string)
     .filter((id) => id !== excludeId);
 }
 
-function writePositions(categoryId: string | null, ids: readonly string[]): void {
+export function writePositions(categoryId: string | null, ids: readonly string[]): void {
   const update = getDb().prepare(
     "UPDATE services SET category_id = ?, position = ?, updated_at = ? WHERE id = ?"
   );

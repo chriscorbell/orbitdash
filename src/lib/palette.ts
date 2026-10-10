@@ -1,4 +1,4 @@
-import { scoreFields } from "@/lib/fuzzy";
+import { fuzzyScore, scoreFields } from "@/lib/fuzzy";
 import type { Service } from "@shared/types";
 
 export interface PaletteAction {
@@ -10,7 +10,14 @@ export interface PaletteAction {
 }
 
 export type PaletteItem =
-  | { kind: "service"; id: string; service: Service; score: number }
+  | {
+      kind: "service";
+      id: string;
+      service: Service;
+      score: number;
+      /** Tags the query matched, shown so a match by tag isn't a mystery. */
+      tags: string[];
+    }
   | { kind: "action"; id: string; action: PaletteAction; score: number }
   | { kind: "web"; id: "web-search"; query: string };
 
@@ -43,10 +50,20 @@ export function rankPaletteItems(
       const score = scoreFields(trimmed, [
         { text: service.name, weight: 1 },
         { text: service.category, weight: 0.6, scattered: false },
+        ...service.tags.map((tag) => ({ text: tag, weight: 0.6, scattered: false })),
         { text: service.description, weight: 0.55, scattered: false },
         { text: hostOf(service.url), weight: 0.5, scattered: false },
+        {
+          text: service.external_url && hostOf(service.external_url),
+          weight: 0.5,
+          scattered: false,
+        },
       ]);
-      return score === null ? null : { kind: "service", id: service.id, service, score };
+      if (score === null) return null;
+      const tags = service.tags.filter(
+        (tag) => fuzzyScore(trimmed, tag, { scattered: false }) !== null
+      );
+      return { kind: "service", id: service.id, service, score, tags };
     })
     .filter((item): item is Extract<PaletteItem, { kind: "service" }> => item !== null)
     .sort(

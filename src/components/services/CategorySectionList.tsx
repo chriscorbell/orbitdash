@@ -4,6 +4,7 @@ import { ServiceCard } from "@/components/ServiceCard";
 import { useCollapsedCategories } from "@/components/services/useCollapsedCategories";
 import type { BoardGroup } from "@/lib/board-groups";
 import { cardListClassName, estimateCategoryHeight, ROW_GRID } from "@/lib/board-layout";
+import type { LinkTarget } from "@/lib/link-target";
 import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 import type { Service } from "@shared/types";
 import { ChevronDown } from "lucide-react";
@@ -11,6 +12,7 @@ import { ChevronDown } from "lucide-react";
 interface CategorySectionListProps {
   density: CardDensity;
   groups: readonly BoardGroup[];
+  linkTarget: LinkTarget;
   mode: BoardMode;
 }
 
@@ -18,6 +20,7 @@ interface CategorySectionProps {
   collapsed: boolean;
   density: CardDensity;
   group: BoardGroup;
+  linkTarget: LinkTarget;
   listClassName: string;
   onToggle: (categoryKey: string) => void;
 }
@@ -26,6 +29,7 @@ const CategorySection = memo(function CategorySection({
   collapsed,
   density,
   group,
+  linkTarget,
   listClassName,
   onToggle,
 }: CategorySectionProps) {
@@ -62,7 +66,12 @@ const CategorySection = memo(function CategorySection({
         }
       >
         {group.services.map((service) => (
-          <ServiceCard key={service.id} service={service} density={density} />
+          <ServiceCard
+            key={service.id}
+            service={service}
+            density={density}
+            linkTarget={linkTarget}
+          />
         ))}
       </div>
     </section>
@@ -70,7 +79,12 @@ const CategorySection = memo(function CategorySection({
 });
 
 /** The board outside edit mode: categories of plain links that can be collapsed. */
-export function CategorySectionList({ density, groups, mode }: CategorySectionListProps) {
+export function CategorySectionList({
+  density,
+  groups,
+  linkTarget,
+  mode,
+}: CategorySectionListProps) {
   const { collapsed, toggle } = useCollapsedCategories(groups);
   const heightOf = useCallback(
     (group: BoardGroup) =>
@@ -90,6 +104,7 @@ export function CategorySectionList({ density, groups, mode }: CategorySectionLi
           collapsed={collapsed.includes(group.key)}
           density={density}
           group={group}
+          linkTarget={linkTarget}
           listClassName={cardListClassName(mode, density)}
           onToggle={toggle}
         />
@@ -99,11 +114,19 @@ export function CategorySectionList({ density, groups, mode }: CategorySectionLi
 }
 
 /** Services in one grid, for a board where nothing is categorized. */
-export function ServiceGrid({ density, services }: { density: CardDensity; services: Service[] }) {
+export function ServiceGrid({
+  density,
+  linkTarget,
+  services,
+}: {
+  density: CardDensity;
+  linkTarget: LinkTarget;
+  services: Service[];
+}) {
   return (
     <div className={ROW_GRID[density]}>
       {services.map((service) => (
-        <ServiceCard key={service.id} service={service} density={density} />
+        <ServiceCard key={service.id} service={service} density={density} linkTarget={linkTarget} />
       ))}
     </div>
   );

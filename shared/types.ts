@@ -142,11 +142,22 @@ export interface ServiceCheckConfig {
   check_ignore_tls: boolean; // accept self-signed and otherwise untrusted certificates
 }
 
+/** An extra named link on a service, such as "Admin" or "Logs", listed in its menu. */
+export interface ServiceLink {
+  label: string;
+  url: string;
+}
+
 /** Service link stored in the database */
 export interface Service extends ServiceCheckConfig {
   id: string;
   name: string;
+  /** The main link: opened on your own network, and what status checks reach by default. */
   url: string;
+  /** Opened instead of `url` when the dashboard is reached from outside your network. */
+  external_url: string | null;
+  links: ServiceLink[];
+  tags: string[]; // lowercase, unique
   description: string | null;
   icon: string | null; // filename of uploaded icon
   icon_source_url: string | null; // URL a downloaded icon came from
@@ -232,6 +243,9 @@ export interface ReorderServicesPayload {
 export interface CreateServicePayload extends Partial<ServiceCheckConfig> {
   name: string;
   url: string;
+  external_url?: string | null;
+  links?: ServiceLink[];
+  tags?: string[];
   description?: string | null;
   icon?: string | null;
   icon_url?: string | null;
@@ -243,11 +257,34 @@ export interface CreateServicePayload extends Partial<ServiceCheckConfig> {
 export interface UpdateServicePayload extends Partial<ServiceCheckConfig> {
   name?: string;
   url?: string;
+  external_url?: string | null;
+  links?: ServiceLink[];
+  tags?: string[];
   description?: string | null;
   icon?: string | null;
   icon_url?: string | null;
   category?: string | null;
   open_in_new_tab?: boolean;
+}
+
+/** Payload for POST /api/services/bulk/move: the services keep their order, appended at the end. */
+export interface BulkMoveServicesPayload {
+  ids: string[];
+  category_id: string | null;
+}
+
+/** Payload for POST /api/services/bulk/checks; only the fields given change. */
+export interface BulkServiceChecksPayload {
+  ids: string[];
+  check_enabled?: boolean;
+  check_interval?: number;
+}
+
+/** Response shape for POST /api/services/bulk/delete */
+export interface BulkDeleteServicesResponse {
+  success: true;
+  deleted: number;
+  restorableUntil: number;
 }
 
 /** Response shape for GET /api/metrics */

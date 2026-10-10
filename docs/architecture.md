@@ -133,6 +133,48 @@ TanStack Query cache keyed by service id, kept current by a single `status` subs
 refetched after the connection drops. Hovering or focusing a card shows the details, which fetch
 the 24h history when they open.
 
+### Links, Tags And Bulk Edits
+
+A service keeps its `url` as the main link: the one for your own network, and what status checks
+reach unless they have a target of their own. Migration 11 adds three columns to `services`:
+
+- `external_url`, nullable, normalized like `url` (`shared/urls.ts`).
+- `links`, a JSON array of up to 5 `{ label, url }` pairs (`shared/service-links.ts`).
+- `tags`, a JSON array of up to 10 lowercase, single-spaced, unique strings (`shared/tags.ts`).
+
+Links and tags are small lists on the row rather than tables of their own. Nothing queries them on
+the server (the palette searches in the browser), and on the row they travel with the service for
+free: the trash keeps the whole row as JSON, duplicates copy it, and backups export it. CHECK
+constraints keep both columns JSON arrays. The zod-free rules in `shared/service-links.ts` and
+`shared/tags.ts` are what the service form checks before saving and what the server's schemas and
+backup import apply, so both sides reject the same input. Multipart requests carry the two lists
+as JSON strings (`shared/service-form-data.ts`).
+
+Which URL a card opens is decided in the browser (`src/lib/link-target.ts`). The
+`layout.linkPreference` setting is `auto`, `internal` or `external`; like any layout setting it can
+be a per-device override. For `auto`, `isPrivateHostname` looks at `window.location.hostname`:
+loopback, RFC 1918 and CGNAT (Tailscale) IPv4, IPv6 loopback, unique-local and link-local
+addresses, single-label names and the usual private suffixes count as your own network and open
+`url`; anything else opens `external_url`, falling back to `url`. The command palette opens the
+same URL as the cards.
+
+Cards stay plain links. A card with named links or an external URL is wrapped in a `group` with a
+sibling menu button (a link can't contain a button), loaded on demand as the
+`ServiceLinksMenu-*` chunk. It appears in place of the status dot on hover or keyboard focus and
+always shows on touch screens, where the card makes room for it. In edit mode the same items
+(`ServiceLinkItems`) sit in the card's actions menu, together with an Open item.
+
+Edit mode keeps a selection of card ids (`src/lib/board-selection.ts`: single toggles, shift-click
+runs in board order, whole categories). The bulk bar sends one request per action:
+`POST /api/services/bulk/move`, `/bulk/delete`, `/bulk/restore` and `/bulk/checks`, each with
+`{ ids }`. `server/services/service-bulk.ts` runs each in one transaction, skips ids that no longer
+exist (404 only when none match), and answers with every service (or the delete summary), which the
+browser writes straight into the services cache. Since each is one request, each publishes one
+`layout` config event. Moves append to the target category in board order and leave services that
+are already there in place. Bulk delete uses the same 30-minute trash as single deletes, and
+restore puts services back lowest position first so a category's order comes back intact. The bulk
+API client and its cache updates (`board/useBulkServiceActions.ts`) live with the lazy editor.
+
 ### Installable App And Offline Shell
 
 orbitdash ships a web app manifest (`public/manifest.webmanifest`, icons in `public/icons/` made by
@@ -215,8 +257,8 @@ form validation.
 - `server/app.ts` assembles the Hono application. Files under `server/routes/` translate HTTP
   requests and responses but delegate service behavior to `server/services/`.
 - `server/services/service-payloads.ts` parses service request bodies,
-  `service-operations.ts` owns service CRUD behavior, and `icon-storage.ts` owns icon validation,
-  download, and persistence.
+  `service-operations.ts` owns service CRUD behavior, `service-bulk.ts` the edit mode's bulk
+  actions, and `icon-storage.ts` owns icon validation, download, and persistence.
 - Categories are rows in their own table (`server/services/category-store.ts`) with a `position`;
   services reference them by `category_id` and carry their own `position` within a category. API
   responses still include the category name as `category` for display and older clients.
@@ -234,9 +276,10 @@ form validation.
 - `ServicesSection` composes service-management UI. Its filtering, grouping and dialog-selection
   state lives in `services/useServicesSectionState.ts`. Services are grouped by category id
   (`src/lib/board-groups.ts`) and laid out by `board/BoardColumns.tsx`, as balanced columns or
-  stacked rows. Outside edit mode the board is plain links (`services/CategorySectionList.tsx`); in
-  edit mode the lazily loaded `board/EditableBoard.tsx` adds dnd-kit dragging of cards and
-  categories, rename in place, add tiles and card menus.
+  stacked rows. Outside edit mode the board is plain links (`services/CategorySectionList.tsx`),
+  with a lazy links menu beside cards that have extra links; in edit mode the lazily loaded
+  `board/EditableBoard.tsx` adds dnd-kit dragging of cards and categories, rename in place, add
+  tiles, card menus, and selection with the bulk bar.
 - `ServiceDialog` coordinates submission and validation. Form and icon-preview state lives in
-  `services/useServiceDialogState.ts`, with category, icon, status check, and action controls split
-  into focused components.
+  `services/useServiceDialogState.ts`, with category, tags, icon, links, status check, and action
+  controls split into focused components.

@@ -35,6 +35,8 @@ describe("configScopeForMutation", () => {
     expect(configScopeForMutation("/api/alerts/rules")).toBe("settings");
     expect(configScopeForMutation("/api/services")).toBe("layout");
     expect(configScopeForMutation("/api/services/abc/move")).toBe("layout");
+    expect(configScopeForMutation("/api/services/bulk/move")).toBe("layout");
+    expect(configScopeForMutation("/api/services/bulk/delete")).toBe("layout");
     expect(configScopeForMutation("/api/categories/rename")).toBe("layout");
     expect(configScopeForMutation("/api/settings/category-order")).toBe("layout");
     expect(configScopeForMutation("/api/settings")).toBe("settings");

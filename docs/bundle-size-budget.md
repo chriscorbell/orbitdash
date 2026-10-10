@@ -14,11 +14,16 @@ matches, so group priority decides where shared packages land:
    other group pulls React in as a dependency.
 2. `validation`: zod/mini and the Zod core it uses, for parsing API responses in the browser.
    Full Zod never loads in the browser: forms validate with plain checks and the server validates
-   everything again. The app's own schemas ship in the entry, so this chunk's hash only
+   everything again. The app's own schemas are in `api-schemas` (below), so this chunk's hash only
    changes when Zod does.
 3. `drag-drop`: dnd-kit. Only the lazily loaded `EditableBoard` (edit mode) imports it.
-4. `icons`: lucide-react.
-5. `vendor`: everything else in `node_modules` that the first render needs (Radix, Floating UI,
+4. `event-stream`: the live event channel, opened by the first render and subscribed to by lazy
+   chunks.
+5. `api-schemas`: the browser's response schemas (`src/lib/api/schemas.ts`) and the settings
+   defaults they fill in. Loaded with the entry; lazy chunks such as the editor's bulk actions
+   parse with them too, and they change far less often than the app code.
+6. `icons`: lucide-react.
+7. `vendor`: everything else in `node_modules` that the first render needs (Radix, Floating UI,
    tailwind-merge). The `$initial` tag keeps packages used only by lazy chunks, like the Select
    and Tabs primitives and Radix Toast, inside those chunks.
 
@@ -27,7 +32,8 @@ brotli instead of the vendor code too.
 
 `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`,
 `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with
-checks on), `SignInScreen-*` (only shown when auth is on), `toaster-*` (loaded with the first
+checks on), `ServiceLinksMenu-*` (the links menu of cards with extra links or an external URL),
+`SignInScreen-*` (only shown when auth is on), `toaster-*` (loaded with the first
 toast or once the page is idle) and `pwa-*` (service worker setup, imported after the page has
 loaded) must never be loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit directly, the entry starts importing that
@@ -36,26 +42,28 @@ happens.
 
 ## Current Budgets
 
-| Asset group           | Budget raw | Budget gzip | Current baseline                             |
-| --------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`          |      68 kB |       23 kB | about 66 kB raw / 22.8 kB gzip / 20.1 kB br  |
-| `index-*.css`         |      92 kB |       15 kB | about 90 kB raw / 14.6 kB gzip / 12.2 kB br  |
-| `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
-| `vendor-*.js`         |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
-| `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
-| `ServiceDialog-*.js`  |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
-| `SettingsDialog-*.js` |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
-| `EditableBoard-*.js`  |      44 kB |       14 kB | about 38 kB raw / 12.0 kB gzip / 10.8 kB br  |
-| `StatsPage-*.js`      |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
-| `CommandPalette-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
-| `ImportDialog-*.js`   |      16 kB |        6 kB | about 12 kB raw / 4.4 kB gzip                |
-| `Widgets-*.js`        |      14 kB |        5 kB | about 10 kB raw / 3.6 kB gzip                |
-| `WidgetSettings-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.5 kB gzip                 |
-| `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
-| `ServiceStatus-*.js`  |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip / 2.6 kB br     |
-| `SignInScreen-*.js`   |       6 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
-| `toaster-*.js`        |      16 kB |        6 kB | about 13 kB raw / 4.7 kB gzip / 4.3 kB br    |
-| `sw.js`               |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
+| Asset group             | Budget raw | Budget gzip | Current baseline                             |
+| ----------------------- | ---------: | ----------: | -------------------------------------------- |
+| `index-*.js`            |      66 kB |     22.5 kB | about 65 kB raw / 21.9 kB gzip / 19.3 kB br  |
+| `api-schemas-*.js`      |       7 kB |        3 kB | about 5 kB raw / 2.3 kB gzip / 2.0 kB br     |
+| `index-*.css`           |      92 kB |       15 kB | about 92 kB raw / 14.9 kB gzip / 12.4 kB br  |
+| `react-vendor-*.js`     |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
+| `vendor-*.js`           |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
+| `validation-*.js`       |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
+| `ServiceDialog-*.js`    |     100 kB |       28 kB | about 27 kB raw / 8.2 kB gzip / 7.4 kB br    |
+| `SettingsDialog-*.js`   |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
+| `EditableBoard-*.js`    |      44 kB |       14 kB | about 21 kB raw / 6.9 kB gzip / 6.2 kB br    |
+| `StatsPage-*.js`        |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
+| `CommandPalette-*.js`   |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
+| `ImportDialog-*.js`     |      16 kB |        6 kB | about 12 kB raw / 4.4 kB gzip                |
+| `Widgets-*.js`          |      14 kB |        5 kB | about 10 kB raw / 3.6 kB gzip                |
+| `WidgetSettings-*.js`   |      10 kB |        4 kB | about 7 kB raw / 2.5 kB gzip                 |
+| `drag-drop-*.js`        |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
+| `ServiceStatus-*.js`    |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip / 2.6 kB br     |
+| `ServiceLinksMenu-*.js` |       4 kB |        2 kB | about 1 kB raw / 0.5 kB gzip / 0.4 kB br     |
+| `SignInScreen-*.js`     |       6 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
+| `toaster-*.js`          |      16 kB |        6 kB | about 13 kB raw / 4.7 kB gzip / 4.3 kB br    |
+| `sw.js`                 |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
 
 Sizes are in KiB, as printed by the check script.
 
@@ -79,11 +87,28 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 - a tracked chunk is missing its `.br` or `.gz` sibling
 - `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`,
   `StatsPage-*`, `CommandPalette-*`, `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`,
-  `ServiceStatus-*`, `SignInScreen-*`,
+  `ServiceStatus-*`, `ServiceLinksMenu-*`, `SignInScreen-*`,
   `toaster-*` or `pwa-*` chunk
 
 ## History
 
+- Internal and external URLs, extra links, tags and bulk edits. The first paint gained the new
+  service fields in the response schema, the link preference setting, the address check that picks
+  a card's URL (`src/lib/link-target.ts`) and the hook-up for the links menu: about 0.9 kB gzip,
+  plus 0.4 kB in `icons-*`, which holds every Lucide icon the app uses. Everything else is lazy: the links menu of a card (`ServiceLinksMenu-*`, 0.5 kB gzip, plus the
+  dropdown menu it shares with the editor, about 6.5 kB gzip), the dialog fields (in
+  `ServiceDialog-*`) and selection with the bulk bar and its API calls (in `EditableBoard-*`). Since
+  the editor's bulk actions parse responses with the same schemas as the first render, the bundler
+  split `src/lib/api/schemas.ts` out of the entry on its own; it is now the named `api-schemas`
+  group, loaded with the entry and tracked with its own budget of 7 kB / 3 kB. The entry fell to
+  about 65 kB / 21.9 kB gzip (it also took in Vite's small preload helper, which used to be a
+  chunk of its own), so its budget comes down from 68 kB / 23 kB to 66 kB / 22.5 kB. Together the
+  two leave about 1.3 kB gzip of headroom, against about 0.6 kB for the entry alone before. The
+  dropdown menu moved from `EditableBoard-*` into a chunk it shares with the links menu, so the
+  editor chunk itself shrank to about 6.9 kB gzip. The card menu, the selection checkboxes and the
+  bulk bar reuse existing utilities apart from a handful of hover and focus variants, which took
+  the CSS from about 91.3 kB to 91.9 kB raw of its 92 kB budget: the next UI change has to trim
+  CSS or raise that budget with a note.
 - Clock, weather and agenda widgets load in a lazy `Widgets-*` chunk (about 3.6 kB gzip) only once
   one is turned on, and their settings in `WidgetSettings-*` (about 2.5 kB gzip) as the settings
   dialog opens. The entry gained the widgets settings section and the clock format. The event

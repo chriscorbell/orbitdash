@@ -10,6 +10,9 @@ import {
   normalizeCheckTarget,
   STATUS_CHECK_METHODS,
 } from "@shared/status";
+import { normalizeServiceLinks } from "@shared/service-links";
+import { normalizeTags } from "@shared/tags";
+import type { ServiceLink } from "@shared/types";
 import { normalizeServiceUrl } from "@shared/urls";
 import { apiFail, apiOk, type ApiResult } from "../api-response";
 import { getDataDir, getDb } from "../db";
@@ -42,26 +45,47 @@ const serviceFields = {
   check_target: z.string().nullable().optional(),
   check_interval: z.number().int().min(CHECK_INTERVAL_MIN_S).max(CHECK_INTERVAL_MAX_S).optional(),
   check_ignore_tls: z.boolean().optional(),
+  // External URLs, links and tags came later still; older files import without them.
+  external_url: z
+    .string()
+    .trim()
+    .refine((value) => normalizeServiceUrl(value) !== null, "external url must be a valid URL")
+    .nullable()
+    .optional(),
+  links: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
+  tags: z.array(z.string()).optional(),
 };
 
-/** A check target that doesn't suit its method would only ever fail, so the file is rejected. */
-function rejectInvalidCheckTarget(
-  service: { check_method?: "http" | "tcp"; check_target?: string | null; name: string },
-  ctx: z.RefinementCtx
-) {
+interface BackupServiceRules {
+  check_method?: "http" | "tcp";
+  check_target?: string | null;
+  links?: ServiceLink[];
+  name: string;
+  tags?: string[];
+}
+
+/**
+ * A check target that doesn't suit its method would only ever fail, and links or tags the form
+ * couldn't have saved would only be cut short, so the file is rejected instead.
+ */
+function rejectInvalidServiceRules(service: BackupServiceRules, ctx: z.RefinementCtx) {
   const target = normalizeCheckTarget(
     service.check_method ?? DEFAULT_CHECK_CONFIG.check_method,
     service.check_target
   );
-  if (!target.ok) {
-    ctx.addIssue({ code: "custom", message: `${service.name}: ${target.error}` });
+  const links = normalizeServiceLinks(service.links ?? []);
+  const tags = normalizeTags(service.tags ?? []);
+  for (const result of [target, links, tags]) {
+    if (!result.ok) {
+      ctx.addIssue({ code: "custom", message: `${service.name}: ${result.error}` });
+    }
   }
 }
 
 /** Version 1 (orbitdash 0.2): categories were a free-text name on each service. */
 const backupServiceV1Schema = z
   .object({ ...serviceFields, category: z.string().nullable() })
-  .superRefine(rejectInvalidCheckTarget);
+  .superRefine(rejectInvalidServiceRules);
 
 const backupServiceSchema = z
   .object({
@@ -69,7 +93,7 @@ const backupServiceSchema = z
     category_id: z.string().nullable(),
     position: z.number().int(),
   })
-  .superRefine(rejectInvalidCheckTarget);
+  .superRefine(rejectInvalidServiceRules);
 
 const backupCategorySchema = z.object({
   id: z.string().trim().min(1, "category id is required"),
@@ -172,6 +196,9 @@ interface ServiceRow {
   check_target: string | null;
   check_interval: number;
   check_ignore_tls: number;
+  external_url: string | null;
+  links: string;
+  tags: string;
 }
 
 function readAppVersion(): string | undefined {
@@ -189,7 +216,8 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
     .prepare(
       `SELECT id, name, url, description, icon, icon_source_url, category_id, position,
               open_in_new_tab, created_at, updated_at,
-              check_enabled, check_method, check_target, check_interval, check_ignore_tls
+              check_enabled, check_method, check_target, check_interval, check_ignore_tls,
+              external_url, links, tags
        FROM services ORDER BY category_id ASC, position ASC, name ASC`
     )
     .all() as ServiceRow[];
@@ -231,6 +259,8 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
       open_in_new_tab: Boolean(row.open_in_new_tab),
       check_enabled: Boolean(row.check_enabled),
       check_ignore_tls: Boolean(row.check_ignore_tls),
+      links: JSON.parse(row.links) as ServiceLink[],
+      tags: JSON.parse(row.tags) as string[],
     })),
     settings: Object.fromEntries(settings.map((setting) => [setting.key, setting.value])),
     icons,
@@ -343,8 +373,9 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
     );
     const insertService = db.prepare(
       `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at,
-                             check_enabled, check_method, check_target, check_interval, check_ignore_tls)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             check_enabled, check_method, check_target, check_interval, check_ignore_tls,
+                             external_url, links, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
 
@@ -367,8 +398,10 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
       for (const service of document.services) {
         const icon = service.icon && icons.has(service.icon) ? service.icon : null;
         const checkMethod = service.check_method ?? DEFAULT_CHECK_CONFIG.check_method;
-        // The schema already rejected targets that don't suit their method; this normalizes.
+        // The schema already rejected targets, links and tags that don't pass; this normalizes.
         const checkTarget = normalizeCheckTarget(checkMethod, service.check_target);
+        const links = normalizeServiceLinks(service.links ?? []);
+        const tags = normalizeTags(service.tags ?? []);
         insertService.run(
           service.id,
           service.name,
@@ -385,7 +418,10 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
           checkMethod,
           checkTarget.ok ? checkTarget.value : null,
           service.check_interval ?? DEFAULT_CHECK_CONFIG.check_interval,
-          service.check_ignore_tls ? 1 : 0
+          service.check_ignore_tls ? 1 : 0,
+          service.external_url ? normalizeServiceUrl(service.external_url) : null,
+          JSON.stringify(links.ok ? links.value : []),
+          JSON.stringify(tags.ok ? tags.value : [])
         );
       }
 
