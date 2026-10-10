@@ -2,11 +2,12 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AppHeader } from "@/components/header/AppHeader";
 import { ServicesSection } from "@/components/ServicesSection";
-import type { PaletteActionWithIcon } from "@/components/palette/CommandPalette";
+import type { PaletteContext } from "@/components/palette/palette-actions";
 import {
   loadCommandPalette,
   loadSettingsDialog,
   loadStatsPage,
+  loadWidgets,
   preloadCommandPalette,
 } from "@/components/settings/settings-preload";
 import { StatsStrip } from "@/components/stats/StatsStrip";
@@ -26,21 +27,17 @@ import { toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { OPEN_AUTH_SESSION, type AuthSession } from "@shared/auth";
 import type { DashboardAppearanceSettings } from "@shared/dashboard-settings";
-import {
-  Activity,
-  LayoutGrid,
-  Monitor,
-  Moon,
-  PencilRuler,
-  Plus,
-  Settings,
-  Sun,
-} from "lucide-react";
 
 const StatsPage = lazy(() => loadStatsPage().then((module) => ({ default: module.StatsPage })));
 
 const CommandPalette = lazy(() =>
   loadCommandPalette().then((module) => ({ default: module.CommandPalette }))
+);
+
+// Widgets load only once one is turned on.
+const WidgetRow = lazy(() => loadWidgets().then((module) => ({ default: module.WidgetRow })));
+const HeaderWidgets = lazy(() =>
+  loadWidgets().then((module) => ({ default: module.HeaderWidgets }))
 );
 
 const SettingsDialog = lazy(() =>
@@ -79,6 +76,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     updateAppearance,
     updateLayout,
     updateSearch,
+    updateWidgets,
   } = useDashboardSettings();
   // Settings can preview appearance (wallpaper sliders) live before saving it.
   const [appearancePreview, setAppearancePreview] =
@@ -91,6 +89,10 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
   const { density, linkPreference, mode, statsPosition, showServices, showStats, showStatsPage } =
     settings.layout;
   const linkTarget = resolveLinkTarget(linkPreference, window.location.hostname);
+  const { widgets } = settings;
+  const rowWidgets =
+    widgets.placement === "row" && (widgets.clock || widgets.weather || widgets.agenda);
+  const headerWidgets = widgets.placement === "header" && (widgets.weather || widgets.agenda);
   const pathname = usePathname();
   const page = showStatsPage && pathname === "/stats" ? "stats" : "services";
 
@@ -106,10 +108,14 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   // Mounted on first open and kept, so closing still plays the exit animation.
   const [settingsMounted, setSettingsMounted] = useState(false);
-  const openSettings = () => {
+  // A section to scroll to when settings open from somewhere specific, e.g. a widget.
+  const [settingsSection, setSettingsSection] = useState<"widgets" | null>(null);
+  const openSettingsAt = (section: "widgets" | null) => {
+    setSettingsSection(section);
     setSettingsMounted(true);
     setSettingsOpen(true);
   };
+  const openSettings = () => openSettingsAt(null);
 
   const startEditing = () => {
     setSettingsOpen(false);
@@ -137,79 +143,21 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Guests only get navigation; everything that changes the dashboard needs a sign-in.
-  const editActions: PaletteActionWithIcon[] = [
-    {
-      id: "add-service",
-      label: "Add service",
-      keywords: "new create link app",
-      icon: Plus,
-      run: () => {
-        navigate("/");
-        setAddOpen(true);
-      },
+  const paletteContext: PaletteContext = {
+    canEdit,
+    page,
+    showServices,
+    showStatsPage,
+    theme: appearance.theme,
+    onAddService: () => {
+      navigate("/");
+      setAddOpen(true);
     },
-    ...(showServices
-      ? [
-          {
-            id: "edit-layout",
-            label: "Edit layout",
-            keywords: "arrange reorder drag categories move",
-            icon: PencilRuler,
-            run: startEditing,
-          },
-        ]
-      : []),
-  ];
-
-  const paletteActions: PaletteActionWithIcon[] = [
-    ...(canEdit ? editActions : []),
-    ...(showStatsPage
-      ? [
-          page === "stats"
-            ? {
-                id: "go-services",
-                label: "Go to Services",
-                keywords: "home dashboard links",
-                icon: LayoutGrid,
-                run: () => navigate("/"),
-              }
-            : {
-                id: "go-stats",
-                label: "Go to Stats",
-                keywords: "metrics charts cpu memory disk network",
-                icon: Activity,
-                run: () => navigate("/stats"),
-              },
-        ]
-      : []),
-    ...(canEdit
-      ? [
-          {
-            id: "open-settings",
-            label: "Open settings",
-            keywords: "preferences options configure",
-            icon: Settings,
-            run: openSettings,
-          },
-          ...(
-            [
-              ["dark", "Use dark theme", Moon],
-              ["light", "Use light theme", Sun],
-              ["system", "Use system theme", Monitor],
-            ] as const
-          )
-            .filter(([theme]) => theme !== appearance.theme)
-            .map(([theme, label, icon]) => ({
-              id: `theme-${theme}`,
-              label,
-              keywords: "appearance mode color",
-              icon,
-              run: () => updateAppearance({ theme }),
-            })),
-        ]
-      : []),
-  ];
+    onEditLayout: startEditing,
+    onNavigate: navigate,
+    onOpenSettings: openSettings,
+    onThemeChange: (theme) => updateAppearance({ theme }),
+  };
 
   const stats = showStats ? <StatsStrip /> : null;
 
@@ -235,6 +183,14 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
         onSignIn={auth.mode === "password" ? onSignIn : undefined}
         onOpenPalette={() => openPalette()}
         onPreloadPalette={preloadCommandPalette}
+        clockFormat={widgets.clockFormat}
+        widgets={
+          headerWidgets ? (
+            <Suspense fallback={null}>
+              <HeaderWidgets widgets={widgets} />
+            </Suspense>
+          ) : null
+        }
       />
       {page === "stats" ? (
         <main key="stats" className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
@@ -256,6 +212,11 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
           key="services"
           className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6"
         >
+          {rowWidgets && (
+            <Suspense fallback={null}>
+              <WidgetRow widgets={widgets} onOpenSettings={() => openSettingsAt("widgets")} />
+            </Suspense>
+          )}
           {statsPosition === "top" && stats}
           {showServices && (
             <ServicesSection
@@ -282,7 +243,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             />
           )}
           {statsPosition === "bottom" && stats}
-          {!showServices && !showStats && (
+          {!showServices && !showStats && !rowWidgets && (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
               <p className="text-sm font-medium">Nothing is shown right now</p>
               {canEdit && (
@@ -319,6 +280,9 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             onLinkPreferenceChange={(value) => updateLayout({ linkPreference: value })}
             search={settings.search}
             onSearchChange={updateSearch}
+            widgets={widgets}
+            onWidgetsChange={updateWidgets}
+            focusSection={settingsSection}
             onModeChange={(value) => updateLayout({ mode: value })}
             onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
             onSettingsScopeChange={setSettingsScope}
@@ -336,7 +300,7 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             initialQuery={palette.query}
             services={services}
             linkTarget={linkTarget}
-            actions={paletteActions}
+            context={paletteContext}
             search={settings.search}
             onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}
           />

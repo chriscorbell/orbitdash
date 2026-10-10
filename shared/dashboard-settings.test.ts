@@ -17,6 +17,7 @@ import {
   referencedWallpapers,
   buildSearchUrl,
   isSearchUrlTemplate,
+  isWeatherLocation,
 } from "./dashboard-settings";
 
 describe("parseDashboardSettings", () => {
@@ -276,5 +277,94 @@ describe("web search", () => {
     expect(
       parseDashboardSettings({ search: { engine: "altavista", customUrl: "ftp://x/%s" } }).search
     ).toEqual(DEFAULT_DASHBOARD_SETTINGS.search);
+  });
+});
+
+describe("widgets", () => {
+  const portland = { name: "Portland, Oregon", latitude: 45.52, longitude: -122.68 };
+
+  it("keeps valid widget settings and falls back for invalid ones", () => {
+    const widgets = parseDashboardSettings({
+      widgets: {
+        placement: "header",
+        clock: true,
+        greeting: true,
+        clockFormat: "24h",
+        weather: true,
+        weatherLocation: portland,
+        weatherUnits: "imperial",
+        agenda: true,
+        agendaDays: 14,
+      },
+    }).widgets;
+    expect(widgets).toEqual({
+      placement: "header",
+      clock: true,
+      greeting: true,
+      clockFormat: "24h",
+      weather: true,
+      weatherLocation: portland,
+      weatherUnits: "imperial",
+      agenda: true,
+      agendaDays: 14,
+    });
+
+    expect(
+      parseDashboardSettings({
+        widgets: { placement: "footer", agendaDays: 5, weatherLocation: { name: "x" } },
+      }).widgets
+    ).toEqual(DEFAULT_DASHBOARD_SETTINGS.widgets);
+  });
+
+  it("checks weather locations", () => {
+    expect(isWeatherLocation(portland)).toBe(true);
+    for (const invalid of [
+      null,
+      "Portland",
+      { ...portland, name: "" },
+      { ...portland, name: "x".repeat(121) },
+      { ...portland, name: 3 },
+      { ...portland, latitude: 91 },
+      { ...portland, longitude: -181 },
+      { ...portland, latitude: Number.NaN },
+      { ...portland, longitude: "1" },
+    ]) {
+      expect(isWeatherLocation(invalid)).toBe(false);
+    }
+  });
+
+  it("diffs locations by value", () => {
+    const base = mergeDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, {
+      widgets: { weatherLocation: portland },
+    });
+    const same = mergeDashboardSettings(base, { widgets: { weatherLocation: { ...portland } } });
+    expect(diffDashboardSettings(base, same)).toEqual({});
+    const moved = mergeDashboardSettings(base, {
+      widgets: { weatherLocation: { ...portland, latitude: 45.6 } },
+    });
+    expect(diffDashboardSettings(base, moved)).toEqual({
+      widgets: { weatherLocation: { ...portland, latitude: 45.6 } },
+    });
+  });
+
+  it("validates widget patches strictly", () => {
+    expect(
+      dashboardSettingsPatchSchema.parse({
+        widgets: { weatherLocation: { name: " Portland ", latitude: 45.5, longitude: -122.7 } },
+      })
+    ).toEqual({
+      widgets: { weatherLocation: { name: "Portland", latitude: 45.5, longitude: -122.7 } },
+    });
+    expect(dashboardSettingsPatchSchema.parse({ widgets: { weatherLocation: null } })).toEqual({
+      widgets: { weatherLocation: null },
+    });
+    for (const widgets of [
+      { agendaDays: 2 },
+      { clockFormat: "36h" },
+      { weatherLocation: { name: "x", latitude: 0, longitude: 0, zoom: 1 } },
+      { sparkles: true },
+    ]) {
+      expect(dashboardSettingsPatchSchema.safeParse({ widgets }).success).toBe(false);
+    }
   });
 });

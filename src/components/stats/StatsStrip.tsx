@@ -1,5 +1,5 @@
+import { lazy, Suspense } from "react";
 import { Cpu, HardDrive, MemoryStick, type LucideIcon } from "lucide-react";
-import { AlertList } from "@/components/stats/AlertList";
 import { Sparkline } from "@/components/stats/Sparkline";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useMetrics } from "@/hooks/useMetrics";
@@ -84,9 +84,19 @@ function ConnectionNote({ status, hasData }: { hasData: boolean; status: string 
 
 /** Live host metrics as a compact row of tiles; the only component that subscribes to samples. */
 /** Firing threshold alerts above the tiles; its own component so samples don't re-render it. */
+// Alert wording and formatting load only once something is firing.
+const AlertList = lazy(() =>
+  import("@/components/stats/AlertList").then((module) => ({ default: module.AlertList }))
+);
+
 function StripAlerts() {
   const { active } = useAlerts();
-  return <AlertList alerts={active} />;
+  if (active.length === 0) return null;
+  return (
+    <Suspense fallback={null}>
+      <AlertList alerts={active} />
+    </Suspense>
+  );
 }
 
 export function StatsStrip() {

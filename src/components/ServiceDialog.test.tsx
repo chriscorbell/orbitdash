@@ -34,6 +34,16 @@ vi.mock("@/lib/api/icon-library", () => ({
   })),
 }));
 
+const toolsApi = vi.hoisted(() => ({
+  inspectServiceUrl: vi.fn(),
+  testService: vi.fn(),
+}));
+
+vi.mock("@/lib/api/service-tools", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/service-tools")>()),
+  ...toolsApi,
+}));
+
 /** The dialog with the query client its icon library needs. */
 function render(ui: React.ReactElement) {
   return rtlRender(ui, { wrapper: createQueryWrapper().wrapper });
@@ -41,6 +51,115 @@ function render(ui: React.ReactElement) {
 
 afterEach(() => {
   cleanup();
+  toolsApi.inspectServiceUrl.mockReset();
+  toolsApi.testService.mockReset();
+});
+
+function renderAdd() {
+  render(
+    <ServiceDialog
+      open
+      onOpenChange={vi.fn()}
+      categoryOptions={[]}
+      onSubmit={vi.fn().mockResolvedValue(undefined)}
+    />
+  );
+  return {
+    user: userEvent.setup(),
+    name: screen.getByLabelText(/^Name/) as HTMLInputElement,
+    url: screen.getByLabelText(/^URL/) as HTMLInputElement,
+  };
+}
+
+describe("ServiceDialog link helpers", () => {
+  const inspection = {
+    url: "http://10.0.0.20:32400/",
+    reachable: true,
+    error: null,
+    name: "Plex",
+    iconUrl: "http://10.0.0.20:32400/favicon.png",
+    selfSigned: false,
+  };
+
+  it("reads a pasted link to fill in the name and offer the site's icon", async () => {
+    toolsApi.inspectServiceUrl.mockResolvedValue(inspection);
+    const { user, name, url } = renderAdd();
+
+    await user.click(url);
+    await user.paste("10.0.0.20:32400");
+    await waitFor(() => expect(toolsApi.inspectServiceUrl).toHaveBeenCalled());
+    expect(toolsApi.inspectServiceUrl.mock.calls[0][0]).toBe("http://10.0.0.20:32400/");
+    await waitFor(() => expect(name.value).toBe("Plex"));
+    expect(screen.getByText("http://10.0.0.20:32400/")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Use the site's own icon" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Plex icon from dashboard-icons/ })).toBeTruthy();
+
+    // Leaving the field with the same link doesn't read it again.
+    await user.tab();
+    expect(toolsApi.inspectServiceUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a name that was already typed and explains unreachable pages", async () => {
+    toolsApi.inspectServiceUrl.mockResolvedValue({
+      ...inspection,
+      url: "http://nas.lan/",
+      reachable: false,
+      error: "Connection refused",
+      name: null,
+      iconUrl: null,
+      selfSigned: true,
+    });
+    const { user, name, url } = renderAdd();
+
+    await user.type(name, "My NAS");
+    await user.type(url, "nas.lan");
+    await user.tab();
+    expect(await screen.findByText("Couldn't read the page: Connection refused")).toBeTruthy();
+    expect(screen.getByText("Uses a self-signed certificate")).toBeTruthy();
+    expect(name.value).toBe("My NAS");
+  });
+
+  it("tests the link before saving and clears the result when it changes", async () => {
+    toolsApi.inspectServiceUrl.mockResolvedValue(inspection);
+    toolsApi.testService.mockResolvedValue({
+      target: "http://10.0.0.20:32400/",
+      state: "up",
+      latencyMs: 42,
+      statusCode: 200,
+      error: null,
+    });
+    const { user, url } = renderAdd();
+    const testButton = screen.getByRole("button", { name: "Test" });
+    expect(testButton).toHaveProperty("disabled", true);
+
+    await user.type(url, "10.0.0.20:32400");
+    await user.click(testButton);
+    await waitFor(() => expect(toolsApi.testService).toHaveBeenCalled());
+    expect(toolsApi.testService.mock.calls[0][0]).toEqual({
+      url: "http://10.0.0.20:32400/",
+      check_method: "http",
+      check_target: null,
+      check_ignore_tls: false,
+    });
+    expect(await screen.findByText("Up · 42 ms · HTTP 200")).toBeTruthy();
+
+    await user.type(url, "/web");
+    expect(screen.queryByText("Up · 42 ms · HTTP 200")).toBeNull();
+
+    toolsApi.testService.mockResolvedValue({
+      target: "http://10.0.0.20:32400/web",
+      state: "down",
+      latencyMs: null,
+      statusCode: null,
+      error: "Connection refused",
+    });
+    await user.click(testButton);
+    expect(await screen.findByText("Down · Connection refused")).toBeTruthy();
+
+    toolsApi.testService.mockRejectedValue(new Error("Couldn't run the test"));
+    await user.click(testButton);
+    expect(await screen.findByText("Couldn't run the test")).toBeTruthy();
+  });
 });
 
 const baseService: Service = {

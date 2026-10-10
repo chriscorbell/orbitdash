@@ -8,6 +8,7 @@ import {
   WALLPAPER_BLUR_MAX,
   WALLPAPER_DIM_MAX,
   WALLPAPER_FILENAME_PATTERN,
+  WEATHER_LOCATION_NAME_MAX_LENGTH,
 } from "./dashboard-settings";
 
 /** Request and response validation for settings; the zod-free logic lives in dashboard-settings. */
@@ -33,6 +34,26 @@ const searchUrlSchema = z
 const customCssSchema = z
   .string()
   .max(CUSTOM_CSS_MAX_LENGTH, `custom CSS must be ${CUSTOM_CSS_MAX_LENGTH} characters or fewer`);
+
+const weatherLocationSchema = z
+  .object({
+    name: z.string().trim().min(1).max(WEATHER_LOCATION_NAME_MAX_LENGTH),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  })
+  .strict()
+  .nullable();
+const widgetsShape = {
+  placement: z.enum(["row", "header"]),
+  clock: z.boolean(),
+  greeting: z.boolean(),
+  clockFormat: z.enum(["auto", "12h", "24h"]),
+  weather: z.boolean(),
+  weatherLocation: weatherLocationSchema,
+  weatherUnits: z.enum(["metric", "imperial"]),
+  agenda: z.boolean(),
+  agendaDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14)]),
+};
 
 /** Request bodies are strict, so typos are reported instead of silently ignored. */
 export const dashboardSettingsPatchSchema = z
@@ -65,6 +86,7 @@ export const dashboardSettingsPatchSchema = z
       .object({ engine: searchEngineSchema.optional(), customUrl: searchUrlSchema.optional() })
       .strict()
       .optional(),
+    widgets: z.object(widgetsShape).partial().strict().optional(),
   })
   .strict();
 
@@ -89,6 +111,7 @@ export const dashboardSettingsSchema = z.object({
     linkPreference: linkPreferenceSchema.default("auto"),
   }),
   search: z.object({ engine: searchEngineSchema, customUrl: searchUrlSchema }),
+  widgets: z.object(widgetsShape),
 });
 
 export const deviceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/, "invalid device id");

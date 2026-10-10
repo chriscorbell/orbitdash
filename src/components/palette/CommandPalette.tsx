@@ -3,19 +3,22 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { ServiceIcon } from "@/components/services/ServiceIcon";
 import { getIconUrl } from "@/lib/api/services";
 import { serviceHref, type LinkTarget } from "@/lib/link-target";
-import { hostOf, rankPaletteItems, type PaletteAction, type PaletteItem } from "@/lib/palette";
+import { hostOf, rankPaletteItems, type PaletteItem } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { buildSearchUrl, type DashboardSearchSettings } from "@shared/dashboard-settings";
 import type { Service } from "@shared/types";
 import { normalizeServiceUrl } from "@shared/urls";
-import { CornerDownLeft, Globe, Search, type LucideIcon } from "lucide-react";
+import { CornerDownLeft, Globe, Search } from "lucide-react";
+import {
+  buildPaletteActions,
+  type PaletteActionWithIcon,
+  type PaletteContext,
+} from "@/components/palette/palette-actions";
 
-export interface PaletteActionWithIcon extends PaletteAction {
-  icon: LucideIcon;
-}
+export type { PaletteActionWithIcon, PaletteContext };
 
 interface CommandPaletteProps {
-  actions: readonly PaletteActionWithIcon[];
+  context: PaletteContext;
   /** Text typed before the palette opened (type-to-search). */
   initialQuery: string;
   /** Which URL services open, as on their cards. */
@@ -50,7 +53,7 @@ function openUrl(url: string, newTab: boolean) {
  * is a combobox over a listbox; arrow keys move, Enter opens, Ctrl or ⌘ + Enter opens a new tab.
  */
 export function CommandPalette({
-  actions,
+  context,
   initialQuery,
   linkTarget,
   open,
@@ -69,7 +72,7 @@ export function CommandPalette({
           <DialogPrimitive.Title className="sr-only">Search and commands</DialogPrimitive.Title>
           {open && (
             <PaletteBody
-              actions={actions}
+              context={context}
               initialQuery={initialQuery}
               linkTarget={linkTarget}
               search={search}
@@ -84,7 +87,7 @@ export function CommandPalette({
 }
 
 function PaletteBody({
-  actions,
+  context,
   initialQuery,
   linkTarget,
   search,
@@ -95,6 +98,7 @@ function PaletteBody({
   const [active, setActive] = useState(0);
   const listId = useId();
   const listRef = useRef<HTMLUListElement>(null);
+  const actions = useMemo(() => buildPaletteActions(context), [context]);
   const items = useMemo(
     () => rankPaletteItems(query, services, actions),
     [actions, query, services]

@@ -4,6 +4,7 @@ export const loadSettingsDialog = () => import("@/components/settings/SettingsDi
 export const loadEditableBoard = () => import("@/components/board/EditableBoard");
 export const loadStatsPage = () => import("@/components/stats-page/StatsPage");
 export const loadCommandPalette = () => import("@/components/palette/CommandPalette");
+export const loadWidgets = () => import("@/components/widgets/Widgets");
 
 export function preloadSettingsDialog() {
   void loadSettingsDialog();

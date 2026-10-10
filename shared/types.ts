@@ -365,6 +365,65 @@ export interface IconLibraryResponse {
   updatedAt: number; // when the library index was fetched, ms since epoch
 }
 
+/** Response shape for GET /api/widgets/weather (from Open-Meteo) */
+export interface WeatherReport {
+  timezone: string;
+  current: {
+    temperature: number;
+    apparentTemperature: number;
+    /** WMO weather interpretation code. */
+    weatherCode: number;
+    isDay: boolean;
+    windSpeed: number;
+    humidity: number;
+  };
+  /** Today first, as dates in the location's own time zone. */
+  daily: Array<{
+    date: string;
+    weatherCode: number;
+    max: number;
+    min: number;
+    precipitationChance: number | null;
+  }>;
+  units: { temperature: string; windSpeed: string };
+  fetchedAt: number;
+}
+
+/** One match from GET /api/widgets/geocode */
+export interface GeocodeResult {
+  id: number;
+  name: string;
+  region: string | null;
+  country: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+/** A calendar feed as the browser sees it: the secret URL stays on the server. */
+export interface AgendaFeed {
+  id: string;
+  name: string;
+  host: string;
+}
+
+/** One occurrence of a calendar event. All-day events use dates, others ISO timestamps. */
+export interface AgendaEvent {
+  id: string;
+  feedId: string;
+  title: string;
+  location: string | null;
+  allDay: boolean;
+  start: string;
+  end: string;
+}
+
+/** Response shape for GET /api/widgets/agenda */
+export interface AgendaResponse {
+  events: AgendaEvent[];
+  /** Feeds that couldn't be loaded this time, with a short reason. */
+  errors: Array<{ feedId: string; name: string; error: string }>;
+}
+
 /** One service in an import preview, ready to be picked and applied. */
 export interface ImportPreviewService {
   name: string;
@@ -396,4 +455,29 @@ export interface ImportResult {
   failed: Array<{ name: string; error: string }>;
   iconFailures: number; // services created without the icon because it couldn't be downloaded
   snapshot: string | null; // the snapshot taken before importing
+}
+
+/** Response shape for POST /api/service-tools/inspect: what a link's page says about itself. */
+export interface ServiceInspection {
+  /** The link as it will be saved. */
+  url: string;
+  reachable: boolean;
+  /** Why the page couldn't be read, e.g. "Connection refused". */
+  error: string | null;
+  /** A name for the service from the page's metadata or title. */
+  name: string | null;
+  /** The page's best icon (apple-touch-icon, a large icon, or /favicon.ico). */
+  iconUrl: string | null;
+  /** The page only answered once its certificate was accepted as self-signed. */
+  selfSigned: boolean;
+}
+
+/** Response shape for POST /api/service-tools/test: one check, run now. */
+export interface ServiceTestResult {
+  /** What was checked: a URL or host:port. */
+  target: string;
+  state: "up" | "degraded" | "down";
+  latencyMs: number | null;
+  statusCode: number | null;
+  error: string | null;
 }

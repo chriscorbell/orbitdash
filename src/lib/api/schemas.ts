@@ -1,4 +1,5 @@
 import * as z from "zod/mini";
+import { DEFAULT_DASHBOARD_SETTINGS } from "@shared/dashboard-settings";
 
 /**
  * Response shapes parsed in the browser. These mirror the full-zod schemas in shared/ but use
@@ -105,10 +106,26 @@ const searchSchema = z.object({
   customUrl: z.string(),
 });
 
+const widgetsSchema = z.object({
+  placement: z.enum(["row", "header"]),
+  clock: z.boolean(),
+  greeting: z.boolean(),
+  clockFormat: z.enum(["auto", "12h", "24h"]),
+  weather: z.boolean(),
+  weatherLocation: z.nullable(
+    z.object({ name: z.string(), latitude: z.number(), longitude: z.number() })
+  ),
+  weatherUnits: z.enum(["metric", "imperial"]),
+  agenda: z.boolean(),
+  agendaDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14)]),
+});
+
 const settingsSchema = z.object({
   appearance: appearanceSchema,
   layout: layoutSchema,
   search: searchSchema,
+  // Settings cached by the offline worker before widgets existed still load.
+  widgets: z._default(widgetsSchema, () => ({ ...DEFAULT_DASHBOARD_SETTINGS.widgets })),
 });
 
 export const dashboardSettingsResponseSchema = z.object({
@@ -120,6 +137,7 @@ export const dashboardSettingsResponseSchema = z.object({
         appearance: z.optional(z.partial(appearanceSchema)),
         layout: z.optional(z.partial(layoutOverridesSchema)),
         search: z.optional(z.partial(searchSchema)),
+        widgets: z.optional(z.partial(widgetsSchema)),
       }),
     })
   ),

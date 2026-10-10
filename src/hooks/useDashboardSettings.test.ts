@@ -3,7 +3,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryWrapper } from "@/test/query";
-import { readLegacyLayout, useDashboardSettings } from "@/hooks/useDashboardSettings";
+import { useDashboardSettings } from "@/hooks/useDashboardSettings";
+import { readLegacyLayout } from "@/lib/legacy-layout";
 import {
   DEFAULT_DASHBOARD_SETTINGS,
   mergeDashboardSettings,
