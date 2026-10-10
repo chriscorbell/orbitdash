@@ -29,6 +29,18 @@ vi.mock("@/components/MetricCharts", () => ({
 }));
 
 vi.mock("@/components/Header", () => ({ Header: () => <header /> }));
+vi.mock("@/hooks/useDashboardSettings", async () => {
+  const { DEFAULT_DASHBOARD_SETTINGS } = await import("@shared/dashboard-settings");
+  return {
+    useDashboardSettings: () => ({
+      error: null,
+      scope: "all",
+      settings: DEFAULT_DASHBOARD_SETTINGS,
+      setScope: () => {},
+      updateLayout: () => {},
+    }),
+  };
+});
 vi.mock("@/components/Footer", () => ({ Footer: () => <footer /> }));
 
 vi.mock("@/hooks/useServices", () => ({

@@ -37,10 +37,12 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = 
     categoryOrder: categoryOrderStub,
     columnCount: 4,
     servicesFirst: true,
+    settingsScope: "all",
     showServicesSection: true,
     showStatsSection: true,
     onColumnCountChange: vi.fn(),
     onServicesFirstChange: vi.fn(),
+    onSettingsScopeChange: vi.fn(),
     onShowServicesSectionChange: vi.fn(),
     onShowStatsSectionChange: vi.fn(),
     ...overrides,
@@ -53,6 +55,32 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = 
 }
 
 describe("Header", () => {
+  it("switches between shared and per-device settings", async () => {
+    const user = userEvent.setup();
+    const { props } = renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(screen.getByRole("button", { name: "All devices" }).getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+    expect(screen.getByText("Visibility and layout changes apply to every browser.")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "This device" }));
+    expect(props.onSettingsScopeChange).toHaveBeenCalledWith("device");
+  });
+
+  it("explains per-device scope and shows save errors", async () => {
+    const user = userEvent.setup();
+    renderHeader({ settingsScope: "device", settingsError: "Failed to save settings" });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+
+    expect(
+      screen.getByText("Visibility and layout changes apply only to this browser.")
+    ).toBeTruthy();
+    expect(screen.getByText("Failed to save settings")).toBeTruthy();
+  });
+
   it("opens settings in a dialog and toggles the services section", async () => {
     const user = userEvent.setup();
     const { props } = renderHeader();

@@ -6,29 +6,8 @@ import { StatsSection } from "@/components/StatsSection";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
-import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useServices } from "@/hooks/useServices";
-
-// One-time migration from the pre-rename "orbitdash.sectionOrder" key; the
-// migrated value is persisted under "orbitdash.servicesFirst" immediately.
-function getInitialServicesFirst() {
-  try {
-    const legacySectionOrder = window.localStorage.getItem("orbitdash.sectionOrder");
-    window.localStorage.removeItem("orbitdash.sectionOrder");
-
-    if (legacySectionOrder === "services-first") {
-      return true;
-    }
-
-    if (legacySectionOrder === "stats-first") {
-      return false;
-    }
-  } catch {
-    // Ignore storage access issues.
-  }
-
-  return true;
-}
 
 function App() {
   const {
@@ -43,23 +22,19 @@ function App() {
     reload,
   } = useServices();
   const categoryOrder = useCategoryOrder(services);
-  const [servicesFirst, setServicesFirst] = useLocalStorageState(
-    "orbitdash.servicesFirst",
-    getInitialServicesFirst
-  );
-  const [showStatsSection, setShowStatsSection] = useLocalStorageState(
-    "orbitdash.showStatsSection",
-    true
-  );
-  const [showServicesSection, setShowServicesSection] = useLocalStorageState(
-    "orbitdash.showServicesSection",
-    true
-  );
-  const [gridColumns, setGridColumns] = useLocalStorageState<"3" | "4" | "5">(
-    "orbitdash.servicesGrid",
-    "4"
-  );
-  const columnCount: 3 | 4 | 5 = gridColumns === "5" ? 5 : gridColumns === "3" ? 3 : 4;
+  const {
+    error: settingsError,
+    scope: settingsScope,
+    settings,
+    setScope: setSettingsScope,
+    updateLayout,
+  } = useDashboardSettings();
+  const {
+    gridColumns: columnCount,
+    servicesFirst,
+    showServices: showServicesSection,
+    showStats: showStatsSection,
+  } = settings.layout;
   const statsSection = <StatsSection />;
 
   const servicesSection = (
@@ -96,14 +71,15 @@ function App() {
         categoryOrder={categoryOrder}
         columnCount={columnCount}
         servicesFirst={servicesFirst}
+        settingsError={settingsError}
+        settingsScope={settingsScope}
         showServicesSection={showServicesSection}
         showStatsSection={showStatsSection}
-        onColumnCountChange={(nextColumnCount) =>
-          setGridColumns(String(nextColumnCount) as "3" | "4" | "5")
-        }
-        onServicesFirstChange={setServicesFirst}
-        onShowServicesSectionChange={setShowServicesSection}
-        onShowStatsSectionChange={setShowStatsSection}
+        onColumnCountChange={(gridColumns) => updateLayout({ gridColumns })}
+        onServicesFirstChange={(servicesFirst) => updateLayout({ servicesFirst })}
+        onSettingsScopeChange={setSettingsScope}
+        onShowServicesSectionChange={(showServices) => updateLayout({ showServices })}
+        onShowStatsSectionChange={(showStats) => updateLayout({ showStats })}
       />
       <main className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6">
         {visibleSections.length === 0 ? (
