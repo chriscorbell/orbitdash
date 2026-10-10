@@ -410,7 +410,8 @@ export function EditableBoard({
       ref={boardRef}
       // Takes focus after a bulk action removes the bar, so keyboard users stay on the board.
       tabIndex={-1}
-      className="outline-none"
+      // Room below the last row, so the bulk bar never covers it.
+      className={cn("outline-none", selecting && "pb-20")}
       onKeyDown={(event) => {
         if (event.key === "Escape" && selecting && !drag && !event.defaultPrevented) {
           clearSelection();
