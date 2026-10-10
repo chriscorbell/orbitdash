@@ -1,16 +1,16 @@
-import { Fragment } from "react";
+import { useState } from "react";
 import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
+import { AppHeader } from "@/components/header/AppHeader";
 import { ServicesSection } from "@/components/ServicesSection";
-import { StatsSection } from "@/components/StatsSection";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { StatsStrip } from "@/components/stats/StatsStrip";
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLiveQueries } from "@/hooks/useLiveQueries";
-import { useAppliedAppearance } from "@/lib/theme";
 import { useServices } from "@/hooks/useServices";
+import { useAppliedAppearance } from "@/lib/theme";
 
 function App() {
   useLiveQueries();
@@ -36,81 +36,73 @@ function App() {
     updateLayout,
   } = useDashboardSettings();
   useAppliedAppearance(settings.appearance);
-  const {
-    gridColumns: columnCount,
-    servicesFirst,
-    showServices: showServicesSection,
-    showStats: showStatsSection,
-  } = settings.layout;
-  const statsSection = <StatsSection />;
+  const { gridColumns, statsPosition, showServices, showStats } = settings.layout;
 
-  const servicesSection = (
-    <ServicesSection
-      services={services}
-      categoryOrder={categoryOrder}
-      loading={servicesLoading}
-      error={servicesError}
-      columnCount={columnCount}
-      onRetry={reload}
-      onCreate={create}
-      onUpdate={update}
-      onDelete={remove}
-      onRestore={restore}
-      onDuplicate={duplicate}
-      onRenameCategory={renameCategory}
-    />
-  );
+  const [search, setSearch] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const orderedSections = servicesFirst
-    ? [
-        { key: "services", visible: showServicesSection, content: servicesSection },
-        { key: "stats", visible: showStatsSection, content: statsSection },
-      ]
-    : [
-        { key: "stats", visible: showStatsSection, content: statsSection },
-        { key: "services", visible: showServicesSection, content: servicesSection },
-      ];
-
-  const visibleSections = orderedSections.filter((section) => section.visible);
+  const stats = showStats ? <StatsStrip /> : null;
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
-      <Header
-        appearance={settings.appearance}
-        categoryOrder={categoryOrder}
-        columnCount={columnCount}
-        servicesFirst={servicesFirst}
-        settingsError={settingsError}
-        settingsScope={settingsScope}
-        showServicesSection={showServicesSection}
-        showStatsSection={showStatsSection}
-        onAppearanceChange={updateAppearance}
-        onColumnCountChange={(gridColumns) => updateLayout({ gridColumns })}
-        onServicesFirstChange={(servicesFirst) => updateLayout({ servicesFirst })}
-        onSettingsScopeChange={setSettingsScope}
-        onShowServicesSectionChange={(showServices) => updateLayout({ showServices })}
-        onShowStatsSectionChange={(showStats) => updateLayout({ showStats })}
+      <AppHeader
+        search={search}
+        onAddService={() => setAddOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onSearchChange={setSearch}
       />
       <main className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6">
-        {visibleSections.length === 0 ? (
-          <Card size="sm" className="border-dashed">
-            <CardContent className="space-y-1 py-1">
-              <CardTitle className="text-sm font-semibold">Nothing is visible</CardTitle>
-              <CardDescription>
-                Turn on the Stats section or Services section in Settings to show dashboard content.
-              </CardDescription>
-            </CardContent>
-          </Card>
-        ) : (
-          visibleSections.map((section, index) => (
-            <Fragment key={section.key}>
-              {index > 0 && <Separator />}
-              {section.content}
-            </Fragment>
-          ))
+        {statsPosition === "top" && stats}
+        {showServices && (
+          <ServicesSection
+            services={services}
+            categoryOrder={categoryOrder}
+            loading={servicesLoading}
+            error={servicesError}
+            columnCount={gridColumns}
+            search={search}
+            addOpen={addOpen}
+            onAddOpenChange={setAddOpen}
+            onSearchChange={setSearch}
+            onRetry={reload}
+            onCreate={create}
+            onUpdate={update}
+            onDelete={remove}
+            onRestore={restore}
+            onDuplicate={duplicate}
+            onRenameCategory={renameCategory}
+          />
+        )}
+        {statsPosition === "bottom" && stats}
+        {!showServices && !showStats && (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
+            <p className="text-sm font-medium">Nothing is shown right now</p>
+            <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+              Open settings
+            </Button>
+          </div>
         )}
       </main>
       <Footer />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        appearance={settings.appearance}
+        categoryOrder={categoryOrder}
+        columnCount={gridColumns}
+        statsPosition={statsPosition}
+        settingsError={settingsError}
+        settingsScope={settingsScope}
+        showServicesSection={showServices}
+        showStatsSection={showStats}
+        onAppearanceChange={updateAppearance}
+        onColumnCountChange={(columns) => updateLayout({ gridColumns: columns })}
+        onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
+        onSettingsScopeChange={setSettingsScope}
+        onShowServicesSectionChange={(visible) => updateLayout({ showServices: visible })}
+        onShowStatsSectionChange={(visible) => updateLayout({ showStats: visible })}
+      />
       <Toaster />
     </div>
   );

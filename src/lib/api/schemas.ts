@@ -58,7 +58,7 @@ const gridColumnsSchema = z.union([z.literal(3), z.literal(4), z.literal(5)]);
 
 const layoutSchema = z.object({
   gridColumns: gridColumnsSchema,
-  servicesFirst: z.boolean(),
+  statsPosition: z.enum(["top", "bottom"]),
   showServices: z.boolean(),
   showStats: z.boolean(),
 });
@@ -88,3 +88,12 @@ export const dashboardSettingsResponseSchema = z.object({
 
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export type ImportSummary = z.infer<typeof importSummarySchema>;
+
+export const systemInfoSchema = z.object({
+  cpuCount: z.number(),
+  hostname: z.nullable(z.string()),
+  platform: z.string(),
+  uptimeSeconds: z.number(),
+});
+
+export type SystemInfo = z.infer<typeof systemInfoSchema>;

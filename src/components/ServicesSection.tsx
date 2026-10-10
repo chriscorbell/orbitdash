@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesSectionFeedback } from "@/components/services/ServicesSectionFeedback";
-import { ServicesToolbar } from "@/components/services/ServicesToolbar";
 import { useServicesSectionState } from "@/components/services/useServicesSectionState";
 import { toast, toastError } from "@/lib/toast";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
@@ -31,6 +30,10 @@ interface ServicesSectionProps {
   loading: boolean;
   error: string | null;
   columnCount: 3 | 4 | 5;
+  search: string;
+  addOpen: boolean;
+  onAddOpenChange: (open: boolean) => void;
+  onSearchChange: (value: string) => void;
   onRetry: () => Promise<void>;
   onCreate: (payload: CreateServicePayload, iconFile?: File) => Promise<Service>;
   onUpdate: (
@@ -51,6 +54,10 @@ export function ServicesSection({
   loading,
   error,
   columnCount,
+  search,
+  addOpen,
+  onAddOpenChange,
+  onSearchChange,
   onRetry,
   onCreate,
   onUpdate,
@@ -60,7 +67,6 @@ export function ServicesSection({
   onRenameCategory,
 }: ServicesSectionProps) {
   const {
-    addOpen,
     categoryOptions,
     categoryOrderError,
     editingService,
@@ -73,11 +79,8 @@ export function ServicesSection({
     hasNamedCategories,
     isReorderMode,
     renameCategoryTarget,
-    search,
-    setAddOpen,
     setEditingService,
     setRenameCategoryTarget,
-    setSearch,
     showInitialError,
     showInitialLoading,
     showInlineError,
@@ -87,6 +90,7 @@ export function ServicesSection({
     error,
     loading,
     onDelete,
+    search,
     onRestore,
     onDuplicate,
     onRenameCategory,
@@ -111,12 +115,7 @@ export function ServicesSection({
 
   return (
     <div className="space-y-4">
-      <ServicesToolbar
-        search={search}
-        servicesCount={services.length}
-        onAddService={() => setAddOpen(true)}
-        onSearchChange={setSearch}
-      />
+      <h2 className="sr-only">Services</h2>
 
       <ServicesSectionFeedback
         categoryOrderError={categoryOrderError}
@@ -134,15 +133,15 @@ export function ServicesSection({
         !showInitialError &&
         filteredServices.length === 0 &&
         services.length === 0 && (
-          <ServicesEmptyState mode="empty" onAddService={() => setAddOpen(true)} />
+          <ServicesEmptyState mode="empty" onAddService={() => onAddOpenChange(true)} />
         )}
 
       {!showInitialLoading && filteredServices.length === 0 && services.length > 0 && (
         <ServicesEmptyState
           mode="search"
           search={search}
-          onAddService={() => setAddOpen(true)}
-          onClearSearch={() => setSearch("")}
+          onAddService={() => onAddOpenChange(true)}
+          onClearSearch={() => onSearchChange("")}
         />
       )}
 
@@ -163,7 +162,7 @@ export function ServicesSection({
       <Suspense fallback={null}>
         <ServiceDialog
           open={addOpen}
-          onOpenChange={setAddOpen}
+          onOpenChange={onAddOpenChange}
           categoryOptions={categoryOptions}
           onSubmit={async (payload, iconFile) => {
             const created = await onCreate(payload, iconFile);

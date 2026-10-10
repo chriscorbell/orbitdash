@@ -16,3 +16,19 @@ export function formatRelativeAge(isoDate: string, now: number = Date.now()): st
   }
   return "just now";
 }
+
+/** "14d 3h", "5h 12m", "8m" — the two largest units, for uptimes. */
+export function formatUptime(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+/** One decimal under 10%, whole numbers above, so values don't jitter in width. */
+export function formatPercent(value: number): string {
+  return value < 10 ? value.toFixed(1) : Math.round(value).toString();
+}

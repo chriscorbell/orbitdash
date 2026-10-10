@@ -25,11 +25,15 @@ vi.mock("@/components/ServicesSection", () => ({
   },
 }));
 
-vi.mock("@/components/MetricCharts", () => ({
-  MetricCharts: ({ samples }: { samples: MetricSample[] }) => <div>{samples.length} points</div>,
-}));
+vi.mock("@/components/stats/StatsStrip", async () => {
+  const { useMetrics } = await import("@/hooks/useMetrics");
+  return {
+    StatsStrip: () => <div>{useMetrics().samples.length} points</div>,
+  };
+});
 
-vi.mock("@/components/Header", () => ({ Header: () => <header /> }));
+vi.mock("@/components/header/AppHeader", () => ({ AppHeader: () => <header /> }));
+vi.mock("@/components/settings/SettingsDialog", () => ({ SettingsDialog: () => null }));
 vi.mock("@/hooks/useDashboardSettings", async () => {
   const { DEFAULT_DASHBOARD_SETTINGS } = await import("@shared/dashboard-settings");
   return {

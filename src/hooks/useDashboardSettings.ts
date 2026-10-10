@@ -68,8 +68,11 @@ export function readLegacyLayout(): DashboardSettings | null {
   }
 
   const layout = { ...DEFAULT_DASHBOARD_SETTINGS.layout };
-  if (values.sectionOrder === "stats-first") layout.servicesFirst = false;
-  if (values.servicesFirst !== null) layout.servicesFirst = values.servicesFirst !== "false";
+  // Older versions stored "services first"; keeping the user's order means stats go below.
+  if (values.sectionOrder === "services-first") layout.statsPosition = "bottom";
+  if (values.servicesFirst !== null) {
+    layout.statsPosition = values.servicesFirst === "false" ? "top" : "bottom";
+  }
   if (values.showServices !== null) layout.showServices = values.showServices !== "false";
   if (values.showStats !== null) layout.showStats = values.showStats !== "false";
   if (values.gridColumns === "3" || values.gridColumns === "5") {

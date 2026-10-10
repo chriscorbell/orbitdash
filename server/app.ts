@@ -12,6 +12,7 @@ import { isDbHealthy } from "./db";
 import { publish } from "./events";
 import { logOperationalError, recordRequest } from "./observability";
 import { getIconsDir } from "./services/icon-storage";
+import { getSystemInfo } from "./system-info";
 
 export const app = new Hono();
 
@@ -135,6 +136,11 @@ app.get("/api/health", (c) => {
       database: databaseHealthy ? "ok" : "error",
     },
   });
+});
+
+app.get("/api/system", (c) => {
+  c.header("Cache-Control", "no-store");
+  return c.json(getSystemInfo());
 });
 
 app.get("/api/icons/:filename", async (c) => {

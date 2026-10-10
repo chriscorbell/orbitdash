@@ -129,6 +129,18 @@ describe("BackupSettingsSection", () => {
   });
 });
 
+describe("formatUptime and formatPercent", () => {
+  it("formats uptimes with the two largest units", async () => {
+    const { formatPercent, formatUptime } = await import("@/lib/format");
+    expect(formatUptime(14 * 86_400 + 3 * 3_600 + 59)).toBe("14d 3h");
+    expect(formatUptime(5 * 3_600 + 12 * 60)).toBe("5h 12m");
+    expect(formatUptime(8 * 60 + 30)).toBe("8m");
+    expect(formatUptime(-5)).toBe("0m");
+    expect(formatPercent(4.25)).toBe("4.3");
+    expect(formatPercent(72.6)).toBe("73");
+  });
+});
+
 describe("formatRelativeAge", () => {
   it("picks the largest whole unit", () => {
     const now = Date.parse("2026-10-10T12:00:00.000Z");

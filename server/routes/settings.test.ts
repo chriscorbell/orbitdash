@@ -127,7 +127,7 @@ describe("dashboard settings routes", () => {
 
     const defaults: View["settings"] = {
       appearance: { accent: "ice", theme: "dark" },
-      layout: { gridColumns: 4, servicesFirst: true, showServices: true, showStats: true },
+      layout: { gridColumns: 4, statsPosition: "top", showServices: true, showStats: true },
     };
     expect(body).toEqual({ device: null, effective: defaults, settings: defaults, stored: false });
   });
@@ -151,7 +151,7 @@ describe("dashboard settings routes", () => {
     expect(body.settings.layout.gridColumns).toBe(5);
 
     const again = (await (await app.request("/api/settings")).json()) as View;
-    expect(again.settings.layout).toMatchObject({ gridColumns: 5, servicesFirst: true });
+    expect(again.settings.layout).toMatchObject({ gridColumns: 5, statsPosition: "top" });
   });
 
   it("rejects unknown fields and bad values", async () => {

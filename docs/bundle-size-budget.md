@@ -16,17 +16,16 @@ matches, so group priority decides where shared packages land:
    Full Zod never loads in the browser: forms validate with plain checks and the server validates
    everything again. The app's own schemas ship in the entry, so this chunk's hash only
    changes when Zod does.
-3. `charts`: Chart.js and react-chartjs-2. Only the lazily loaded `MetricCharts` imports it.
-4. `drag-drop`: dnd-kit. Only the lazily loaded settings `CategoryOrderList` imports it.
-5. `icons`: lucide-react.
-6. `vendor`: everything else in `node_modules` that the first render needs (Radix, Floating UI,
+3. `drag-drop`: dnd-kit. Only the lazily loaded settings `CategoryOrderList` imports it.
+4. `icons`: lucide-react.
+5. `vendor`: everything else in `node_modules` that the first render needs (Radix, Floating UI,
    tailwind-merge). The `$initial` tag keeps packages used only by lazy chunks, like the Select
    and Tabs primitives, inside those chunks.
 
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`charts-*` and `drag-drop-*` must never be loaded up front. If React lands in one of them again,
+`drag-drop-*` must never be loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit or Chart.js directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
@@ -35,11 +34,10 @@ happens.
 
 | Asset group          | Budget raw | Budget gzip | Current baseline                             |
 | -------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`         |      66 kB |       20 kB | about 61 kB raw / 18.4 kB gzip / 16.4 kB br  |
-| `index-*.css`        |      70 kB |       12 kB | about 63 kB raw / 11.1 kB gzip / 9.6 kB br   |
+| `index-*.js`         |      72 kB |       22 kB | about 66 kB raw / 20.5 kB gzip / 18.2 kB br  |
+| `index-*.css`        |      76 kB |       13 kB | about 72 kB raw / 12.1 kB gzip / 10.5 kB br  |
 | `react-vendor-*.js`  |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`        |     180 kB |       56 kB | about 172 kB raw / 53.5 kB gzip / 47.1 kB br |
-| `charts-*.js`        |     170 kB |       60 kB | about 156 kB raw / 54.1 kB gzip / 47.6 kB br |
 | `validation-*.js`    |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
 | `ServiceDialog-*.js` |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
 | `drag-drop-*.js`     |      48 kB |       16 kB | about 43 kB raw / 14.1 kB gzip / 12.7 kB br  |
@@ -61,7 +59,7 @@ The check reads the built files in `dist/assets` and fails if:
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `charts-*` or `drag-drop-*` chunk
+- `dist/index.html` references a `drag-drop-*` chunk
 
 ## History
 
@@ -81,6 +79,11 @@ The check reads the built files in `dist/assets` and fails if:
   constructor, so that code cannot be tree-shaken. Moving the shared schemas to `zod/mini`, which
   skips the JSON Schema processors and the default memoizer, is the way to shrink this chunk
   again. React 19.3 grew `react-vendor-*` by about 28 kB raw.
+- The live stats became a strip of SVG sparklines, removing Chart.js (about 54 kB gzip) and the
+  `charts-*` chunk entirely; the full stats page will use uPlot. The strip, the new header and
+  the extracted settings dialog now render with the entry, so its budgets rose from 66 kB / 20 kB
+  to 72 kB / 22 kB (JS) and 70 kB / 12 kB to 76 kB / 13 kB (CSS) while the first view as a whole
+  lost the chart chunk it used to fetch right after rendering.
 - Replacing Recharts with Chart.js cut the chart chunk roughly in half.
 - Zod 4 and the schema split moved runtime validation out of the entry bundle.
 

@@ -1,83 +1,57 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryWrapper } from "@/test/query";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service } from "@shared/types";
 
-interface MockHeaderProps {
-  servicesFirst: boolean;
-  showServicesSection: boolean;
-  showStatsSection: boolean;
-  onServicesFirstChange: (enabled: boolean) => void;
-  onShowServicesSectionChange: (enabled: boolean) => void;
-  onShowStatsSectionChange: (enabled: boolean) => void;
+interface MockServicesProps {
+  addOpen: boolean;
+  search: string;
 }
 
-function createLocalStorageMock() {
-  let store = new Map<string, string>();
-
-  return {
-    getItem: vi.fn((key: string) => store.get(key) ?? null),
-    setItem: vi.fn((key: string, value: string) => {
-      store.set(key, value);
-    }),
-    removeItem: vi.fn((key: string) => {
-      store.delete(key);
-    }),
-    clear: vi.fn(() => {
-      store = new Map<string, string>();
-    }),
-  };
+interface MockSettingsProps {
+  open: boolean;
+  onShowServicesSectionChange: (visible: boolean) => void;
+  onShowStatsSectionChange: (visible: boolean) => void;
+  onStatsPositionChange: (position: "top" | "bottom") => void;
 }
-
-const localStorageMock = createLocalStorageMock();
-
-Object.defineProperty(window, "localStorage", {
-  value: localStorageMock,
-  configurable: true,
-});
 
 vi.mock("@/components/Footer", () => ({
   Footer: () => <div data-testid="footer" />,
 }));
 
-vi.mock("@/components/Header", () => ({
-  Header: ({
-    servicesFirst,
-    showServicesSection,
-    showStatsSection,
-    onServicesFirstChange,
-    onShowServicesSectionChange,
-    onShowStatsSectionChange,
-  }: MockHeaderProps) => (
-    <div>
-      <div data-testid="services-first-state">{String(servicesFirst)}</div>
-      <button type="button" onClick={() => onServicesFirstChange(!servicesFirst)}>
-        Toggle services first
-      </button>
-      <button type="button" onClick={() => onShowServicesSectionChange(!showServicesSection)}>
-        Toggle services section
-      </button>
-      <button type="button" onClick={() => onShowStatsSectionChange(!showStatsSection)}>
-        Toggle stats section
-      </button>
-    </div>
+vi.mock("@/components/ServicesSection", () => ({
+  ServicesSection: ({ addOpen, search }: MockServicesProps) => (
+    <section data-testid="services-section">
+      <span data-testid="add-open">{String(addOpen)}</span>
+      <span data-testid="search">{search}</span>
+    </section>
   ),
 }));
 
-vi.mock("@/components/MetricCard", () => ({
-  MetricCard: ({ title }: { title: string }) => <div>{title} metric</div>,
-}));
-
-vi.mock("@/components/MetricCharts", () => ({
-  MetricCharts: () => <div>Charts</div>,
-}));
-
-vi.mock("@/components/ServicesSection", () => ({
-  ServicesSection: () => <section data-testid="services-section">Services section</section>,
+vi.mock("@/components/settings/SettingsDialog", () => ({
+  SettingsDialog: ({
+    open,
+    onShowServicesSectionChange,
+    onShowStatsSectionChange,
+    onStatsPositionChange,
+  }: MockSettingsProps) =>
+    open ? (
+      <div role="dialog" aria-label="Settings">
+        <button type="button" onClick={() => onShowServicesSectionChange(false)}>
+          Hide services
+        </button>
+        <button type="button" onClick={() => onShowStatsSectionChange(false)}>
+          Hide stats
+        </button>
+        <button type="button" onClick={() => onStatsPositionChange("bottom")}>
+          Stats below
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/hooks/useCategoryOrder", () => ({
@@ -85,11 +59,26 @@ vi.mock("@/hooks/useCategoryOrder", () => ({
 }));
 
 vi.mock("@/hooks/useMetrics", () => ({
-  useMetrics: vi.fn(),
+  useMetrics: () => ({
+    samples: [],
+    latest: null,
+    status: "connecting",
+    error: null,
+    recoveredAt: null,
+  }),
 }));
 
 vi.mock("@/hooks/useServices", () => ({
   useServices: vi.fn(),
+}));
+
+vi.mock("@/lib/api/system", () => ({
+  fetchSystemInfo: vi.fn().mockResolvedValue({
+    cpuCount: 8,
+    hostname: "cloud",
+    platform: "linux",
+    uptimeSeconds: 90_000,
+  }),
 }));
 
 vi.mock("@/lib/api/dashboard-settings", async () => {
@@ -113,31 +102,14 @@ vi.mock("@/lib/api/dashboard-settings", async () => {
 
 import App from "@/App";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
-import { useMetrics } from "@/hooks/useMetrics";
 import { useServices } from "@/hooks/useServices";
 
-const mockedUseCategoryOrder = vi.mocked(useCategoryOrder);
-const mockedUseMetrics = vi.mocked(useMetrics);
-const mockedUseServices = vi.mocked(useServices);
-
-const categoryOrderStub: UseCategoryOrderResult = {
-  draftOrder: [],
-  error: null,
-  hasNamedCategories: false,
-  isDirty: false,
-  isReorderMode: false,
-  loading: false,
-  namedCategories: [],
-  saveState: "idle",
-  saving: false,
+const categoryOrderStub = {
   visibleCategoryOrder: [],
-  applyOrder: vi.fn(),
+  namedCategories: [],
   beginReorder: vi.fn(),
   cancelReorder: vi.fn(),
-  moveCategory: vi.fn().mockResolvedValue(undefined),
-  reorderCategories: vi.fn().mockResolvedValue(undefined),
-  saveOrder: vi.fn().mockResolvedValue(undefined),
-};
+} as unknown as UseCategoryOrderResult;
 
 const serviceStub: Service = {
   id: "svc-1",
@@ -154,6 +126,14 @@ const serviceStub: Service = {
   updated_at: 1,
 };
 
+function renderApp() {
+  return render(<App />, { wrapper: createQueryWrapper().wrapper });
+}
+
+function isBefore(first: Element, second: Element) {
+  return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
 beforeEach(async () => {
   window.localStorage.clear();
   const settingsApi = (await import("@/lib/api/dashboard-settings")) as unknown as {
@@ -161,15 +141,7 @@ beforeEach(async () => {
   };
   settingsApi.resetForTesting();
 
-  mockedUseMetrics.mockReturnValue({
-    samples: [],
-    latest: null,
-    status: "connecting",
-    error: null,
-    recoveredAt: null,
-  });
-
-  mockedUseServices.mockReturnValue({
+  vi.mocked(useServices).mockReturnValue({
     services: [serviceStub],
     loading: false,
     error: null,
@@ -181,8 +153,7 @@ beforeEach(async () => {
     renameCategory: vi.fn().mockResolvedValue({ services: [], order: [] }),
     reload: vi.fn().mockResolvedValue(undefined),
   });
-
-  mockedUseCategoryOrder.mockReturnValue(categoryOrderStub);
+  vi.mocked(useCategoryOrder).mockReturnValue(categoryOrderStub);
 });
 
 afterEach(() => {
@@ -191,29 +162,49 @@ afterEach(() => {
 });
 
 describe("App", () => {
-  it("shows services before stats by default", async () => {
-    render(<App />, { wrapper: createQueryWrapper().wrapper });
+  it("shows the live stats strip above the services by default", async () => {
+    renderApp();
 
-    const servicesSection = await screen.findByTestId("services-section");
-    const statsHeading = screen.getByRole("heading", { name: "Stats" });
-
-    expect(
-      servicesSection.compareDocumentPosition(statsHeading) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-    expect(screen.getByTestId("services-first-state").textContent).toBe("true");
+    const services = await screen.findByTestId("services-section");
+    const stats = screen.getByRole("region", { name: "Live stats" });
+    expect(isBefore(stats, services)).toBe(true);
   });
 
-  it("can hide each section independently and shows an empty state when both are hidden", async () => {
+  it("moves the stats below services when settings say so", async () => {
     const user = userEvent.setup();
+    renderApp();
 
-    render(<App />, { wrapper: createQueryWrapper().wrapper });
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    await user.click(screen.getByRole("button", { name: "Stats below" }));
 
-    await user.click(screen.getByRole("button", { name: "Toggle services section" }));
+    await waitFor(() => {
+      const services = screen.getByTestId("services-section");
+      const stats = screen.getByRole("region", { name: "Live stats" });
+      expect(isBefore(services, stats)).toBe(true);
+    });
+  });
+
+  it("passes the header's search and add action to the services", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.type(screen.getByRole("searchbox", { name: "Search services" }), "jelly");
+    expect(screen.getByTestId("search").textContent).toBe("jelly");
+
+    await user.click(screen.getByRole("button", { name: "Add service" }));
+    expect(screen.getByTestId("add-open").textContent).toBe("true");
+  });
+
+  it("explains an empty page when everything is hidden", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    await user.click(screen.getByRole("button", { name: "Hide services" }));
+    await user.click(screen.getByRole("button", { name: "Hide stats" }));
+
+    expect(await screen.findByText("Nothing is shown right now")).toBeTruthy();
     expect(screen.queryByTestId("services-section")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Stats" })).toBeTruthy();
-
-    await user.click(screen.getByRole("button", { name: "Toggle stats section" }));
-    expect(screen.queryByRole("heading", { name: "Stats" })).toBeNull();
-    expect(screen.getByText("Nothing is visible")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Live stats" })).toBeNull();
   });
 });
