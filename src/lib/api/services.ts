@@ -1,6 +1,5 @@
 import { buildApiUrl, jsonBody, request, requestJson } from "@/lib/api/client";
 import { serviceSchema, servicesResponseSchema } from "@/lib/api/schemas";
-import { buildServiceFormData } from "@shared/service-form-data";
 import type {
   CreateServicePayload,
   MoveServicePayload,
@@ -12,8 +11,15 @@ export function fetchServices(): Promise<Service[]> {
   return requestJson("/api/services", {}, "Failed to fetch services", servicesResponseSchema);
 }
 
+// Building the multipart body only matters once something is saved, so it loads then.
+const loadFormData = () => import("@shared/service-form-data");
+
 /** Create a new service (with optional icon file upload) */
-export function createService(payload: CreateServicePayload, iconFile?: File): Promise<Service> {
+export async function createService(
+  payload: CreateServicePayload,
+  iconFile?: File
+): Promise<Service> {
+  const { buildServiceFormData } = await loadFormData();
   const formData = buildServiceFormData(payload, {
     iconFile,
     includeDefaultOpenInNewTab: true,
@@ -27,12 +33,13 @@ export function createService(payload: CreateServicePayload, iconFile?: File): P
   );
 }
 
-export function updateService(
+export async function updateService(
   id: string,
   payload: UpdateServicePayload,
   iconFile?: File,
   removeIcon?: boolean
 ): Promise<Service> {
+  const { buildServiceFormData } = await loadFormData();
   const formData = buildServiceFormData(payload, {
     allowEmptyFields: true,
     iconFile,

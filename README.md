@@ -59,6 +59,7 @@ version before creating the matching tag.
 - A wallpaper with blur and dim, your own dashboard name, an accent-colored favicon, and custom CSS
 - Settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
 - Collapse category sections with saved per-browser state
+- Import services from Homepage, Dashy, Homer, Homarr or browser bookmarks, with a preview to pick from
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
 - Deleting a service can be undone for 30 minutes
 - Installable as an app on phones and desktops, and opens with your last known services while the
@@ -145,6 +146,46 @@ Logs are JSON lines on stdout/stderr. `LOG_LEVEL` sets the minimum level written
 (default), `warn` or `error`. Successful health checks, icon and asset requests, and the live
 event streams are logged at `debug`; other successful requests at `info`; 4xx responses at `warn`;
 5xx responses at `error`.
+
+## Importing From Another Dashboard
+
+Settings → Data → **Import from another dashboard** reads these files:
+
+| From              | File                                                      |
+| ----------------- | --------------------------------------------------------- |
+| Homepage          | `services.yaml` (nested groups become their own category) |
+| Dashy             | `conf.yml`                                                |
+| Homer             | `config.yml`                                              |
+| Homarr            | the JSON export of a board                                |
+| Browser bookmarks | the HTML export from Chrome, Firefox, Safari or Edge      |
+
+Nothing is added until you confirm. The preview shows every service with its icon, unticks links
+that are already on your dashboard, and lets you rename each group's category. Icons named in the
+file (`jellyfin.png`, `sh-jellyfin`, `hl-jellyfin`) or matching the service name are looked up in
+the dashboard-icons and selfh.st libraries. Icon fonts such as `mdi-` or Font Awesome have no image
+to copy, so those services come across without an icon. A snapshot is saved before anything is
+added.
+
+### Seeding a fresh install
+
+To start a new install with services already in place, put a file in any of the formats above at
+`/data/seed.yaml` (or point `ORBITDASH_SEED_FILE` at it). It is applied once, on the first start
+with an empty dashboard; after that the UI is the source of truth and the file is ignored. The
+simplest format is orbitdash's own:
+
+```yaml
+categories:
+  - name: Media
+    services:
+      - name: Jellyfin
+        url: http://10.0.0.20:8096
+        description: Movies and shows
+        icon: jellyfin # a dashboard-icons or selfh.st name, or an image URL
+  - name: Infrastructure
+    services:
+      - name: Proxmox
+        url: https://pve.lan:8006
+```
 
 ## Host Metrics
 

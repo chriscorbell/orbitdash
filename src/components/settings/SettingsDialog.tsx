@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +14,6 @@ import { CustomCssSettings } from "@/components/settings/CustomCssSettings";
 import { DashboardTitleField } from "@/components/settings/DashboardTitleField";
 import { WallpaperSettings } from "@/components/settings/WallpaperSettings";
 import { WebSearchSettings } from "@/components/settings/WebSearchSettings";
-import { WidgetSettings } from "@/components/settings/WidgetSettings";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import {
   SettingsChoiceRow,
@@ -21,6 +21,7 @@ import {
   SettingsToggleRow,
   type ChoiceOption,
 } from "@/components/settings/SettingsRows";
+import { DashboardImportSettings } from "@/components/settings/DashboardImportSettings";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
 import type {
   BoardMode,
@@ -31,6 +32,13 @@ import type {
   StatsPosition,
 } from "@shared/dashboard-settings";
 import { Columns3, LayoutGrid, LayoutList, List, PencilRuler, Rows3 } from "lucide-react";
+
+// Its own chunk, fetched as the dialog opens; the section sits below the fold.
+const WidgetSettings = lazy(() =>
+  import("@/components/settings/WidgetSettings").then((module) => ({
+    default: module.WidgetSettings,
+  }))
+);
 
 interface SettingsDialogProps {
   /** A section to scroll into view when the dialog opens. */
@@ -249,7 +257,13 @@ export function SettingsDialog({
             }}
           >
             <SettingsSectionLabel>Widgets</SettingsSectionLabel>
-            <WidgetSettings widgets={widgets} onChange={onWidgetsChange} />
+            <Suspense
+              fallback={
+                <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
+              }
+            >
+              <WidgetSettings widgets={widgets} onChange={onWidgetsChange} />
+            </Suspense>
           </section>
 
           <section className="space-y-3">
@@ -272,6 +286,7 @@ export function SettingsDialog({
 
           <section className="space-y-3">
             <SettingsSectionLabel>Data</SettingsSectionLabel>
+            <DashboardImportSettings />
             <BackupSettingsSection />
           </section>
         </div>

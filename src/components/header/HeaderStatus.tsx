@@ -25,7 +25,7 @@ export function HeaderStatus({ clockFormat = "auto", children }: HeaderStatusPro
   const uptime = data ? data.uptimeSeconds + Math.max(0, (now - dataUpdatedAt) / 1000) : null;
 
   return (
-    <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground tabular-nums">
+    <div className="flex items-center gap-2 font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums">
       {children}
       {uptime !== null && (
         <span
@@ -35,7 +35,8 @@ export function HeaderStatus({ clockFormat = "auto", children }: HeaderStatusPro
           }
         >
           {data?.hostname && <span className="text-foreground">{data.hostname}</span>}
-          <span>up {formatUptime(uptime)}</span>
+          {/* Header widgets need the room; the uptime stays in the tooltip. */}
+          {(!children || !data?.hostname) && <span>up {formatUptime(uptime)}</span>}
         </span>
       )}
       <time

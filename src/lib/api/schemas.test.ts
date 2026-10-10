@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import * as iconLibraryMini from "@/lib/api/icon-library";
+import * as importMini from "@/lib/api/imports";
 import * as metricMini from "@/lib/api/metric-schemas";
 import * as mini from "@/lib/api/schemas";
 import * as full from "@shared/schemas";
 import { dashboardSettingsResponseSchema as fullSettings } from "@shared/dashboard-settings-schemas";
+import { DEFAULT_DASHBOARD_SETTINGS } from "@shared/dashboard-settings";
 import * as fullHost from "@shared/host-schemas";
+import * as fullImport from "@shared/import-schemas";
+import * as fullWidgets from "@shared/widget-schemas";
+import * as miniWidgets from "@/lib/api/widgets";
 import * as fullStatus from "@shared/status-schemas";
 import * as miniStatus from "@/lib/api/status";
 
@@ -131,6 +136,17 @@ const settings = {
     showStatsPage: true,
   },
   search: { engine: "custom", customUrl: "https://searx.example.com/?q=%s" },
+  widgets: {
+    placement: "row",
+    clock: true,
+    greeting: false,
+    clockFormat: "24h",
+    weather: true,
+    weatherLocation: { name: "Portland", latitude: 45.5, longitude: -122.7 },
+    weatherUnits: "imperial",
+    agenda: false,
+    agendaDays: 3,
+  },
 };
 
 /** Each pair must agree: the browser's zod/mini schema and the shared full-zod schema. */
@@ -195,6 +211,96 @@ const pairs = [
     invalid: [
       { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
     ],
+  },
+  {
+    name: "weather report",
+    mini: miniWidgets.weatherReportSchema,
+    full: fullWidgets.weatherReportSchema,
+    valid: {
+      timezone: "UTC",
+      current: {
+        temperature: 1,
+        apparentTemperature: 0,
+        weatherCode: 3,
+        isDay: true,
+        windSpeed: 2,
+        humidity: 50,
+      },
+      daily: [{ date: "2026-10-10", weatherCode: 3, max: 2, min: 0, precipitationChance: null }],
+      units: { temperature: "°C", windSpeed: "km/h" },
+      fetchedAt: 1,
+    },
+    invalid: [{ timezone: "UTC", current: {}, daily: [], units: {}, fetchedAt: 1 }],
+  },
+  {
+    name: "geocode",
+    mini: miniWidgets.geocodeResponseSchema,
+    full: fullWidgets.geocodeResponseSchema,
+    valid: {
+      results: [{ id: 1, name: "A", region: null, country: "B", latitude: 1, longitude: 2 }],
+    },
+    invalid: [{ results: [{ id: "1", name: "A" }] }],
+  },
+  {
+    name: "agenda feeds",
+    mini: miniWidgets.agendaFeedsResponseSchema,
+    full: fullWidgets.agendaFeedsResponseSchema,
+    valid: { feeds: [{ id: "f", name: "Work", host: "cal.lan" }] },
+    invalid: [{ feeds: [{ id: "f", name: "Work", url: "https://cal.lan/secret" }] }],
+  },
+  {
+    name: "agenda",
+    mini: miniWidgets.agendaResponseSchema,
+    full: fullWidgets.agendaResponseSchema,
+    valid: {
+      events: [
+        {
+          id: "e",
+          feedId: "f",
+          title: "Standup",
+          location: "Room 1",
+          allDay: true,
+          start: "2026-10-10",
+          end: "2026-10-11",
+        },
+      ],
+      errors: [],
+    },
+    invalid: [{ events: [], errors: [{ feedId: "f" }] }],
+  },
+  {
+    name: "import preview",
+    mini: importMini.importPreviewSchema,
+    full: fullImport.importPreviewSchema,
+    valid: {
+      format: "homepage",
+      groups: [
+        {
+          name: "Media",
+          services: [
+            {
+              name: "Jellyfin",
+              url: "http://10.0.0.20:8096",
+              description: "Movies",
+              iconUrl: null,
+              duplicate: false,
+            },
+          ],
+        },
+      ],
+      warnings: [],
+    },
+    invalid: [
+      { format: "heimdall", groups: [], warnings: [] },
+      { format: "homer", groups: [{ name: "A", services: [{ name: "x" }] }], warnings: [] },
+    ],
+  },
+  {
+    name: "import result",
+    mini: importMini.importResultSchema,
+    full: fullImport.importResultSchema,
+    valid: { created: 2, failed: [{ name: "A", error: "nope" }], iconFailures: 1, snapshot: "s" },
+    invalid: [{ created: 2, failed: [], iconFailures: "1", snapshot: null }],
   },
   {
     name: "categories",
@@ -288,6 +394,17 @@ describe("browser response schemas", () => {
     };
     expect(mini.serviceSchema.parse(older)).toEqual(expected);
     expect(full.serviceSchema.parse(older)).toEqual(expected);
+  });
+
+  it("fill in widgets for settings cached before they existed", () => {
+    const { widgets: _widgets, ...older } = settings;
+    const parsed = mini.dashboardSettingsResponseSchema.parse({
+      device: null,
+      effective: older,
+      settings: older,
+      stored: true,
+    });
+    expect(parsed.settings.widgets).toEqual(DEFAULT_DASHBOARD_SETTINGS.widgets);
   });
 
   it("parse success replies and import summaries", () => {

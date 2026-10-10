@@ -25,7 +25,7 @@ matches, so group priority decides where shared packages land:
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with checks on) and `pwa-*` (service worker setup, imported after the page has loaded) must never be loaded up front. If React lands in one of them again,
+`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`, `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with checks on) and `pwa-*` (service worker setup, imported after the page has loaded) must never be loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
@@ -44,6 +44,9 @@ happens.
 | `EditableBoard-*.js`  |      44 kB |       14 kB | about 38 kB raw / 12.0 kB gzip / 10.8 kB br  |
 | `StatsPage-*.js`      |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
 | `CommandPalette-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
+| `ImportDialog-*.js`   |      16 kB |        6 kB | about 12 kB raw / 4.4 kB gzip                |
+| `Widgets-*.js`        |      14 kB |        5 kB | about 10 kB raw / 3.6 kB gzip                |
+| `WidgetSettings-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.5 kB gzip                 |
 | `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
 | `ServiceStatus-*.js`  |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip / 2.6 kB br     |
 | `sw.js`               |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
@@ -68,10 +71,20 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`, `ServiceStatus-*` or `pwa-*` chunk
+- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`, `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`, `ServiceStatus-*` or `pwa-*` chunk
 
 ## History
 
+- Clock, weather and agenda widgets load in a lazy `Widgets-*` chunk (about 3.6 kB gzip) only once
+  one is turned on, and their settings in `WidgetSettings-*` (about 2.5 kB gzip) as the settings
+  dialog opens. The entry gained the widgets settings section and the clock format (about 0.5 kB
+  gzip), and the event stream module had been folded into the entry along with `lib/format.ts`
+  (both were always loaded at startup, as a separate `event-stream-*` chunk). Instead of raising
+  the budget, the entry gave up three things it only needs later: the multipart builder for saving
+  a service (`shared/service-form-data.ts`, loaded when a service is saved), the one-time move of
+  pre-0.3 browser preferences (`lib/legacy-layout.ts`, loaded only where old keys exist) and the
+  strip's alert list (loaded once an alert fires). The event stream got its own chunk group again.
+  The entry ends at about 22.8 kB gzip of its 23 kB budget.
 - Status checks keep their card UI (the dot, the details with the uptime bar, the status cache and
   its event subscription) in a lazy `ServiceStatus-*` chunk of about 2.9 kB gzip, loaded by the
   first card with checks on, so a dashboard without checks never downloads it. The rules both the
@@ -89,6 +102,7 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
   right away. Removing the inline search filter roughly offset the shortcut handling in the entry.
   The shared CSS file reached 85 kB raw / 14 kB gzip, so its budget went to 90 kB / 15 kB. Tailwind
   emits one stylesheet for every chunk, so lazy UI keeps adding to it.
+- The dashboard import preview loads in `ImportDialog-*` (about 4.4 kB gzip) only after a file is picked in Settings.
 - The Stats page and uPlot live in a lazy `StatsPage-*` chunk (about 28 kB gzip, with its own small
   CSS file), prefetched on hover or focus of the Stats tab. The host snapshot and history schemas
   moved out of the entry into that chunk (about 0.4 kB gzip). The router, page tabs and Stats page

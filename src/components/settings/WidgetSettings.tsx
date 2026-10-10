@@ -83,7 +83,7 @@ export function WidgetSettings({ widgets, onChange }: WidgetSettingsProps) {
         <SettingsToggleRow
           id="widget-greeting"
           title="Greeting"
-          description="Good morning, afternoon or evening above the clock"
+          description="A greeting for the time of day above the clock"
           checked={widgets.greeting}
           onCheckedChange={(greeting) => onChange({ greeting })}
         />
@@ -140,11 +140,11 @@ function WeatherSettings({ widgets, onChange }: WidgetSettingsProps) {
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-3">
-      <div className="space-y-2">
+    <div className="space-y-3 border-l-2 border-border pl-3">
+      <div className="space-y-2 rounded-lg border border-border p-3">
         <Label htmlFor={`${id}-place`}>Place</Label>
         {location && (
-          <div className="flex items-center gap-2 rounded-md bg-muted/60 py-1.5 pr-1 pl-2.5 text-sm">
+          <div className="flex items-center gap-2 rounded-md bg-muted/60 py-1.5 pr-2 pl-2.5 text-sm">
             <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">{location.name}</span>
             <Button
@@ -181,7 +181,7 @@ function WeatherSettings({ widgets, onChange }: WidgetSettingsProps) {
                     <button
                       type="button"
                       onClick={() => choose(place)}
-                      className="w-full truncate rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                      className="w-full truncate rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                     >
                       {placeName(place)}
                     </button>
@@ -191,6 +191,18 @@ function WeatherSettings({ widgets, onChange }: WidgetSettingsProps) {
             )}
           </div>
         )}
+        <p className="text-muted-foreground text-xs">
+          Weather data by{" "}
+          <a
+            href="https://open-meteo.com/"
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            Open-Meteo
+          </a>
+          .
+        </p>
       </div>
       <SettingsChoiceRow
         id="widget-units"
@@ -200,18 +212,6 @@ function WeatherSettings({ widgets, onChange }: WidgetSettingsProps) {
         value={widgets.weatherUnits}
         onChange={(weatherUnits) => onChange({ weatherUnits })}
       />
-      <p className="text-muted-foreground text-xs">
-        Weather data by{" "}
-        <a
-          href="https://open-meteo.com/"
-          target="_blank"
-          rel="noreferrer"
-          className="underline underline-offset-2 hover:text-foreground"
-        >
-          Open-Meteo
-        </a>
-        .
-      </p>
     </div>
   );
 }
@@ -243,7 +243,7 @@ function AgendaSettings({ widgets, onChange }: WidgetSettingsProps) {
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-3">
+    <div className="space-y-3 border-l-2 border-border pl-3">
       <SettingsChoiceRow
         id="widget-agenda-days"
         title="Look ahead"
@@ -253,14 +253,14 @@ function AgendaSettings({ widgets, onChange }: WidgetSettingsProps) {
         onChange={(days) => onChange({ agendaDays: Number(days) as AgendaDays })}
       />
 
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-lg border border-border p-3">
         <Label>Calendars</Label>
         {feeds.data && feeds.data.length > 0 && (
           <ul className="space-y-1">
             {feeds.data.map((feed) => (
               <li
                 key={feed.id}
-                className="flex items-center gap-2 rounded-md bg-muted/60 py-1 pr-1 pl-2.5 text-sm"
+                className="flex items-center gap-2 rounded-md bg-muted/60 py-1 pr-2 pl-2.5 text-sm"
               >
                 <span className="min-w-0 flex-1 truncate">
                   {feed.name}
@@ -284,8 +284,11 @@ function AgendaSettings({ widgets, onChange }: WidgetSettingsProps) {
           <Input
             aria-label="Calendar link"
             id={`${id}-url`}
-            type="url"
+            // Plain text: the server checks the link, and webcal:// shouldn't trip browser checks.
+            type="text"
             inputMode="url"
+            autoComplete="off"
+            spellCheck={false}
             placeholder="iCal link (https:// or webcal://)"
             value={url}
             disabled={add.isPending}

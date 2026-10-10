@@ -30,6 +30,10 @@ vi.mock("@/components/settings/BackupSettingsSection", () => ({
   BackupSettingsSection: () => <div data-testid="backup-settings" />,
 }));
 
+vi.mock("@/components/settings/DashboardImportSettings", () => ({
+  DashboardImportSettings: () => <div data-testid="dashboard-import-settings" />,
+}));
+
 afterEach(() => {
   cleanup();
 });
@@ -73,7 +77,7 @@ describe("SettingsDialog", () => {
     const { props } = renderHeader();
 
     await user.click(screen.getByRole("button", { name: "Open settings" }));
-    await user.click(screen.getByRole("switch", { name: "Clock" }));
+    await user.click(await screen.findByRole("switch", { name: "Clock" }));
     expect(props.onWidgetsChange).toHaveBeenCalledWith({ clock: true });
     await user.click(screen.getByRole("radio", { name: "In the header" }));
     expect(props.onWidgetsChange).toHaveBeenLastCalledWith({ placement: "header" });
@@ -89,8 +93,8 @@ describe("SettingsDialog", () => {
       widgets: { ...DEFAULT_DASHBOARD_SETTINGS.widgets, placement: "header", clock: true },
     });
     await user.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(await screen.findByRole("switch", { name: "Weather" })).toBeTruthy();
     expect(screen.queryByRole("switch", { name: "Clock" })).toBeNull();
-    expect(screen.getByRole("switch", { name: "Weather" })).toBeTruthy();
   });
 
   it("changes the theme and accent from settings", async () => {

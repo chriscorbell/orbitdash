@@ -89,7 +89,7 @@ function Panel({
       role="group"
       aria-label={label}
       className={cn(
-        "widget-panel flex min-h-32 min-w-0 flex-col rounded-xl border bg-card px-3.5 py-3 shadow-xs",
+        "flex min-w-0 flex-col rounded-xl border bg-card px-3.5 py-3 shadow-xs",
         className
       )}
     >
@@ -155,6 +155,7 @@ function WeatherPanel({ widgets, onOpenSettings }: WidgetProps) {
   if (isPending)
     return (
       <Panel label="Weather" className="animate-pulse motion-reduce:animate-none">
+        <div className="h-24" />
         <span className="sr-only">Loading weather</span>
       </Panel>
     );
@@ -179,11 +180,11 @@ function WeatherReportView({ location, report }: { location: string; report: Wea
         <WeatherIcon
           code={current.weatherCode}
           isDay={current.isDay}
-          className="h-9 w-9 shrink-0 text-brand"
+          className="h-8 w-8 shrink-0 text-brand"
         />
         <div className="min-w-0">
           <p className="flex items-baseline gap-2">
-            <span className="text-3xl leading-none font-semibold tabular-nums">
+            <span className="text-4xl leading-none font-semibold tracking-tight tabular-nums">
               {formatTemperature(current.temperature)}
             </span>
             <span className="truncate text-sm">{condition}</span>
@@ -247,6 +248,7 @@ function AgendaPanel({ widgets, onOpenSettings }: WidgetProps) {
   if (agenda.isPending || feeds.isPending) {
     return (
       <Panel label="Agenda" className="animate-pulse motion-reduce:animate-none">
+        <div className="h-24" />
         <span className="sr-only">Loading calendar</span>
       </Panel>
     );
@@ -273,7 +275,7 @@ function AgendaPanel({ widgets, onOpenSettings }: WidgetProps) {
       )}
       {failed.length > 0 && (
         <p
-          className="mt-auto truncate text-xs text-muted-foreground"
+          className="truncate text-xs text-muted-foreground"
           title={failed.map((f) => `${f.name}: ${f.error}`).join("\n")}
         >
           {failed.length === 1
@@ -306,7 +308,7 @@ function AgendaList({ days, limit }: { days: AgendaDay[]; limit: number }) {
               <li key={event.id} className="flex min-w-0 items-baseline gap-2.5 text-sm">
                 <span
                   className={cn(
-                    "w-16 shrink-0 font-mono text-xs tabular-nums",
+                    "w-20 shrink-0 font-mono text-xs tabular-nums",
                     when === "Now" ? "text-brand" : "text-muted-foreground"
                   )}
                 >
@@ -341,7 +343,7 @@ function HeaderWeather({ widgets }: { widgets: DashboardWidgetSettings }) {
   const condition = describeWeather(data.current.weatherCode).label;
   return (
     <span
-      className="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-foreground animate-in fade-in-0 duration-300 sm:inline-flex"
+      className="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-foreground animate-in fade-in-0 duration-300 lg:inline-flex"
       title={`${condition} in ${widgets.weatherLocation?.name}, feels like ${formatTemperature(data.current.apparentTemperature)}`}
     >
       <WeatherIcon
@@ -361,12 +363,12 @@ function HeaderNextEvent({ widgets }: { widgets: DashboardWidgetSettings }) {
   if (!next) return null;
   return (
     <span
-      className="hidden max-w-56 min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 animate-in fade-in-0 duration-300 lg:inline-flex"
+      className="hidden max-w-48 min-w-0 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 animate-in fade-in-0 duration-300 lg:inline-flex"
       title={`${next.when}: ${next.event.title}`}
     >
       <CalendarDays aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
       <span className={cn("shrink-0", next.when === "Now" && "text-brand")}>{next.when}</span>
-      <span className="truncate font-sans text-foreground">{next.event.title}</span>
+      <span className="truncate text-foreground">{next.event.title}</span>
     </span>
   );
 }

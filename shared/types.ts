@@ -386,3 +386,36 @@ export interface AgendaResponse {
   /** Feeds that couldn't be loaded this time, with a short reason. */
   errors: Array<{ feedId: string; name: string; error: string }>;
 }
+
+/** One service in an import preview, ready to be picked and applied. */
+export interface ImportPreviewService {
+  name: string;
+  url: string;
+  description: string | null;
+  iconUrl: string | null; // resolved from the file or the icon library
+  duplicate: boolean; // a service with this URL already exists
+}
+
+/** Response shape for POST /api/import/preview */
+export interface ImportPreview {
+  format: "homepage" | "dashy" | "homer" | "homarr" | "bookmarks" | "orbitdash-seed";
+  groups: Array<{ name: string; services: ImportPreviewService[] }>;
+  warnings: string[];
+}
+
+/** One service to create from an import, with the category it goes in. */
+export interface ImportServiceInput {
+  name: string;
+  url: string;
+  description: string | null;
+  iconUrl: string | null;
+  category: string | null;
+}
+
+/** Response shape for POST /api/import/apply */
+export interface ImportResult {
+  created: number;
+  failed: Array<{ name: string; error: string }>;
+  iconFailures: number; // services created without the icon because it couldn't be downloaded
+  snapshot: string | null; // the snapshot taken before importing
+}

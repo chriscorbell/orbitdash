@@ -65,6 +65,27 @@ const budgets = [
     maxGzipKb: 4,
   },
   {
+    label: "import dialog",
+    prefix: "ImportDialog-",
+    extension: ".js",
+    maxRawKb: 16,
+    maxGzipKb: 6,
+  },
+  {
+    label: "widgets",
+    prefix: "Widgets-",
+    extension: ".js",
+    maxRawKb: 14,
+    maxGzipKb: 5,
+  },
+  {
+    label: "widget settings",
+    prefix: "WidgetSettings-",
+    extension: ".js",
+    maxRawKb: 10,
+    maxGzipKb: 4,
+  },
+  {
     label: "drag and drop",
     prefix: "drag-drop-",
     extension: ".js",
@@ -90,6 +111,10 @@ const lazyOnlyPrefixes = [
   "EditableBoard-",
   "StatsPage-",
   "CommandPalette-",
+  "ImportDialog-",
+  // Clock, weather and agenda; only loaded once one is turned on.
+  "Widgets-",
+  "WidgetSettings-",
   // Status dots and details, loaded by the first card with checks on.
   "ServiceStatus-",
   // Service worker setup, loaded after the page has.

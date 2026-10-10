@@ -9,7 +9,6 @@ import { getDeviceId } from "@/lib/device-id";
 import { queryKeys } from "@/lib/query-client";
 import {
   DEFAULT_DASHBOARD_SETTINGS,
-  diffDashboardSettings,
   isEmptySettingsPatch,
   mergeDashboardSettings,
   mergeSettingsPatches,
@@ -26,7 +25,8 @@ import {
 export type SettingsScope = "all" | "device";
 
 const CACHE_KEY = "orbitdash.settingsCache";
-const LEGACY_KEYS = {
+/** Layout preferences versions before 0.3 kept in this browser; see lib/legacy-layout. */
+export const LEGACY_KEYS = {
   // Read only so it gets cleared: the fixed column count gave way to layout modes.
   gridColumns: "orbitdash.servicesGrid",
   sectionOrder: "orbitdash.sectionOrder",
@@ -35,7 +35,7 @@ const LEGACY_KEYS = {
   showStats: "orbitdash.showStatsSection",
 } as const;
 
-function readStorage(key: string): string | null {
+export function readStorage(key: string): string | null {
   try {
     return window.localStorage.getItem(key);
   } catch {
@@ -61,60 +61,6 @@ function writeCachedSettings(settings: DashboardSettings) {
   }
 }
 
-/** Layout preferences older versions kept in this browser, or null if there are none. */
-export function readLegacyLayout(): DashboardSettings | null {
-  const values = Object.fromEntries(
-    Object.entries(LEGACY_KEYS).map(([field, key]) => [field, readStorage(key)])
-  ) as Record<keyof typeof LEGACY_KEYS, string | null>;
-  if (Object.values(values).every((value) => value === null)) {
-    return null;
-  }
-
-  const layout = { ...DEFAULT_DASHBOARD_SETTINGS.layout };
-  // Older versions stored "services first"; keeping the user's order means stats go below.
-  if (values.sectionOrder === "services-first") layout.statsPosition = "bottom";
-  if (values.servicesFirst !== null) {
-    layout.statsPosition = values.servicesFirst === "false" ? "top" : "bottom";
-  }
-  if (values.showServices !== null) layout.showServices = values.showServices !== "false";
-  if (values.showStats !== null) layout.showStats = values.showStats !== "false";
-  return { ...DEFAULT_DASHBOARD_SETTINGS, layout };
-}
-
-function clearLegacyLayout() {
-  try {
-    for (const key of Object.values(LEGACY_KEYS)) {
-      window.localStorage.removeItem(key);
-    }
-  } catch {
-    // Ignore storage access issues.
-  }
-}
-
-/**
- * Brings this browser's pre-0.3 layout to the server once: it becomes the shared settings when
- * none exist yet, otherwise any differences become this device's own overrides.
- */
-async function importLegacyLayout(
-  view: DashboardSettingsResponse,
-  deviceId: string
-): Promise<DashboardSettingsResponse> {
-  const legacy = readLegacyLayout();
-  if (!legacy) return view;
-
-  let next = view;
-  if (!view.stored) {
-    next = await updateSharedSettings(legacy, deviceId);
-  } else {
-    const differences = diffDashboardSettings(view.settings, legacy);
-    if (!isEmptySettingsPatch(differences)) {
-      next = await updateDeviceSettings(deviceId, { overrides: differences });
-    }
-  }
-  clearLegacyLayout();
-  return next;
-}
-
 function applyPatchToView(
   view: DashboardSettingsResponse,
   scope: SettingsScope,
@@ -138,13 +84,19 @@ export function useDashboardSettings() {
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => queryKeys.settings(deviceId), [deviceId]);
   const [initialSettings] = useState<DashboardSettings>(
-    () => readCachedSettings() ?? readLegacyLayout() ?? DEFAULT_DASHBOARD_SETTINGS
+    () => readCachedSettings() ?? DEFAULT_DASHBOARD_SETTINGS
   );
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey,
-    queryFn: async () => importLegacyLayout(await fetchDashboardSettings(deviceId), deviceId),
+    queryFn: async () => {
+      const view = await fetchDashboardSettings(deviceId);
+      // The one-time move of pre-0.3 preferences loads only in browsers that still have them.
+      if (Object.values(LEGACY_KEYS).every((key) => readStorage(key) === null)) return view;
+      const { importLegacyLayout } = await import("@/lib/legacy-layout");
+      return importLegacyLayout(view, deviceId);
+    },
   });
   const view = query.data ?? null;
   const settings = view?.effective ?? initialSettings;

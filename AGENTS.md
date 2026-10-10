@@ -53,6 +53,7 @@ Use this file as a practical handoff for future agents working in this repositor
   - `ORBITDASH_DATA_DIR`
   - `ORBITDASH_DISK_PATH`
   - `ORBITDASH_HOST_ROOT` (a read-only mount of the host's `/`; host metrics are read under it)
+  - `ORBITDASH_SEED_FILE` (services to add on a fresh install; defaults to `/data/seed.yaml`)
   - `PORT`
   - `NODE_ENV`
   - `LOG_LEVEL` (`debug` | `info` | `warn` | `error`, default `info`)
