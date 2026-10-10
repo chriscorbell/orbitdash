@@ -16,6 +16,7 @@ import {
   categoryRenameSchema,
   categoryReorderSchema,
   categoryUpdateSchema,
+  metricHistoryQuerySchema,
   metricsQuerySchema,
   serviceMoveSchema,
   serviceReorderSchema,
@@ -297,6 +298,26 @@ describe("metricsQuerySchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(getValidationMessage(result.error)).toBe("window must be 60 seconds or less");
+    }
+  });
+});
+
+describe("metricHistoryQuerySchema", () => {
+  it("defaults to the last hour and accepts every served range", () => {
+    expect(metricHistoryQuerySchema.parse({})).toEqual({ range: "1h" });
+    for (const range of ["1h", "24h", "7d", "30d"]) {
+      expect(metricHistoryQuerySchema.parse({ range })).toEqual({ range });
+    }
+  });
+
+  it("names the accepted ranges when given another", () => {
+    for (const range of ["2h", "", "7D", "30"]) {
+      const result = metricHistoryQuerySchema.safeParse({ range });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(getValidationMessage(result.error)).toBe("range must be one of 1h, 24h, 7d, 30d");
+      }
     }
   });
 });

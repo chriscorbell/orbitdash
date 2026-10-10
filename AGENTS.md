@@ -65,6 +65,7 @@ Use this file as a practical handoff for future agents working in this repositor
 - Shared runtime validation is centralized in `shared/schemas.ts`.
 - Shared multipart service request handling is centralized in `shared/service-form-data.ts` and is consumed by both client and server.
 - The metrics collector lives in `server/host/`. `host-fs.ts` is its only file access; every reader takes file contents or an injected `HostFs`, so tests run on fixture strings (`test-fixtures.ts`). The strip's `MetricSample` (`cpu`, `ram`, `disk`) is derived from the richer, versioned `HostSnapshot` of the same tick; keep its three fields stable and add detail to the snapshot.
+- Metric history lives in `server/history/`. The rollup math in `rollup.ts` is pure and tested directly; `recorder.ts` holds the minute in progress; `store.ts` owns the SQL for `metric_history_1m` and `metric_history_15m`. Collection must not subscribe to the live topics for history, because subscribing switches sampling to once a second. `tickCollection` calls `metricHistory.record` directly instead.
 
 ## Important Repo-Specific Gotchas
 

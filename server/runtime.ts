@@ -1,4 +1,6 @@
-import { closeDb, getDataDir, initializeDb } from "./db";
+import { closeDb, getDataDir, initializeDb, isDbInitialized } from "./db";
+import { metricHistory, nextFlushDelayMs } from "./history/recorder";
+import { MINUTE_MS } from "./history/rollup";
 import { cancelAllJobs, scheduleJob } from "./jobs";
 import { startCollection, stopCollection } from "./metrics";
 import { writeLog } from "./observability";
@@ -46,11 +48,36 @@ function startBackgroundJobs() {
     initialDelayMs: 30_000,
     intervalMs: 5 * 60 * 1000,
   });
+  // One transaction a minute, just after each minute ends.
+  scheduleJob("flush-metric-history", () => void metricHistory.flush(Date.now()), {
+    initialDelayMs: nextFlushDelayMs(Date.now()),
+    intervalMs: MINUTE_MS,
+  });
+  scheduleJob("prune-metric-history", () => void metricHistory.prune(Date.now()), {
+    initialDelayMs: 2 * MINUTE_MS,
+    intervalMs: HOUR_MS,
+  });
+}
+
+// Writes the minute in progress so a restart doesn't drop it; the next process merges into it.
+function flushMetricHistory() {
+  if (!isDbInitialized()) {
+    return;
+  }
+
+  try {
+    metricHistory.flush(Date.now(), { includePartial: true });
+  } catch (error) {
+    writeLog("error", "metric_history.flush_failed", {
+      message: error instanceof Error ? error.message : "unknown error",
+    });
+  }
 }
 
 export function shutdown() {
   cancelAllJobs();
   stopCollection();
+  flushMetricHistory();
   closeDb();
   runtimeInitialized = false;
 }

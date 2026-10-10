@@ -1,8 +1,14 @@
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { streamSSE } from "hono/streaming";
 import { getLatestSnapshot, getRecentSamples, subscribe } from "../metrics";
 import { jsonError } from "../api-response";
-import { getValidationMessage, metricsQuerySchema } from "@shared/server-schemas";
+import { metricHistory } from "../history/recorder";
+import {
+  getValidationMessage,
+  metricHistoryQuerySchema,
+  metricsQuerySchema,
+} from "@shared/server-schemas";
 
 const metricsRouter = new Hono();
 
@@ -22,6 +28,21 @@ metricsRouter.get("/", (c) => {
 metricsRouter.get("/host", (c) => {
   c.header("Cache-Control", "no-store");
   return c.json(getLatestSnapshot());
+});
+
+/**
+ * GET /api/metrics/history?range=1h|24h|7d|30d — rolled-up history as columnar arrays. Compressed
+ * because 30 days of quarter hours is a few hundred kilobytes of JSON.
+ */
+metricsRouter.get("/history", compress(), (c) => {
+  const result = metricHistoryQuerySchema.safeParse(c.req.query());
+
+  if (!result.success) {
+    return jsonError(c, 400, getValidationMessage(result.error));
+  }
+
+  c.header("Cache-Control", "no-store");
+  return c.json(metricHistory.read(result.data.range, Date.now()));
 });
 
 /** GET /api/metrics/stream — SSE endpoint */

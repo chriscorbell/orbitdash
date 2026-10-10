@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { Database } from "bun:sqlite";
 import fs from "fs";
 import path from "path";
-import { isDbInitialized } from "./db";
+import { getDb, isDbInitialized } from "./db";
+import { metricHistory } from "./history/recorder";
+import { bucketStart, MINUTE_MS } from "./history/rollup";
+import { historySnapshot } from "./history/test-fixtures";
+import { getScheduledJobNames } from "./jobs";
 import { isCollectionRunning } from "./metrics";
 import { initializeServer, shutdown } from "./runtime";
 import { cleanupTestDatabase, createTestDataDir } from "./test-utils";
@@ -107,6 +112,56 @@ describe("runtime icon cleanup", () => {
     expect(isDbInitialized()).toBe(true);
     expect(errorLog.mock.calls.map(([line]) => JSON.parse(String(line)))).toContainEqual(
       expect.objectContaining({ event: "icons.cleanup_failed", level: "error" })
+    );
+    errorLog.mockRestore();
+  });
+});
+
+describe("runtime metric history", () => {
+  const quietServer = {
+    cleanupIcons: false,
+    logStartup: false,
+    registerSignalHandlers: false,
+    startMetrics: false,
+  };
+
+  it("schedules the minute flush and the hourly prune", () => {
+    testDataDir = createTestDataDir("orbitdash-runtime-history-jobs-");
+    initializeServer({ ...quietServer, dataDir: testDataDir });
+
+    expect(getScheduledJobNames()).toEqual(
+      expect.arrayContaining(["flush-metric-history", "prune-metric-history"])
+    );
+  });
+
+  it("writes the minute in progress when shutting down", () => {
+    testDataDir = createTestDataDir("orbitdash-runtime-history-flush-");
+    initializeServer({ ...quietServer, dataDir: testDataDir, startJobs: false });
+    const now = Date.now();
+    metricHistory.record(historySnapshot(now, { cpu: 33 }), 40);
+
+    shutdown();
+
+    const db = new Database(path.join(testDataDir, "orbitdash.db"), { readonly: true });
+    const row = db
+      .prepare("SELECT cpu_max FROM metric_history_1m WHERE ts = ?")
+      .get(bucketStart(now, MINUTE_MS)) as { cpu_max: number } | null;
+    db.close();
+    expect(row?.cpu_max).toBeGreaterThanOrEqual(33);
+  });
+
+  it("still closes the database when that write fails", () => {
+    testDataDir = createTestDataDir("orbitdash-runtime-history-fail-");
+    initializeServer({ ...quietServer, dataDir: testDataDir, startJobs: false });
+    metricHistory.record(historySnapshot(Date.now()), 40);
+    getDb().exec("DROP TABLE metric_history_1m");
+    const errorLog = spyOn(console, "error").mockImplementation(() => {});
+
+    shutdown();
+
+    expect(isDbInitialized()).toBe(false);
+    expect(errorLog.mock.calls.map(([line]) => JSON.parse(String(line)))).toContainEqual(
+      expect.objectContaining({ event: "metric_history.flush_failed", level: "error" })
     );
     errorLog.mockRestore();
   });
