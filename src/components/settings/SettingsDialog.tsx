@@ -35,11 +35,19 @@ import type {
 } from "@shared/dashboard-settings";
 import { Columns3, LayoutGrid, LayoutList, List, LogOut, PencilRuler, Rows3 } from "lucide-react";
 
-// Its own chunk, fetched as the dialog opens; the section sits below the fold.
+// Their own chunks, fetched as the dialog opens; both sections sit below the fold.
 const WidgetSettings = lazy(() =>
   import("@/components/settings/WidgetSettings").then((module) => ({
     default: module.WidgetSettings,
   }))
+);
+const NotificationSettings = lazy(() =>
+  import("@/components/settings/notifications/NotificationSettings").then((module) => ({
+    default: module.NotificationSettings,
+  }))
+);
+const SECTION_PLACEHOLDER = (
+  <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
 );
 
 interface SettingsAccount {
@@ -316,11 +324,7 @@ export function SettingsDialog({
             }}
           >
             <SettingsSectionLabel>Widgets</SettingsSectionLabel>
-            <Suspense
-              fallback={
-                <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
-              }
-            >
+            <Suspense fallback={SECTION_PLACEHOLDER}>
               <WidgetSettings widgets={widgets} onChange={onWidgetsChange} />
             </Suspense>
           </section>
@@ -328,6 +332,13 @@ export function SettingsDialog({
           <section className="space-y-3">
             <SettingsSectionLabel>Alerts</SettingsSectionLabel>
             <AlertSettings />
+          </section>
+
+          <section className="space-y-3">
+            <SettingsSectionLabel>Notifications</SettingsSectionLabel>
+            <Suspense fallback={SECTION_PLACEHOLDER}>
+              <NotificationSettings />
+            </Suspense>
           </section>
 
           <section className="space-y-3">

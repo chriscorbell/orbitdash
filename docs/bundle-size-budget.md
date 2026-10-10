@@ -31,7 +31,7 @@ The entry chunk then holds only app code, so a typical app change invalidates ab
 brotli instead of the vendor code too.
 
 `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`,
-`ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with
+`ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`, `NotificationSettings-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with
 checks on), `ServiceLinksMenu-*` (the links menu of cards with extra links or an external URL),
 `SignInScreen-*` (only shown when auth is on), `toaster-*` (loaded with the first
 toast or once the page is idle) and `pwa-*` (service worker setup, imported after the page has
@@ -42,28 +42,29 @@ happens.
 
 ## Current Budgets
 
-| Asset group             | Budget raw | Budget gzip | Current baseline                             |
-| ----------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`            |      66 kB |     22.5 kB | about 65 kB raw / 21.9 kB gzip / 19.3 kB br  |
-| `api-schemas-*.js`      |       7 kB |        3 kB | about 5 kB raw / 2.3 kB gzip / 2.0 kB br     |
-| `index-*.css`           |      92 kB |       15 kB | about 92 kB raw / 14.9 kB gzip / 12.4 kB br  |
-| `react-vendor-*.js`     |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
-| `vendor-*.js`           |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
-| `validation-*.js`       |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
-| `ServiceDialog-*.js`    |     100 kB |       28 kB | about 27 kB raw / 8.2 kB gzip / 7.4 kB br    |
-| `SettingsDialog-*.js`   |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
-| `EditableBoard-*.js`    |      44 kB |       14 kB | about 21 kB raw / 6.9 kB gzip / 6.2 kB br    |
-| `StatsPage-*.js`        |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
-| `CommandPalette-*.js`   |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
-| `ImportDialog-*.js`     |      16 kB |        6 kB | about 12 kB raw / 4.4 kB gzip                |
-| `Widgets-*.js`          |      14 kB |        5 kB | about 10 kB raw / 3.6 kB gzip                |
-| `WidgetSettings-*.js`   |      10 kB |        4 kB | about 7 kB raw / 2.5 kB gzip                 |
-| `drag-drop-*.js`        |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
-| `ServiceStatus-*.js`    |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip / 2.6 kB br     |
-| `ServiceLinksMenu-*.js` |       4 kB |        2 kB | about 1 kB raw / 0.5 kB gzip / 0.4 kB br     |
-| `SignInScreen-*.js`     |       6 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
-| `toaster-*.js`          |      16 kB |        6 kB | about 13 kB raw / 4.7 kB gzip / 4.3 kB br    |
-| `sw.js`                 |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
+| Asset group                 | Budget raw | Budget gzip | Current baseline                             |
+| --------------------------- | ---------: | ----------: | -------------------------------------------- |
+| `index-*.js`                |      66 kB |     22.5 kB | about 65 kB raw / 21.9 kB gzip / 19.3 kB br  |
+| `api-schemas-*.js`          |       7 kB |        3 kB | about 5 kB raw / 2.3 kB gzip / 2.0 kB br     |
+| `index-*.css`               |      92 kB |       15 kB | about 92 kB raw / 14.9 kB gzip / 12.4 kB br  |
+| `react-vendor-*.js`         |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
+| `vendor-*.js`               |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
+| `validation-*.js`           |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
+| `ServiceDialog-*.js`        |     100 kB |       28 kB | about 27 kB raw / 8.2 kB gzip / 7.4 kB br    |
+| `SettingsDialog-*.js`       |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
+| `EditableBoard-*.js`        |      44 kB |       14 kB | about 21 kB raw / 6.9 kB gzip / 6.2 kB br    |
+| `StatsPage-*.js`            |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
+| `CommandPalette-*.js`       |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
+| `ImportDialog-*.js`         |      16 kB |        6 kB | about 12 kB raw / 4.4 kB gzip                |
+| `Widgets-*.js`              |      14 kB |        5 kB | about 10 kB raw / 3.6 kB gzip                |
+| `WidgetSettings-*.js`       |      10 kB |        4 kB | about 7 kB raw / 2.5 kB gzip                 |
+| `NotificationSettings-*.js` |      30 kB |       10 kB | about 24 kB raw / 7.6 kB gzip / 6.9 kB br    |
+| `drag-drop-*.js`            |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
+| `ServiceStatus-*.js`        |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip / 2.6 kB br     |
+| `ServiceLinksMenu-*.js`     |       4 kB |        2 kB | about 1 kB raw / 0.5 kB gzip / 0.4 kB br     |
+| `SignInScreen-*.js`         |       6 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
+| `toaster-*.js`              |      16 kB |        6 kB | about 13 kB raw / 4.7 kB gzip / 4.3 kB br    |
+| `sw.js`                     |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
 
 Sizes are in KiB, as printed by the check script.
 
@@ -87,11 +88,19 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 - a tracked chunk is missing its `.br` or `.gz` sibling
 - `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`,
   `StatsPage-*`, `CommandPalette-*`, `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`,
-  `ServiceStatus-*`, `ServiceLinksMenu-*`, `SignInScreen-*`,
+  `NotificationSettings-*`, `ServiceStatus-*`, `ServiceLinksMenu-*`, `SignInScreen-*`,
   `toaster-*` or `pwa-*` chunk
 
 ## History
 
+- Notification settings (channels, the channel form, options and the delivery log) load in a lazy
+  `NotificationSettings-*` chunk of about 7.6 kB gzip as the settings dialog opens, with a 30 kB
+  raw / 10 kB gzip budget. The settings dialog itself only gained the lazy section, about 0.7 kB
+  raw, which leaves it at about 23.9 of its 24 kB; the next section should be lazy too, or share
+  this chunk. The entry gained one line (the notification routes' config scope). Its zod/mini
+  schemas use a plain union rather than `discriminatedUnion`, which would have added 1.7 kB raw to
+  the first-paint `validation` chunk. The section reuses existing utilities, so the shared CSS grew
+  by a few bytes only.
 - Internal and external URLs, extra links, tags and bulk edits. The first paint gained the new
   service fields in the response schema, the link preference setting, the address check that picks
   a card's URL (`src/lib/link-target.ts`) and the hook-up for the links menu: about 0.9 kB gzip,

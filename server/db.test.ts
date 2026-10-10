@@ -67,6 +67,8 @@ describe("database integration", () => {
       "metric_alerts",
       "metric_history_15m",
       "metric_history_1m",
+      "notification_deliveries",
+      "notification_incidents",
       "schema_migrations",
       "service_status",
       "service_trash",
@@ -110,6 +112,7 @@ describe("database integration", () => {
       { id: 9, name: "status-checks" },
       { id: 10, name: "auth-sessions" },
       { id: 11, name: "service-urls-links-tags" },
+      { id: 12, name: "notifications" },
     ]);
   });
 
@@ -198,7 +201,7 @@ describe("database integration", () => {
           id: number;
         }>
       ).map((row) => row.id)
-    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   it("supports insert, update, and delete flows against the services table", () => {

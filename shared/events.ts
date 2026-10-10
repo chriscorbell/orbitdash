@@ -118,6 +118,8 @@ export function configScopeForMutation(path: string): ConfigScope | null {
   ) {
     return "settings";
   }
+  // Sending a test changes no settings.
+  if (path.startsWith("/api/notifications")) return path.endsWith("/test") ? null : "settings";
   if (path.startsWith("/api/services") || path.startsWith("/api/categories")) return "layout";
   return null;
 }

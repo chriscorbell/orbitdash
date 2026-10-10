@@ -8,6 +8,7 @@ import { bucketStart, MINUTE_MS } from "./history/rollup";
 import { historySnapshot } from "./history/test-fixtures";
 import { getScheduledJobNames } from "./jobs";
 import { isCollectionRunning } from "./metrics";
+import { notifications } from "./notifications/service";
 import { initializeServer, shutdown } from "./runtime";
 import { statusMonitor } from "./status/monitor";
 import { cleanupTestDatabase, createTestDataDir } from "./test-utils";
@@ -181,12 +182,14 @@ describe("runtime status checks", () => {
     initializeServer({ ...quietServer, dataDir: testDataDir });
 
     expect(statusMonitor.isRunning()).toBe(true);
+    expect(notifications.isRunning()).toBe(true);
     expect(getScheduledJobNames()).toEqual(
-      expect.arrayContaining(["status-checks", "prune-status-history"])
+      expect.arrayContaining(["status-checks", "prune-status-history", "notifications"])
     );
 
     shutdown();
     expect(statusMonitor.isRunning()).toBe(false);
+    expect(notifications.isRunning()).toBe(false);
   });
 
   it("leaves the monitor off without background jobs", () => {

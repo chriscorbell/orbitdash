@@ -14,6 +14,7 @@ import { metricAlerts } from "./alerts/service";
 import { purgeUnusedWallpapers } from "./services/wallpaper-storage";
 import { purgeTrash } from "./services/service-trash";
 import { cleanupOrphanIcons } from "./services/icon-storage";
+import { notifications } from "./notifications/service";
 import { statusMonitor } from "./status/monitor";
 
 export interface InitializeServerOptions {
@@ -88,6 +89,19 @@ function startBackgroundJobs() {
     initialDelayMs: 1_000,
     intervalMs: 1_000,
   });
+  // Notifications follow status and alert events from here on; the tick sends delayed "down"
+  // messages and the summary when quiet hours end.
+  try {
+    notifications.start();
+  } catch (error) {
+    writeLog("error", "notification.start_failed", {
+      message: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+  scheduleJob("notifications", () => notifications.tick(), {
+    initialDelayMs: 10_000,
+    intervalMs: 10_000,
+  });
   scheduleJob("prune-status-history", () => void statusMonitor.prune(Date.now()), {
     initialDelayMs: 3 * MINUTE_MS,
     intervalMs: HOUR_MS,
@@ -128,8 +142,10 @@ export function shutdown() {
   cancelAllJobs();
   dockerMonitor.stop();
   integrationPoller.stop();
-  // Before the database closes: running checks are cancelled and their results dropped.
+  // Before the database closes: running checks are cancelled and their results dropped, and so
+  // are deliveries still in flight.
   statusMonitor.stop();
+  notifications.stop();
   stopCollection();
   flushMetricHistory();
   closeDb();

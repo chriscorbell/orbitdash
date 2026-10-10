@@ -88,6 +88,13 @@ const budgets = [
     maxGzipKb: 4,
   },
   {
+    label: "notification settings",
+    prefix: "NotificationSettings-",
+    extension: ".js",
+    maxRawKb: 30,
+    maxGzipKb: 10,
+  },
+  {
     label: "drag and drop",
     prefix: "drag-drop-",
     extension: ".js",
@@ -138,6 +145,8 @@ const lazyOnlyPrefixes = [
   // Clock, weather and agenda; only loaded once one is turned on.
   "Widgets-",
   "WidgetSettings-",
+  // Channels, the channel form and the delivery log, loaded with the settings dialog.
+  "NotificationSettings-",
   // Status dots and details, loaded by the first card with checks on.
   "ServiceStatus-",
   // A card's links menu, loaded by the first card with links or an external URL.
