@@ -46,14 +46,15 @@ version before creating the matching tag.
 
 ## Features
 
-- Live CPU/RAM/Disk metrics with charts
-- Simple service links with icons and categories
+- Live CPU, memory and disk usage in a compact strip with sparklines
+- Simple service links with icons and categories; dark icons get a light plate automatically
 - Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
 - Inline search and filtering
 - UI-native service management (no config file needed)
-- Toggle between 3, 4 and 5 column grids for service links
-- Layout settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
-- Reorder category sections with a shared saved layout
+- Categories as balanced columns or stacked rows, with compact, card or tile styles
+- Edit mode: drag cards and categories, rename categories in place, add services to a category
+- A wallpaper with blur and dim, your own dashboard name, an accent-colored favicon, and custom CSS
+- Settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
 - Collapse category sections with saved per-browser state
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
 - Deleting a service can be undone for 30 minutes
@@ -100,6 +101,7 @@ All data is stored under `/data` inside the container:
 
 - `orbitdash.db` (SQLite database)
 - `icons/` (uploaded/downloaded service icons)
+- `wallpapers/` (uploaded wallpapers; ones no setting uses are cleaned up after an hour)
 - `backups/` (automatic snapshots, the newest 7 by default; see `ORBITDASH_BACKUP_KEEP`)
 
 The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.

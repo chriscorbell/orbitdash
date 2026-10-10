@@ -5,6 +5,7 @@ import categoriesRouter from "./routes/categories";
 import eventsRouter from "./routes/events";
 import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
+import wallpapersRouter from "./routes/wallpapers";
 import servicesRouter from "./routes/services";
 import { jsonError, jsonNotFound } from "./api-response";
 import { configScopeForMutation, ORIGIN_HEADER } from "@shared/events";
@@ -126,6 +127,7 @@ app.route("/api/events", eventsRouter);
 app.route("/api/metrics", metricsRouter);
 app.route("/api/settings", settingsRouter);
 app.route("/api/services", servicesRouter);
+app.route("/api/wallpapers", wallpapersRouter);
 
 app.get("/api/health", (c) => {
   const databaseHealthy = isDbHealthy();

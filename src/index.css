@@ -284,6 +284,25 @@
 }
 
 @layer utilities {
+  /* With a wallpaper, the page lets it through and surfaces turn slightly translucent. */
+  html[data-wallpaper] body {
+    background-color: transparent;
+  }
+
+  html[data-wallpaper] [data-slot="card"],
+  html[data-wallpaper] .bg-card {
+    background-color: color-mix(in oklab, var(--card) 80%, transparent);
+    backdrop-filter: blur(12px) saturate(1.15);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    html[data-wallpaper] [data-slot="card"],
+    html[data-wallpaper] .bg-card {
+      background-color: var(--card);
+      backdrop-filter: none;
+    }
+  }
+
   /* Icons too dark for the dark theme, or too light for the light one, get a contrasting plate. */
   .service-icon,
   .service-icon > img {

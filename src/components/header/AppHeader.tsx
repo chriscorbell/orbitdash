@@ -13,6 +13,8 @@ interface AppHeaderProps {
   /** Edit mode swaps search and status for the editing controls. */
   editing: boolean;
   search: string;
+  /** The dashboard's name from settings; empty shows "orbitdash". */
+  title?: string;
   /** Whether the board is shown, so there is something to edit. */
   canEditLayout: boolean;
   onAddService: () => void;
@@ -34,6 +36,7 @@ const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigat
 export function AppHeader({
   editing,
   search,
+  title = "",
   canEditLayout,
   onAddService,
   onDoneEditing,
@@ -63,7 +66,9 @@ export function AppHeader({
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
         <a href="/" className="flex shrink-0 items-center gap-2.5 rounded-md">
           <Logo className="h-6 w-6 text-foreground" />
-          <span className="hidden text-base font-semibold tracking-tight sm:inline">orbitdash</span>
+          <span className="hidden max-w-48 truncate text-base font-semibold tracking-tight sm:inline">
+            {title.trim() || "orbitdash"}
+          </span>
         </a>
 
         {editing ? (
