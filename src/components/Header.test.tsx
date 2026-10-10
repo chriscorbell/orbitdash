@@ -109,7 +109,28 @@ describe("Header", () => {
     await user.click(screen.getByRole("button", { name: "Open settings" }));
 
     expect(screen.getByText("Category order")).toBeTruthy();
-    expect(screen.getByText("Web")).toBeTruthy();
+    // The sortable list is lazily loaded with dnd-kit.
+    expect(await screen.findByText("Web")).toBeTruthy();
     expect(screen.getByText("Homelab")).toBeTruthy();
+  });
+
+  it("moves categories from the lazily loaded category order list", async () => {
+    const user = userEvent.setup();
+    const moveCategory = vi.fn();
+
+    renderHeader({
+      categoryOrder: {
+        ...categoryOrderStub,
+        namedCategories: ["Web", "Homelab"],
+        draftOrder: ["Web", "Homelab"],
+        moveCategory,
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    await user.click(await screen.findByRole("button", { name: "Move Homelab up" }));
+
+    expect(moveCategory).toHaveBeenCalledWith("Homelab", "up");
+    expect(screen.getByRole("button", { name: "Move Web up" }).hasAttribute("disabled")).toBe(true);
   });
 });

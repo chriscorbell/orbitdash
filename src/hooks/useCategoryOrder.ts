@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { arrayMove } from "@dnd-kit/sortable";
 import { fetchCategoryOrder, updateCategoryOrder } from "@/lib/api/settings";
 import { mergeCategoryOrder, UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service } from "@shared/types";
@@ -20,6 +19,15 @@ export interface UseCategoryOrderResult {
   moveCategory: (category: string, direction: "up" | "down") => void;
   reorderCategories: (activeId: string, overId: string) => void;
   saveOrder: () => Promise<void>;
+}
+
+// Same semantics as dnd-kit's arrayMove, kept local so this always-loaded hook
+// does not pull dnd-kit into the initial bundle.
+function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  const next = [...items];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
 }
 
 function getNamedCategories(services: Service[]): string[] {
@@ -131,7 +139,7 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
           return orderedCategories;
         }
 
-        return arrayMove(orderedCategories, currentIndex, nextIndex);
+        return moveItem(orderedCategories, currentIndex, nextIndex);
       });
     },
     [namedCategories]
@@ -151,7 +159,7 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
           return orderedCategories;
         }
 
-        return arrayMove(orderedCategories, activeIndex, overIndex);
+        return moveItem(orderedCategories, activeIndex, overIndex);
       });
     },
     [namedCategories]
