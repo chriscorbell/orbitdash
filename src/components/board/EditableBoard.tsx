@@ -157,10 +157,14 @@ export function EditableBoard({
 
   const collisionDetection: CollisionDetection = useCallback((args) => {
     if (dragRef.current?.type === "category") {
-      return closestCenter({
+      // Categories are tall, so aim by the pointer rather than the dragged category's center;
+      // keyboard drags have no pointer and fall back to the nearest category.
+      const categories = {
         ...args,
         droppableContainers: args.droppableContainers.filter((entry) => isCategoryId(entry.id)),
-      });
+      };
+      const underPointer = pointerWithin(categories);
+      return underPointer.length > 0 ? underPointer : closestCenter(categories);
     }
 
     const candidates = args.droppableContainers.filter((entry) => !isCategoryId(entry.id));
@@ -359,6 +363,7 @@ export function EditableBoard({
               key={group.key}
               density={density}
               group={group}
+              animateMoves={drag?.type !== "service"}
               isDropTarget={
                 drag?.type === "category" && drag.overKey === group.key && drag.key !== group.key
               }
@@ -400,6 +405,8 @@ export function EditableBoard({
 }
 
 interface EditableCategoryProps {
+  /** Off while a card is dragged, so dnd-kit measures categories where they really are. */
+  animateMoves: boolean;
   density: CardDensity;
   group: BoardGroup;
   isDropTarget: boolean;
@@ -418,6 +425,7 @@ interface EditableCategoryProps {
 }
 
 function EditableCategory({
+  animateMoves,
   density,
   group,
   isDropTarget,
@@ -444,6 +452,7 @@ function EditableCategory({
   return (
     <section
       ref={setNodeRef}
+      data-flip-key={animateMoves ? `category:${group.key}` : undefined}
       aria-label={`${group.name} category`}
       className={cn(
         "space-y-3 rounded-xl transition-[opacity,box-shadow] duration-200",
@@ -457,7 +466,7 @@ function EditableCategory({
             ref={setActivatorNodeRef}
             type="button"
             aria-label={`Move ${group.name} category`}
-            className="-ml-1 flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+            className="-ml-1 flex h-7 w-6 shrink-0 cursor-grab touch-none pointer-coarse:h-10 pointer-coarse:w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >
@@ -496,7 +505,7 @@ function EditableCategory({
             size="icon-sm"
             tooltip="Delete category"
             aria-label={`Delete ${group.name} category`}
-            className="ml-auto shrink-0 text-muted-foreground hover:text-destructive"
+            className="ml-auto shrink-0 text-muted-foreground hover:text-destructive pointer-coarse:size-10"
             onClick={() => onDeleteCategory(group)}
           >
             <Trash2 className="h-3.5 w-3.5" />

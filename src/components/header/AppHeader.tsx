@@ -138,7 +138,13 @@ export function AppHeader({
             <HeaderStatus />
 
             <div className="flex shrink-0 items-center gap-1">
-              <Button type="button" size="icon-sm" aria-label="Add service" onClick={onAddService}>
+              <Button
+                type="button"
+                size="icon-sm"
+                className="pointer-coarse:size-9"
+                aria-label="Add service"
+                onClick={onAddService}
+              >
                 <Plus />
               </Button>
               {canEditLayout && (
@@ -146,6 +152,7 @@ export function AppHeader({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
+                  className="pointer-coarse:size-9"
                   aria-label="Edit layout"
                   onClick={onEditLayout}
                   onFocus={preloadEditableBoard}
@@ -158,6 +165,7 @@ export function AppHeader({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
+                className="pointer-coarse:size-9"
                 aria-label="Open settings"
                 onClick={onOpenSettings}
                 onFocus={preloadSettingsDialog}

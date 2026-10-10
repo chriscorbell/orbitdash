@@ -126,6 +126,7 @@ export function ServicesSection({
 
       <ServicesSectionFeedback
         categoriesError={categories.error}
+        density={density}
         error={error}
         onRetry={() => {
           void onRetry();

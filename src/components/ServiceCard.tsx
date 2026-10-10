@@ -89,6 +89,7 @@ function ServiceCardView({ service, density = "comfortable" }: ServiceCardProps)
 
   return (
     <a
+      data-flip-key={service.id}
       href={safeUrl || "#"}
       target={service.open_in_new_tab ? "_blank" : "_self"}
       rel={service.open_in_new_tab ? "noopener noreferrer" : undefined}
