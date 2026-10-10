@@ -1,16 +1,21 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AppHeader } from "@/components/header/AppHeader";
 import { ServicesSection } from "@/components/ServicesSection";
 import { loadSettingsDialog } from "@/components/settings/settings-preload";
 import { StatsStrip } from "@/components/stats/StatsStrip";
+import { Wallpaper } from "@/components/Wallpaper";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
-import { useCategoryOrder } from "@/hooks/useCategoryOrder";
+import { useCategories } from "@/hooks/useCategories";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLiveQueries } from "@/hooks/useLiveQueries";
 import { useServices } from "@/hooks/useServices";
+import { uniqueCategoryName } from "@/lib/board-groups";
 import { useAppliedAppearance } from "@/lib/theme";
+import { toastError } from "@/lib/toast";
+import { cn } from "@/lib/utils";
+import type { DashboardAppearanceSettings } from "@shared/dashboard-settings";
 
 const SettingsDialog = lazy(() =>
   loadSettingsDialog().then((module) => ({ default: module.SettingsDialog }))
@@ -27,10 +32,10 @@ function App() {
     duplicate,
     remove,
     restore,
-    renameCategory,
+    move,
     reload,
   } = useServices();
-  const categoryOrder = useCategoryOrder(services);
+  const categories = useCategories();
   const {
     error: settingsError,
     scope: settingsScope,
@@ -39,12 +44,22 @@ function App() {
     updateAppearance,
     updateLayout,
   } = useDashboardSettings();
-  useAppliedAppearance(settings.appearance);
+  // Settings can preview appearance (wallpaper sliders) live before saving it.
+  const [appearancePreview, setAppearancePreview] =
+    useState<Partial<DashboardAppearanceSettings> | null>(null);
+  const appearance = useMemo(
+    () => ({ ...settings.appearance, ...appearancePreview }),
+    [appearancePreview, settings.appearance]
+  );
+  useAppliedAppearance(appearance);
   const { density, mode, statsPosition, showServices, showStats } = settings.layout;
 
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  // The category whose name is being edited in place, e.g. one just created.
+  const [renamingKey, setRenamingKey] = useState<string | null>(null);
   // Mounted on first open and kept, so closing still plays the exit animation.
   const [settingsMounted, setSettingsMounted] = useState(false);
   const openSettings = () => {
@@ -52,13 +67,42 @@ function App() {
     setSettingsOpen(true);
   };
 
+  const startEditing = () => {
+    setSearch("");
+    setSettingsOpen(false);
+    setEditing(true);
+  };
+
+  const stopEditing = () => {
+    setEditing(false);
+    setRenamingKey(null);
+  };
+
+  const addCategory = () => {
+    categories.create(uniqueCategoryName(categories.categories)).then(
+      (category) => setRenamingKey(category.id),
+      (createError) => toastError(createError, "Couldn't create the category")
+    );
+  };
+
   const stats = showStats ? <StatsStrip /> : null;
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className={cn("flex min-h-svh flex-col", !appearance.wallpaper && "bg-background")}>
+      <Wallpaper
+        wallpaper={appearance.wallpaper}
+        wallpaperBlur={appearance.wallpaperBlur}
+        wallpaperDim={appearance.wallpaperDim}
+      />
       <AppHeader
+        title={appearance.title}
+        editing={editing}
         search={search}
+        canEditLayout={showServices}
         onAddService={() => setAddOpen(true)}
+        onDoneEditing={stopEditing}
+        onEditLayout={startEditing}
+        onNewCategory={addCategory}
         onOpenSettings={openSettings}
         onSearchChange={setSearch}
       />
@@ -67,14 +111,17 @@ function App() {
         {showServices && (
           <ServicesSection
             services={services}
-            categoryOrder={categoryOrder}
+            categories={categories}
             loading={servicesLoading}
             error={servicesError}
             density={density}
             mode={mode}
             search={search}
+            editing={editing}
+            renamingKey={renamingKey}
             addOpen={addOpen}
             onAddOpenChange={setAddOpen}
+            onRenamingKeyChange={setRenamingKey}
             onSearchChange={setSearch}
             onRetry={reload}
             onCreate={create}
@@ -82,7 +129,7 @@ function App() {
             onDelete={remove}
             onRestore={restore}
             onDuplicate={duplicate}
-            onRenameCategory={renameCategory}
+            onMove={move}
           />
         )}
         {statsPosition === "bottom" && stats}
@@ -101,8 +148,7 @@ function App() {
           <SettingsDialog
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
-            appearance={settings.appearance}
-            categoryOrder={categoryOrder}
+            appearance={appearance}
             density={density}
             mode={mode}
             statsPosition={statsPosition}
@@ -111,7 +157,9 @@ function App() {
             showServicesSection={showServices}
             showStatsSection={showStats}
             onAppearanceChange={updateAppearance}
+            onAppearancePreview={setAppearancePreview}
             onDensityChange={(value) => updateLayout({ density: value })}
+            onEditLayout={startEditing}
             onModeChange={(value) => updateLayout({ mode: value })}
             onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
             onSettingsScopeChange={setSettingsScope}

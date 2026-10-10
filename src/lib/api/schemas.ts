@@ -32,12 +32,17 @@ export const serviceSchema = z.object({
 
 export const servicesResponseSchema = z.array(serviceSchema);
 
-export const categoryOrderResponseSchema = z.object({ order: z.array(z.string()) });
-
-export const renameCategoryResponseSchema = z.object({
-  services: servicesResponseSchema,
-  order: z.array(z.string()),
+export const categorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: z.number(),
+  created_at: z.number(),
+  updated_at: z.number(),
 });
+
+export const categoriesResponseSchema = z.object({ categories: z.array(categorySchema) });
+
+export const successResponseSchema = z.object({ success: z.literal(true) });
 
 export const snapshotSchema = z.object({
   createdAt: z.string(),
@@ -65,7 +70,14 @@ const layoutSchema = z.object({
 const appearanceSchema = z.object({
   accent: z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]),
   theme: z.enum(["dark", "light", "system"]),
+  title: z.string(),
+  wallpaper: z.nullable(z.string()),
+  wallpaperBlur: z.number(),
+  wallpaperDim: z.number(),
+  customCss: z.string(),
 });
+
+export const wallpaperUploadSchema = z.object({ filename: z.string() });
 
 const settingsSchema = z.object({ appearance: appearanceSchema, layout: layoutSchema });
 

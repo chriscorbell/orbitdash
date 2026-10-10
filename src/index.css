@@ -284,23 +284,22 @@
 }
 
 @layer utilities {
-  .service-card-menu-trigger {
-    opacity: 0.5;
+  /* With a wallpaper, the page lets it through and surfaces turn slightly translucent. */
+  html[data-wallpaper] body {
+    background-color: transparent;
   }
 
-  @media (hover: hover) and (pointer: fine) {
-    .service-card-menu-trigger {
-      opacity: 0;
-    }
+  html[data-wallpaper] [data-slot="card"],
+  html[data-wallpaper] .bg-card {
+    background-color: color-mix(in oklab, var(--card) 80%, transparent);
+    backdrop-filter: blur(12px) saturate(1.15);
+  }
 
-    .group:hover .service-card-menu-trigger,
-    .group:focus-within .service-card-menu-trigger {
-      opacity: 1;
-    }
-
-    /* Rides along with the card's hover lift. */
-    .group:hover .service-card-menu-trigger {
-      transform: translateY(-0.125rem);
+  @media (prefers-reduced-transparency: reduce) {
+    html[data-wallpaper] [data-slot="card"],
+    html[data-wallpaper] .bg-card {
+      background-color: var(--card);
+      backdrop-filter: none;
     }
   }
 

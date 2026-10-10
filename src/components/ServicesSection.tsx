@@ -1,17 +1,14 @@
-import { lazy, Suspense, useCallback } from "react";
-import { CategorySectionList } from "@/components/services/CategorySectionList";
+import { lazy, Suspense } from "react";
+import { CategorySectionList, ServiceGrid } from "@/components/services/CategorySectionList";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesSectionFeedback } from "@/components/services/ServicesSectionFeedback";
 import { useServicesSectionState } from "@/components/services/useServicesSectionState";
-import { toast, toastError } from "@/lib/toast";
-import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+import { loadEditableBoard } from "@/components/settings/settings-preload";
+import type { UseCategoriesResult } from "@/hooks/useCategories";
+import type { ServiceMove } from "@/lib/board-groups";
+import { toast } from "@/lib/toast";
 import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
-import type {
-  Service,
-  CreateServicePayload,
-  RenameCategoryResponse,
-  UpdateServicePayload,
-} from "@shared/types";
+import type { CreateServicePayload, Service, UpdateServicePayload } from "@shared/types";
 
 const ServiceDialog = lazy(() =>
   import("@/components/ServiceDialog").then((module) => ({
@@ -19,22 +16,29 @@ const ServiceDialog = lazy(() =>
   }))
 );
 
-const RenameCategoryDialog = lazy(() =>
-  import("@/components/services/RenameCategoryDialog").then((module) => ({
-    default: module.RenameCategoryDialog,
+const EditableBoard = lazy(() =>
+  loadEditableBoard().then((module) => ({ default: module.EditableBoard }))
+);
+
+const DeleteCategoryDialog = lazy(() =>
+  import("@/components/board/DeleteCategoryDialog").then((module) => ({
+    default: module.DeleteCategoryDialog,
   }))
 );
 
 interface ServicesSectionProps {
   services: Service[];
-  categoryOrder: UseCategoryOrderResult;
+  categories: UseCategoriesResult;
   loading: boolean;
   error: string | null;
   density: CardDensity;
   mode: BoardMode;
   search: string;
+  editing: boolean;
+  renamingKey: string | null;
   addOpen: boolean;
   onAddOpenChange: (open: boolean) => void;
+  onRenamingKeyChange: (key: string | null) => void;
   onSearchChange: (value: string) => void;
   onRetry: () => Promise<void>;
   onCreate: (payload: CreateServicePayload, iconFile?: File) => Promise<Service>;
@@ -47,19 +51,22 @@ interface ServicesSectionProps {
   onDelete: (id: string) => Promise<void>;
   onRestore: (id: string) => Promise<Service>;
   onDuplicate: (id: string) => Promise<Service>;
-  onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
+  onMove: (move: ServiceMove) => Promise<Service>;
 }
 
 export function ServicesSection({
   services,
-  categoryOrder,
+  categories,
   loading,
   error,
   density,
   mode,
   search,
+  editing,
+  renamingKey,
   addOpen,
   onAddOpenChange,
+  onRenamingKeyChange,
   onSearchChange,
   onRetry,
   onCreate,
@@ -67,51 +74,50 @@ export function ServicesSection({
   onDelete,
   onRestore,
   onDuplicate,
-  onRenameCategory,
+  onMove,
 }: ServicesSectionProps) {
   const {
+    addCategory,
     categoryOptions,
-    categoryOrderError,
+    deleteCategory,
+    deleteCategoryTarget,
     editingService,
     filteredServices,
-    groupedServices,
+    groups,
+    handleAddToGroup,
     handleDelete,
+    handleDeleteCard,
+    handleDeleteCategory,
     handleDuplicate,
-    handleRenameCategoryConfirm,
-    hasNamedCategories,
-    isReorderMode,
-    renameCategoryTarget,
+    handleMove,
+    handleRenameCategory,
+    handleReorderCategories,
+    setAddCategory,
+    setDeleteCategoryTarget,
     setEditingService,
-    setRenameCategoryTarget,
     showInitialError,
     showInitialLoading,
     showInlineError,
   } = useServicesSectionState({
-    categoryOrder,
+    categories,
+    editing,
     error,
     loading,
-    onDelete,
     search,
-    onRestore,
-    onDuplicate,
-    onRenameCategory,
     services,
+    onAddOpenChange,
+    onDelete,
+    onDuplicate,
+    onMove,
+    onRestore,
   });
 
-  const handleDeleteCard = useCallback(
-    (service: Service) => {
-      handleDelete(service).catch((deleteError) =>
-        toastError(deleteError, "Couldn't delete the service")
-      );
-    },
-    [handleDelete]
-  );
-
-  const handleDuplicateCard = useCallback(
-    (service: Service) => {
-      void handleDuplicate(service);
-    },
-    [handleDuplicate]
+  const hasCategories = groups.some((group) => group.categoryId !== null);
+  const showBoard = !showInitialLoading && !showInitialError && groups.length > 0;
+  const readOnlyBoard = hasCategories ? (
+    <CategorySectionList density={density} groups={groups} mode={mode} />
+  ) : (
+    <ServiceGrid density={density} services={filteredServices} />
   );
 
   return (
@@ -119,9 +125,8 @@ export function ServicesSection({
       <h2 className="sr-only">Services</h2>
 
       <ServicesSectionFeedback
-        categoryOrderError={categoryOrderError}
+        categoriesError={categories.error}
         error={error}
-        isReorderMode={isReorderMode}
         onRetry={() => {
           void onRetry();
         }}
@@ -130,14 +135,11 @@ export function ServicesSection({
         showInlineError={showInlineError}
       />
 
-      {!showInitialLoading &&
-        !showInitialError &&
-        filteredServices.length === 0 &&
-        services.length === 0 && (
-          <ServicesEmptyState mode="empty" onAddService={() => onAddOpenChange(true)} />
-        )}
+      {!showInitialLoading && !showInitialError && services.length === 0 && groups.length === 0 && (
+        <ServicesEmptyState mode="empty" onAddService={() => onAddOpenChange(true)} />
+      )}
 
-      {!showInitialLoading && filteredServices.length === 0 && services.length > 0 && (
+      {!showInitialLoading && filteredServices.length === 0 && services.length > 0 && !editing && (
         <ServicesEmptyState
           mode="search"
           search={search}
@@ -146,26 +148,40 @@ export function ServicesSection({
         />
       )}
 
-      {!showInitialLoading && !showInitialError && filteredServices.length > 0 && (
-        <CategorySectionList
-          grouped={groupedServices}
-          density={density}
-          hasNamedCategories={hasNamedCategories}
-          mode={mode}
-          services={filteredServices}
-          onDelete={handleDeleteCard}
-          onDuplicate={handleDuplicateCard}
-          onEdit={setEditingService}
-          onRenameCategory={setRenameCategoryTarget}
-        />
-      )}
+      {showBoard &&
+        (editing ? (
+          // The read-only board stands in while the editor's code downloads, so nothing jumps.
+          <Suspense fallback={readOnlyBoard}>
+            <EditableBoard
+              density={density}
+              groups={groups}
+              mode={mode}
+              renamingKey={renamingKey}
+              onAddService={handleAddToGroup}
+              onDeleteCategory={handleDeleteCategory}
+              onDeleteService={handleDeleteCard}
+              onDuplicateService={(service) => void handleDuplicate(service)}
+              onEditService={setEditingService}
+              onMoveService={handleMove}
+              onRenameCategory={handleRenameCategory}
+              onRenamingKeyChange={onRenamingKeyChange}
+              onReorderCategories={handleReorderCategories}
+            />
+          </Suspense>
+        ) : (
+          filteredServices.length > 0 && readOnlyBoard
+        ))}
 
       {/* Add dialog */}
       <Suspense fallback={null}>
         <ServiceDialog
           open={addOpen}
-          onOpenChange={onAddOpenChange}
+          onOpenChange={(open) => {
+            onAddOpenChange(open);
+            if (!open) setAddCategory(null);
+          }}
           categoryOptions={categoryOptions}
+          defaultCategory={addCategory}
           onSubmit={async (payload, iconFile) => {
             const created = await onCreate(payload, iconFile);
             toast({ title: `Added ${created.name}`, tone: "success" });
@@ -202,17 +218,17 @@ export function ServicesSection({
         />
       </Suspense>
 
-      <Suspense fallback={null}>
-        <RenameCategoryDialog
-          category={renameCategoryTarget}
-          onOpenChange={(open) => {
-            if (!open) {
-              setRenameCategoryTarget(null);
-            }
-          }}
-          onRename={handleRenameCategoryConfirm}
-        />
-      </Suspense>
+      {deleteCategoryTarget && (
+        <Suspense fallback={null}>
+          <DeleteCategoryDialog
+            group={deleteCategoryTarget}
+            onConfirm={(group) => void deleteCategory(group)}
+            onOpenChange={(open) => {
+              if (!open) setDeleteCategoryTarget(null);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

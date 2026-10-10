@@ -5,6 +5,7 @@ import { cancelAllJobs, scheduleJob } from "./jobs";
 import { startCollection, stopCollection } from "./metrics";
 import { writeLog } from "./observability";
 import { runNightlySnapshotIfDue } from "./services/backup-schedule";
+import { purgeUnusedWallpapers } from "./services/wallpaper-storage";
 import { purgeTrash } from "./services/service-trash";
 import { cleanupOrphanIcons } from "./services/icon-storage";
 
@@ -47,6 +48,10 @@ function startBackgroundJobs() {
   scheduleJob("purge-trash", () => void purgeTrash(), {
     initialDelayMs: 30_000,
     intervalMs: 5 * 60 * 1000,
+  });
+  scheduleJob("purge-unused-wallpapers", () => void purgeUnusedWallpapers(), {
+    initialDelayMs: 5 * 60 * 1000,
+    intervalMs: HOUR_MS,
   });
   // One transaction a minute, just after each minute ends.
   scheduleJob("flush-metric-history", () => void metricHistory.flush(Date.now()), {

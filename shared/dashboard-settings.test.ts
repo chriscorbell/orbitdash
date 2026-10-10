@@ -14,6 +14,7 @@ import {
   mergeSettingsPatches,
   parseDashboardSettings,
   parseDashboardSettingsPatch,
+  referencedWallpapers,
 } from "./dashboard-settings";
 
 describe("parseDashboardSettings", () => {
@@ -27,7 +28,7 @@ describe("parseDashboardSettings", () => {
   it("reads appearance and falls back for unknown themes and accents", () => {
     expect(
       parseDashboardSettings({ appearance: { theme: "light", accent: "teal" } }).appearance
-    ).toEqual({ theme: "light", accent: "ice" });
+    ).toEqual({ ...DEFAULT_DASHBOARD_SETTINGS.appearance, theme: "light", accent: "ice" });
   });
 
   it("keeps valid fields and replaces only the invalid ones", () => {
@@ -163,5 +164,48 @@ describe("devices", () => {
       stored: false,
     };
     expect(dashboardSettingsResponseSchema.parse(response)).toEqual(response);
+  });
+});
+
+describe("appearance extras", () => {
+  it("keeps a valid title, wallpaper, blur, dim and custom CSS", () => {
+    const appearance = {
+      title: "Homelab",
+      wallpaper: "wallpaper-0123456789abcdef.webp",
+      wallpaperBlur: 8,
+      wallpaperDim: 55,
+      customCss: "body { letter-spacing: 0.01em; }",
+    };
+    expect(parseDashboardSettings({ appearance }).appearance).toMatchObject(appearance);
+    expect(dashboardSettingsPatchSchema.parse({ appearance })).toEqual({ appearance });
+  });
+
+  it("falls back for values outside their limits", () => {
+    const parsed = parseDashboardSettings({
+      appearance: {
+        title: "x".repeat(61),
+        wallpaper: "/etc/passwd",
+        wallpaperBlur: 40,
+        wallpaperDim: 12.5,
+        customCss: 42,
+      },
+    }).appearance;
+    expect(parsed).toEqual(DEFAULT_DASHBOARD_SETTINGS.appearance);
+    expect(parseDashboardSettings({ appearance: { wallpaper: null } }).appearance.wallpaper).toBe(
+      null
+    );
+  });
+
+  it("finds the wallpapers stored settings and device overrides use", () => {
+    expect(
+      referencedWallpapers([
+        { appearance: { wallpaper: "wallpaper-aaaaaaaaaaaaaaaa.png" } },
+        { name: "TV", overrides: { appearance: { wallpaper: "wallpaper-bbbbbbbbbbbbbbbb.jpg" } } },
+        { appearance: { wallpaper: null } },
+        { appearance: { wallpaper: "not-ours.png" } },
+        null,
+        "broken",
+      ])
+    ).toEqual(new Set(["wallpaper-aaaaaaaaaaaaaaaa.png", "wallpaper-bbbbbbbbbbbbbbbb.jpg"]));
   });
 });

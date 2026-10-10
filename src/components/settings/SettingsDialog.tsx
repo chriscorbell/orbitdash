@@ -1,4 +1,3 @@
-import { lazy, Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,37 +10,29 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { AppearanceSettingsSection } from "@/components/settings/AppearanceSettingsSection";
+import { CustomCssSettings } from "@/components/settings/CustomCssSettings";
+import { DashboardTitleField } from "@/components/settings/DashboardTitleField";
+import { WallpaperSettings } from "@/components/settings/WallpaperSettings";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
-import { CategoryOrderSaveStatus } from "@/components/settings/CategoryOrderSaveStatus";
-import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
-import { loadCategoryOrderList } from "@/components/settings/settings-preload";
 import type {
   BoardMode,
   CardDensity,
   DashboardAppearanceSettings,
   StatsPosition,
 } from "@shared/dashboard-settings";
-import { Columns3, LayoutGrid, LayoutList, List, Rows3, type LucideIcon } from "lucide-react";
-
-const CategoryOrderList = lazy(() =>
-  loadCategoryOrderList().then((module) => ({ default: module.CategoryOrderList }))
-);
-
-// Matches the height of a SortableCategoryItem row so the dialog does not jump.
-function CategoryOrderListFallback({ count }: { count: number }) {
-  return (
-    <div className="space-y-2" aria-hidden="true">
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="h-11.5 rounded-lg border border-border bg-background" />
-      ))}
-    </div>
-  );
-}
+import {
+  Columns3,
+  LayoutGrid,
+  LayoutList,
+  List,
+  PencilRuler,
+  Rows3,
+  type LucideIcon,
+} from "lucide-react";
 
 interface SettingsDialogProps {
   appearance: DashboardAppearanceSettings;
-  categoryOrder: UseCategoryOrderResult;
   density: CardDensity;
   mode: BoardMode;
   open: boolean;
@@ -51,7 +42,10 @@ interface SettingsDialogProps {
   showServicesSection: boolean;
   showStatsSection: boolean;
   onAppearanceChange: (appearance: Partial<DashboardAppearanceSettings>) => void;
+  /** Shows unsaved appearance (wallpaper sliders) on the page while it is adjusted. */
+  onAppearancePreview: (appearance: Partial<DashboardAppearanceSettings> | null) => void;
   onDensityChange: (density: CardDensity) => void;
+  onEditLayout: () => void;
   onModeChange: (mode: BoardMode) => void;
   onOpenChange: (open: boolean) => void;
   onStatsPositionChange: (position: StatsPosition) => void;
@@ -195,7 +189,6 @@ function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
 
 export function SettingsDialog({
   appearance,
-  categoryOrder,
   density,
   mode,
   open,
@@ -205,7 +198,9 @@ export function SettingsDialog({
   showServicesSection,
   showStatsSection,
   onAppearanceChange,
+  onAppearancePreview,
   onDensityChange,
+  onEditLayout,
   onModeChange,
   onOpenChange,
   onStatsPositionChange,
@@ -213,26 +208,13 @@ export function SettingsDialog({
   onShowServicesSectionChange,
   onShowStatsSectionChange,
 }: SettingsDialogProps) {
-  // Each move saves on its own, so closing settings only drops any order that failed to save.
-  useEffect(() => {
-    if (open) {
-      categoryOrder.beginReorder();
-    } else {
-      categoryOrder.cancelReorder();
-    }
-    // Only run when the dialog opens or closes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  const canReorderCategories = categoryOrder.namedCategories.length >= 2;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Dashboard settings</DialogTitle>
           <DialogDescription className="sr-only">
-            Adjust dashboard visibility, layout, and category ordering preferences.
+            Adjust dashboard appearance, visibility and layout.
           </DialogDescription>
         </DialogHeader>
 
@@ -270,6 +252,15 @@ export function SettingsDialog({
           <section className="space-y-3">
             <SettingsSectionLabel>Appearance</SettingsSectionLabel>
             <AppearanceSettingsSection appearance={appearance} onChange={onAppearanceChange} />
+            <DashboardTitleField
+              title={appearance.title}
+              onChange={(title) => onAppearanceChange({ title })}
+            />
+            <WallpaperSettings
+              appearance={appearance}
+              onChange={onAppearanceChange}
+              onPreview={onAppearancePreview}
+            />
           </section>
 
           {/* Visibility */}
@@ -321,44 +312,34 @@ export function SettingsDialog({
                 value={statsPosition}
                 onChange={onStatsPositionChange}
               />
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Categories and order</p>
+                  <p className="text-muted-foreground text-sm">
+                    Drag, rename and add categories on the dashboard
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={onEditLayout}
+                >
+                  <PencilRuler />
+                  Edit layout
+                </Button>
+              </div>
             </div>
           </section>
 
-          {/* Category order */}
-          {canReorderCategories && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <SettingsSectionLabel>Category order</SettingsSectionLabel>
-                <CategoryOrderSaveStatus state={categoryOrder.saveState} />
-              </div>
-              <Suspense
-                fallback={<CategoryOrderListFallback count={categoryOrder.draftOrder.length} />}
-              >
-                <CategoryOrderList
-                  order={categoryOrder.draftOrder}
-                  onMove={categoryOrder.moveCategory}
-                  onReorder={categoryOrder.reorderCategories}
-                />
-              </Suspense>
-              {categoryOrder.error && (
-                <div className="flex items-center justify-between gap-3">
-                  <p role="alert" className="text-destructive text-sm font-medium">
-                    {categoryOrder.error}
-                  </p>
-                  {categoryOrder.saveState === "error" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => void categoryOrder.saveOrder()}
-                    >
-                      Retry
-                    </Button>
-                  )}
-                </div>
-              )}
-            </section>
-          )}
+          <section className="space-y-3">
+            <SettingsSectionLabel>Advanced</SettingsSectionLabel>
+            <CustomCssSettings
+              customCss={appearance.customCss}
+              onChange={(customCss) => onAppearanceChange({ customCss })}
+            />
+          </section>
 
           <section className="space-y-3">
             <SettingsSectionLabel>Data</SettingsSectionLabel>

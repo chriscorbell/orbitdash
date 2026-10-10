@@ -35,6 +35,8 @@ vi.mock("@/components/stats/StatsStrip", async () => {
 vi.mock("@/components/header/AppHeader", () => ({ AppHeader: () => <header /> }));
 vi.mock("@/components/settings/settings-preload", () => ({
   preloadSettingsDialog: vi.fn(),
+  preloadEditableBoard: vi.fn(),
+  loadEditableBoard: async () => ({ EditableBoard: () => null }),
   loadSettingsDialog: async () => ({ SettingsDialog: () => null }),
 }));
 vi.mock("@/hooks/useDashboardSettings", async () => {
@@ -61,13 +63,13 @@ vi.mock("@/hooks/useServices", () => ({
     duplicate: vi.fn(),
     remove: vi.fn(),
     restore: vi.fn(),
-    renameCategory: vi.fn(),
+    move: vi.fn(),
     reload: vi.fn(),
   }),
 }));
 
-vi.mock("@/hooks/useCategoryOrder", () => ({
-  useCategoryOrder: () => ({ visibleCategoryOrder: [], namedCategories: [] }),
+vi.mock("@/hooks/useCategories", () => ({
+  useCategories: () => ({ categories: [], loading: false, error: null }),
 }));
 
 import App from "@/App";

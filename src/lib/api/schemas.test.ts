@@ -84,7 +84,15 @@ const service = {
 };
 
 const settings = {
-  appearance: { accent: "mint", theme: "system" },
+  appearance: {
+    accent: "mint",
+    theme: "system",
+    title: "Homelab",
+    wallpaper: "wallpaper-0123456789abcdef.png",
+    wallpaperBlur: 4,
+    wallpaperDim: 30,
+    customCss: "",
+  },
   layout: {
     mode: "columns",
     density: "comfortable",
@@ -114,11 +122,11 @@ const pairs = [
     invalid: [{ samples: [{ ts: 1, cpu: 2, ram: 3 }] }],
   },
   {
-    name: "rename",
-    mini: mini.renameCategoryResponseSchema,
-    full: full.renameCategoryResponseSchema,
-    valid: { services: [service], order: ["Media"] },
-    invalid: [{ services: [service] }],
+    name: "categories",
+    mini: mini.categoriesResponseSchema,
+    full: full.categoriesResponseSchema,
+    valid: { categories: [{ id: "c", name: "Media", position: 0, created_at: 1, updated_at: 2 }] },
+    invalid: [{ categories: [{ id: "c", name: "Media", position: "0" }] }, {}],
   },
   {
     name: "snapshots",
@@ -186,8 +194,9 @@ describe("browser response schemas", () => {
     });
   }
 
-  it("parse category orders and import summaries", () => {
-    expect(mini.categoryOrderResponseSchema.parse({ order: ["a"] })).toEqual({ order: ["a"] });
+  it("parse success replies and import summaries", () => {
+    expect(mini.successResponseSchema.parse({ success: true })).toEqual({ success: true });
+    expect(mini.successResponseSchema.safeParse({ success: false }).success).toBe(false);
     expect(mini.importSummarySchema.parse({ icons: 1, services: 2, snapshot: "s" })).toEqual(
       full.importSummarySchema.parse({ icons: 1, services: 2, snapshot: "s" })
     );

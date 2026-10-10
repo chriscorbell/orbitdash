@@ -25,6 +25,8 @@ interface ServiceDialogProps {
   onOpenChange: (open: boolean) => void;
   service?: Service | null;
   categoryOptions: string[];
+  /** Category picked up front when adding, e.g. from a category's add tile. */
+  defaultCategory?: string | null;
   onSubmit: (payload: CreateServicePayload, iconFile?: File, removeIcon?: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
 }
@@ -35,6 +37,7 @@ function ServiceDialogBody({
   onOpenChange,
   service,
   categoryOptions,
+  defaultCategory,
   onSubmit,
   onDelete,
 }: ServiceDialogBodyProps) {
@@ -59,6 +62,7 @@ function ServiceDialogBody({
     storedIconSourceUrl,
   } = useServiceDialogState({
     categoryOptions,
+    defaultCategory,
     service,
   });
 
@@ -228,10 +232,11 @@ export function ServiceDialog({
   onOpenChange,
   service,
   categoryOptions,
+  defaultCategory,
   onSubmit,
   onDelete,
 }: ServiceDialogProps) {
-  const dialogStateKey = `${service?.id ?? "new"}:${categoryOptions.join("|")}`;
+  const dialogStateKey = `${service?.id ?? "new"}:${defaultCategory ?? ""}:${categoryOptions.join("|")}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -241,6 +246,7 @@ export function ServiceDialog({
           onOpenChange={onOpenChange}
           service={service}
           categoryOptions={categoryOptions}
+          defaultCategory={defaultCategory}
           onSubmit={onSubmit}
           onDelete={onDelete}
         />
