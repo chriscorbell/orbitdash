@@ -24,6 +24,27 @@ export const SEARCH_ENGINE_OPTIONS = ["duckduckgo", "google", "bing", "brave", "
 export type SearchEngine = (typeof SEARCH_ENGINE_OPTIONS)[number];
 export const SEARCH_URL_MAX_LENGTH = 500;
 
+export const WIDGET_PLACEMENT_OPTIONS = ["row", "header"] as const;
+export type WidgetPlacement = (typeof WIDGET_PLACEMENT_OPTIONS)[number];
+
+export const CLOCK_FORMAT_OPTIONS = ["auto", "12h", "24h"] as const;
+export type ClockFormat = (typeof CLOCK_FORMAT_OPTIONS)[number];
+
+export const WEATHER_UNIT_OPTIONS = ["metric", "imperial"] as const;
+export type WeatherUnits = (typeof WEATHER_UNIT_OPTIONS)[number];
+
+export const AGENDA_DAY_OPTIONS = [1, 3, 7, 14] as const;
+export type AgendaDays = (typeof AGENDA_DAY_OPTIONS)[number];
+
+export const WEATHER_LOCATION_NAME_MAX_LENGTH = 120;
+
+/** A place picked from the geocoder; the name is only for display. */
+export interface WeatherLocation {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface DashboardLayoutSettings {
   /** Categories side by side as columns, or stacked as rows of cards. */
   mode: BoardMode;
@@ -57,10 +78,28 @@ export interface DashboardSearchSettings {
   customUrl: string;
 }
 
+export interface DashboardWidgetSettings {
+  /** A row of widgets above the board, or compact pills in the header. */
+  placement: WidgetPlacement;
+  /** A clock with the date (row placement; the header always shows the time). */
+  clock: boolean;
+  /** "Good morning" above the clock. */
+  greeting: boolean;
+  /** Applies to the header clock and the greeting. */
+  clockFormat: ClockFormat;
+  weather: boolean;
+  weatherLocation: WeatherLocation | null;
+  weatherUnits: WeatherUnits;
+  /** Upcoming events from the calendar feeds saved on the server. */
+  agenda: boolean;
+  agendaDays: AgendaDays;
+}
+
 export interface DashboardSettings {
   appearance: DashboardAppearanceSettings;
   layout: DashboardLayoutSettings;
   search: DashboardSearchSettings;
+  widgets: DashboardWidgetSettings;
 }
 
 export type DashboardSettingsPatch = {
@@ -88,6 +127,17 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
   search: {
     engine: "duckduckgo",
     customUrl: "",
+  },
+  widgets: {
+    placement: "row",
+    clock: false,
+    greeting: false,
+    clockFormat: "auto",
+    weather: false,
+    weatherLocation: null,
+    weatherUnits: "metric",
+    agenda: false,
+    agendaDays: 7,
   },
 };
 
@@ -119,6 +169,20 @@ export function isSearchUrlTemplate(value: unknown): boolean {
   }
 }
 
+const isNumberBetween = (value: unknown, min: number, max: number) =>
+  typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
+
+export function isWeatherLocation(value: unknown): value is WeatherLocation {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    value.name.length > 0 &&
+    value.name.length <= WEATHER_LOCATION_NAME_MAX_LENGTH &&
+    isNumberBetween(value.latitude, -90, 90) &&
+    isNumberBetween(value.longitude, -180, 180)
+  );
+}
+
 const isWallpaper: Validator = (value) =>
   value === null || (typeof value === "string" && WALLPAPER_FILENAME_PATTERN.test(value));
 
@@ -146,6 +210,17 @@ const FIELD_VALIDATORS: {
   search: {
     engine: oneOf(SEARCH_ENGINE_OPTIONS),
     customUrl: isSearchUrlTemplate,
+  },
+  widgets: {
+    placement: oneOf(WIDGET_PLACEMENT_OPTIONS),
+    clock: isBoolean,
+    greeting: isBoolean,
+    clockFormat: oneOf(CLOCK_FORMAT_OPTIONS),
+    weather: isBoolean,
+    weatherLocation: (value) => value === null || isWeatherLocation(value),
+    weatherUnits: oneOf(WEATHER_UNIT_OPTIONS),
+    agenda: isBoolean,
+    agendaDays: oneOf(AGENDA_DAY_OPTIONS),
   },
 };
 
@@ -218,7 +293,13 @@ export function mergeDashboardSettings(
     appearance: { ...base.appearance, ...patch?.appearance },
     layout: { ...base.layout, ...patch?.layout },
     search: { ...base.search, ...patch?.search },
+    widgets: { ...base.widgets, ...patch?.widgets },
   };
+}
+
+/** Field values are primitives or small plain objects (a weather location). */
+function sameValue(a: unknown, b: unknown): boolean {
+  return a === b || (isRecord(a) && isRecord(b) && JSON.stringify(a) === JSON.stringify(b));
 }
 
 /** The fields of `next` that differ from `base`, or an empty patch when they match. */
@@ -231,7 +312,7 @@ export function diffDashboardSettings(
     const baseSection = base[section] as unknown as Record<string, unknown>;
     const nextSection = next[section] as unknown as Record<string, unknown>;
     for (const field of Object.keys(nextSection)) {
-      if (nextSection[field] !== baseSection[field]) {
+      if (!sameValue(nextSection[field], baseSection[field])) {
         patch[section] = { ...patch[section], [field]: nextSection[field] };
       }
     }

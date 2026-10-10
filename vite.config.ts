@@ -43,6 +43,14 @@ export default defineConfig({
               priority: 20,
             },
             {
+              // The live event channel: the first render opens it, and lazy chunks
+              // (status dots, widgets) subscribe to it too. Its own chunk keeps it
+              // from being folded into whichever chunk the bundler picks.
+              name: "event-stream",
+              test: /[\\/]src[\\/]lib[\\/]live[\\/]event-stream\.ts$/,
+              priority: 15,
+            },
+            {
               name: "icons",
               test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
               priority: 10,

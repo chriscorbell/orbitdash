@@ -7,6 +7,7 @@ import {
   loadCommandPalette,
   loadSettingsDialog,
   loadStatsPage,
+  loadWidgets,
   preloadCommandPalette,
 } from "@/components/settings/settings-preload";
 import { StatsStrip } from "@/components/stats/StatsStrip";
@@ -41,6 +42,12 @@ const CommandPalette = lazy(() =>
   loadCommandPalette().then((module) => ({ default: module.CommandPalette }))
 );
 
+// Widgets load only once one is turned on.
+const WidgetRow = lazy(() => loadWidgets().then((module) => ({ default: module.WidgetRow })));
+const HeaderWidgets = lazy(() =>
+  loadWidgets().then((module) => ({ default: module.HeaderWidgets }))
+);
+
 const SettingsDialog = lazy(() =>
   loadSettingsDialog().then((module) => ({ default: module.SettingsDialog }))
 );
@@ -68,6 +75,7 @@ function App() {
     updateAppearance,
     updateLayout,
     updateSearch,
+    updateWidgets,
   } = useDashboardSettings();
   // Settings can preview appearance (wallpaper sliders) live before saving it.
   const [appearancePreview, setAppearancePreview] =
@@ -78,6 +86,10 @@ function App() {
   );
   useAppliedAppearance(appearance);
   const { density, mode, statsPosition, showServices, showStats, showStatsPage } = settings.layout;
+  const { widgets } = settings;
+  const rowWidgets =
+    widgets.placement === "row" && (widgets.clock || widgets.weather || widgets.agenda);
+  const headerWidgets = widgets.placement === "header" && (widgets.weather || widgets.agenda);
   const pathname = usePathname();
   const page = showStatsPage && pathname === "/stats" ? "stats" : "services";
 
@@ -91,10 +103,14 @@ function App() {
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   // Mounted on first open and kept, so closing still plays the exit animation.
   const [settingsMounted, setSettingsMounted] = useState(false);
-  const openSettings = () => {
+  // A section to scroll to when settings open from somewhere specific, e.g. a widget.
+  const [settingsSection, setSettingsSection] = useState<"widgets" | null>(null);
+  const openSettingsAt = (section: "widgets" | null) => {
+    setSettingsSection(section);
     setSettingsMounted(true);
     setSettingsOpen(true);
   };
+  const openSettings = () => openSettingsAt(null);
 
   const startEditing = () => {
     setSettingsOpen(false);
@@ -209,6 +225,14 @@ function App() {
         onOpenSettings={openSettings}
         onOpenPalette={() => openPalette()}
         onPreloadPalette={preloadCommandPalette}
+        clockFormat={widgets.clockFormat}
+        widgets={
+          headerWidgets ? (
+            <Suspense fallback={null}>
+              <HeaderWidgets widgets={widgets} />
+            </Suspense>
+          ) : null
+        }
       />
       {page === "stats" ? (
         <main key="stats" className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
@@ -230,6 +254,11 @@ function App() {
           key="services"
           className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6"
         >
+          {rowWidgets && (
+            <Suspense fallback={null}>
+              <WidgetRow widgets={widgets} onOpenSettings={() => openSettingsAt("widgets")} />
+            </Suspense>
+          )}
           {statsPosition === "top" && stats}
           {showServices && (
             <ServicesSection
@@ -254,7 +283,7 @@ function App() {
             />
           )}
           {statsPosition === "bottom" && stats}
-          {!showServices && !showStats && (
+          {!showServices && !showStats && !rowWidgets && (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
               <p className="text-sm font-medium">Nothing is shown right now</p>
               <Button variant="outline" size="sm" onClick={openSettings}>
@@ -284,6 +313,9 @@ function App() {
             onEditLayout={startEditing}
             search={settings.search}
             onSearchChange={updateSearch}
+            widgets={widgets}
+            onWidgetsChange={updateWidgets}
+            focusSection={settingsSection}
             onModeChange={(value) => updateLayout({ mode: value })}
             onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
             onSettingsScopeChange={setSettingsScope}

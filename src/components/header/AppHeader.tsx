@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Activity,
   Check,
@@ -18,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { handleLinkClick } from "@/lib/router";
 import { cn } from "@/lib/utils";
+import type { ClockFormat } from "@shared/dashboard-settings";
 
 export type AppPage = "services" | "stats";
 
@@ -39,6 +41,9 @@ interface AppHeaderProps {
   onOpenPalette: () => void;
   /** Starts loading the palette before it is needed. */
   onPreloadPalette?: () => void;
+  clockFormat?: ClockFormat;
+  /** Compact widgets shown next to the host status. */
+  widgets?: ReactNode;
 }
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -62,6 +67,8 @@ export function AppHeader({
   onOpenPalette,
   onOpenSettings,
   onPreloadPalette,
+  clockFormat,
+  widgets,
 }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/65">
@@ -147,7 +154,7 @@ export function AppHeader({
               </kbd>
             </button>
 
-            <HeaderStatus />
+            <HeaderStatus clockFormat={clockFormat}>{widgets}</HeaderStatus>
 
             <div className="flex shrink-0 items-center gap-1">
               {page === "services" && (

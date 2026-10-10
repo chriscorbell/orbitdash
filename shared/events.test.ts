@@ -38,6 +38,8 @@ describe("configScopeForMutation", () => {
     expect(configScopeForMutation("/api/settings")).toBe("settings");
     expect(configScopeForMutation("/api/settings/devices/abc")).toBe("settings");
     expect(configScopeForMutation("/api/backup/import")).toBe("all");
+    expect(configScopeForMutation("/api/widgets/agenda/feeds/abc")).toBe("settings");
+    expect(configScopeForMutation("/api/widgets/weather")).toBeNull();
   });
 
   it("ignores mutations other clients don't display", () => {

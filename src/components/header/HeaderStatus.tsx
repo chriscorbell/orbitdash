@@ -1,35 +1,21 @@
-import { useEffect, useState } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSystemInfo } from "@/lib/api/system";
+import { useMinuteTicker } from "@/hooks/useMinuteTicker";
+import { timeFormatter } from "@/lib/clock";
 import { formatUptime } from "@/lib/format";
+import type { ClockFormat } from "@shared/dashboard-settings";
 
-/** Re-renders on each new minute, aligned to the clock, rather than every second. */
-function useMinuteTicker(): number {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const timeout = setTimeout(
-      () => {
-        setNow(Date.now());
-        interval = setInterval(() => setNow(Date.now()), 60_000);
-      },
-      60_000 - (Date.now() % 60_000)
-    );
-    return () => {
-      clearTimeout(timeout);
-      if (interval) clearInterval(interval);
-    };
-  }, []);
-
-  return now;
+interface HeaderStatusProps {
+  clockFormat?: ClockFormat;
+  /** Header widgets (weather, next event), shown before the host. */
+  children?: ReactNode;
 }
 
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
-
 /** Host name and uptime, then the time; uptime advances locally between fetches. */
-export function HeaderStatus() {
+export function HeaderStatus({ clockFormat = "auto", children }: HeaderStatusProps) {
   const now = useMinuteTicker();
+  const timeFormat = useMemo(() => timeFormatter(clockFormat), [clockFormat]);
   const { data, dataUpdatedAt } = useQuery({
     queryKey: ["system"],
     queryFn: fetchSystemInfo,
@@ -40,6 +26,7 @@ export function HeaderStatus() {
 
   return (
     <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground tabular-nums">
+      {children}
       {uptime !== null && (
         <span
           className="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 md:inline-flex"

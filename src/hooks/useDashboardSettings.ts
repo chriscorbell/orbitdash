@@ -18,6 +18,7 @@ import {
   type DashboardLayoutSettings,
   type DashboardSearchSettings,
   type DashboardSettingsPatch,
+  type DashboardWidgetSettings,
   type DashboardSettings,
   type DashboardSettingsResponse,
 } from "@shared/dashboard-settings";
@@ -201,6 +202,11 @@ export function useDashboardSettings() {
     [updateSettings]
   );
 
+  const updateWidgets = useCallback(
+    (widgets: Partial<DashboardWidgetSettings>) => updateSettings({ widgets }),
+    [updateSettings]
+  );
+
   /** "device" copies the current layout as this device's own; "all" drops the overrides. */
   const setScope = useCallback(
     (next: SettingsScope) => {
@@ -231,5 +237,6 @@ export function useDashboardSettings() {
     updateAppearance,
     updateLayout,
     updateSearch,
+    updateWidgets,
   };
 }
