@@ -1,19 +1,48 @@
 # Bundle Size Budget
 
-Orbitdash uses manual Vite chunking for the main runtime, React vendor code, Chart.js, drag and
-drop dependencies, and lazily loaded dialogs. Those chunks now have explicit bundle budgets.
+Orbitdash splits the build into the app entry, React, the other third-party code the first render
+needs, Chart.js, drag and drop, Zod, and lazily loaded dialogs. Those chunks have explicit bundle
+budgets.
+
+## Chunk Layout
+
+Chunking is configured with Rolldown's `codeSplitting.groups` in `vite.config.ts` (the replacement
+for the deprecated `manualChunks`). A group also captures the dependencies of the modules it
+matches, so group priority decides where shared packages land:
+
+1. `react-vendor`: React, React DOM, and the scheduler. It has the highest priority so that no
+   other group pulls React in as a dependency.
+2. `validation`: Zod only. The app's own schemas ship in the entry, so this chunk's hash only
+   changes when Zod does.
+3. `charts`: Chart.js and react-chartjs-2. Only the lazily loaded `MetricCharts` imports it.
+4. `drag-drop`: dnd-kit. Only the lazily loaded settings `CategoryOrderList` imports it.
+5. `icons`: lucide-react.
+6. `vendor`: everything else in `node_modules` that the first render needs (Radix, Floating UI,
+   tailwind-merge). The `$initial` tag keeps packages used only by lazy chunks, like the Select
+   and Tabs primitives, inside those chunks.
+
+The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
+brotli instead of the vendor code too.
+
+`charts-*` and `drag-drop-*` must never be loaded up front. If React lands in one of them again,
+or an always-loaded module imports dnd-kit or Chart.js directly, the entry starts importing that
+chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
+happens.
 
 ## Current Budgets
 
-| Asset group          | Budget raw | Budget gzip | Current baseline                |
-| -------------------- | ---------: | ----------: | ------------------------------- |
-| `index-*.js`         |     145 kB |       45 kB | about 115 kB raw / 34.9 kB gzip |
-| `index-*.css`        |      70 kB |       12 kB | about 61 kB raw / 10.8 kB gzip  |
-| `react-vendor-*.js`  |     230 kB |       75 kB | about 224 kB raw / 70.5 kB gzip |
-| `charts-*.js`        |     180 kB |       65 kB | about 163 kB raw / 56.8 kB gzip |
-| `validation-*.js`    |      85 kB |       24 kB | about 82 kB raw / 23.1 kB gzip  |
-| `ServiceDialog-*.js` |     100 kB |       28 kB | about 33 kB raw / 10.3 kB gzip  |
-| `drag-drop-*.js`     |      55 kB |       18 kB | about 47 kB raw / 15.2 kB gzip  |
+| Asset group          | Budget raw | Budget gzip | Current baseline                             |
+| -------------------- | ---------: | ----------: | -------------------------------------------- |
+| `index-*.js`         |      60 kB |       18 kB | about 51 kB raw / 15.2 kB gzip / 13.5 kB br  |
+| `index-*.css`        |      70 kB |       12 kB | about 63 kB raw / 11.1 kB gzip / 9.6 kB br   |
+| `react-vendor-*.js`  |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
+| `vendor-*.js`        |     145 kB |       47 kB | about 127 kB raw / 41.1 kB gzip / 36.1 kB br |
+| `charts-*.js`        |     170 kB |       60 kB | about 156 kB raw / 54.1 kB gzip / 47.6 kB br |
+| `validation-*.js`    |      85 kB |       24 kB | about 82 kB raw / 23.1 kB gzip / 20.5 kB br  |
+| `ServiceDialog-*.js` |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
+| `drag-drop-*.js`     |      48 kB |       16 kB | about 43 kB raw / 14.1 kB gzip / 12.7 kB br  |
+
+Sizes are in KiB, as printed by the check script.
 
 ## How To Check
 
@@ -22,21 +51,31 @@ npm run build
 npm run bundle:check
 ```
 
-The check reads the built files in `dist/assets`, calculates raw and gzip sizes, and fails if any
-tracked chunk crosses its budget. The validation chunk keeps Zod-based runtime parsing out of the
-main entry bundle while preserving a dedicated ceiling for schema-related growth. The current
-baseline reflects the Zod 4 migration and the follow-on schema split that kept validation logic
-isolated from the main entry bundle. The entry raw budget was rebaselined from 140 kB to 145 kB for
-the Radix UI 1.6 update; its 45 kB gzip ceiling remains unchanged. Replacing Recharts with Chart.js
-cut the chart chunk roughly in half and allowed its raw and gzip limits to be tightened.
+`npm run build` ends with `scripts/compress-assets.mjs`, which writes `.br` and `.gz` siblings next
+to every text asset of 512 bytes or more. The server sends those precompressed files to browsers
+that accept them.
 
-The validation budget was raised from 65 kB / 17 kB to 85 kB / 24 kB for Zod 4.6. The chunk still
-holds only Zod, so the growth comes from Zod itself rather than a chunk boundary change: 4.6 adds
-a parse memoizer for cyclic schemas, ships a larger JSON Schema generator, and bundles the English
-locale by default. Classic schemas wire the JSON Schema processors into every schema constructor, so
-that code cannot be tree-shaken. Moving the shared schemas to `zod/mini`, which skips the JSON
-Schema processors and the default memoizer, is the way to shrink this chunk again. React
-19.3 grew `react-vendor-*` by about 28 kB raw but stays within its existing budget.
+The check reads the built files in `dist/assets` and fails if:
+
+- any tracked chunk crosses its raw or gzip budget
+- a tracked chunk is missing its `.br` or `.gz` sibling
+- `dist/index.html` references a `charts-*` or `drag-drop-*` chunk
+
+## History
+
+- The entry budget was cut from 145 kB raw / 45 kB gzip to 60 kB / 18 kB when third-party UI code
+  moved into `vendor-*`. The old `manualChunks` setup put React inside `charts-*`, so the entry
+  imported Chart.js and dnd-kit statically and `index.html` preloaded both. The React vendor,
+  charts, and drag-and-drop budgets were tightened to match the smaller chunks.
+- The validation budget was raised from 65 kB / 17 kB to 85 kB / 24 kB for Zod 4.6. The chunk
+  still holds only Zod, so the growth comes from Zod itself rather than a chunk boundary change:
+  4.6 adds a parse memoizer for cyclic schemas, ships a larger JSON Schema generator, and bundles
+  the English locale by default. Classic schemas wire the JSON Schema processors into every schema
+  constructor, so that code cannot be tree-shaken. Moving the shared schemas to `zod/mini`, which
+  skips the JSON Schema processors and the default memoizer, is the way to shrink this chunk
+  again. React 19.3 grew `react-vendor-*` by about 28 kB raw.
+- Replacing Recharts with Chart.js cut the chart chunk roughly in half.
+- Zod 4 and the schema split moved runtime validation out of the entry bundle.
 
 ## When To Update Budgets
 

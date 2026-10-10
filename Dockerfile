@@ -26,6 +26,7 @@ COPY package.json bun.lock* ./
 COPY index.html ./
 COPY tsconfig.json tsconfig.app.json tsconfig.node.json tsconfig.server.json ./
 COPY vite.config.ts ./
+COPY scripts/compress-assets.mjs ./scripts/compress-assets.mjs
 COPY public/ ./public/
 COPY server/ ./server/
 COPY shared/ ./shared/
@@ -46,7 +47,8 @@ COPY server/ ./server/
 COPY shared/ ./shared/
 COPY tsconfig.json ./tsconfig.json
 
-# Copy built frontend assets (Vite copies public/ into dist/ during the build)
+# Copy built frontend assets, including the precompressed .br/.gz siblings
+# (Vite copies public/ into dist/ during the build)
 COPY --from=builder /app/dist ./dist
 
 # Create the data directory writable by the unprivileged bun user (uid 1000)

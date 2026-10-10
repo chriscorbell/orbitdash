@@ -47,6 +47,7 @@ Use this file as a practical handoff for future agents working in this repositor
 
 - Docker image publishes through `.github/workflows/docker-publish.yml` with amd64 and arm64 builds.
 - The publish workflow smoke-tests container readiness through `GET /readyz` before pushing tags.
+- `server/static-assets.ts` serves `dist/`: the `.br`/`.gz` files `npm run build` writes, immutable caching for hashed `/assets/*`, and ETag revalidation for everything else. It scans `dist/` once at startup, so restart the server after rebuilding.
 - Runtime data lives in `/data` in containers or `./data` locally by default.
 - Main environment variables:
   - `ORBITDASH_DATA_DIR`
@@ -70,16 +71,9 @@ Use this file as a practical handoff for future agents working in this repositor
 - `src/components/ServiceCard.tsx` uses `DropdownMenu modal={false}` intentionally.
   - This prevents pointer-event lockups after opening the edit dialog from the service action menu.
 - The main bundle budget should not be raised casually.
-  - A recent regression was fixed by extracting `zod` and `shared/schemas.ts` into a dedicated `validation-*` chunk in `vite.config.ts`.
+  - Chunking uses Rolldown `codeSplitting.groups` in `vite.config.ts`. A group also captures its modules' dependencies, so group priority decides where shared packages like React land. `docs/bundle-size-budget.md` explains the layout and the tracked budgets.
   - If bundle budgets fail again, inspect chunk boundaries before raising thresholds.
-- Bundle budgets are currently tracked for:
-  - `index-*`
-  - `index-*.css`
-  - `react-vendor-*`
-  - `charts-*`
-  - `validation-*`
-  - `ServiceDialog-*`
-  - `drag-drop-*`
+  - `charts-*` and `drag-drop-*` must stay lazy: modules loaded on first render import Chart.js and dnd-kit only through `lazy()` components. `npm run bundle:check` fails if `index.html` preloads either chunk.
 - Dependabot is configured for `bun`, not `npm`.
   - This was changed because npm-based Dependabot PRs were generated without `bun.lock` updates and always failed frozen-lockfile installs.
   - Existing stale npm-based Dependabot PRs were intentionally closed after the config fix.

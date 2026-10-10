@@ -1,28 +1,14 @@
-import { serveStatic } from "hono/bun";
 import fs from "fs";
 import path from "path";
 import { app } from "./app";
-import { jsonNotFound } from "./api-response";
 import { initializeServer } from "./runtime";
+import { createStaticAssetHandler } from "./static-assets";
 
-// In production, serve built frontend assets
+// In production, serve the built frontend, falling back to index.html for
+// non-API routes.
 const distPath = path.resolve(import.meta.dirname, "../dist");
 if (fs.existsSync(distPath)) {
-  app.use("/*", serveStatic({ root: "./dist" }));
-
-  // SPA fallback — serve index.html for non-API, non-asset routes
-  app.get("*", (c) => {
-    if (c.req.path.startsWith("/api/")) {
-      return jsonNotFound(c);
-    }
-
-    const indexPath = path.join(distPath, "index.html");
-    if (fs.existsSync(indexPath)) {
-      const html = fs.readFileSync(indexPath, "utf-8");
-      return c.html(html);
-    }
-    return c.text("Not found", 404);
-  });
+  app.get("*", createStaticAssetHandler(distPath));
 }
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
