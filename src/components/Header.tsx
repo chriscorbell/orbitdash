@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+import type { SettingsScope } from "@/hooks/useDashboardSettings";
 
 // The sortable list pulls in dnd-kit, so it loads on demand. Hovering or
 // focusing the settings button starts the download before the dialog opens.
@@ -40,10 +41,13 @@ interface HeaderProps {
   categoryOrder: UseCategoryOrderResult;
   columnCount: 3 | 4 | 5;
   servicesFirst: boolean;
+  settingsError?: string | null;
+  settingsScope: SettingsScope;
   showServicesSection: boolean;
   showStatsSection: boolean;
   onColumnCountChange: (columnCount: 3 | 4 | 5) => void;
   onServicesFirstChange: (enabled: boolean) => void;
+  onSettingsScopeChange: (scope: SettingsScope) => void;
   onShowServicesSectionChange: (enabled: boolean) => void;
   onShowStatsSectionChange: (enabled: boolean) => void;
 }
@@ -108,10 +112,13 @@ export function Header({
   categoryOrder,
   columnCount,
   servicesFirst,
+  settingsError = null,
+  settingsScope,
   showServicesSection,
   showStatsSection,
   onColumnCountChange,
   onServicesFirstChange,
+  onSettingsScopeChange,
   onShowServicesSectionChange,
   onShowStatsSectionChange,
 }: HeaderProps) {
@@ -176,6 +183,36 @@ export function Header({
               </DialogHeader>
 
               <div className="space-y-6">
+                <section className="space-y-2" aria-labelledby="settings-scope-label">
+                  <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                    {(
+                      [
+                        ["all", "All devices"],
+                        ["device", "This device"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        variant={settingsScope === value ? "outline" : "ghost"}
+                        size="sm"
+                        aria-pressed={settingsScope === value}
+                        onClick={() => onSettingsScopeChange(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <p id="settings-scope-label" className="text-muted-foreground text-xs">
+                    {settingsScope === "device"
+                      ? "Visibility and layout changes apply only to this browser."
+                      : "Visibility and layout changes apply to every browser."}
+                  </p>
+                  {settingsError && (
+                    <p className="text-destructive text-sm font-medium">{settingsError}</p>
+                  )}
+                </section>
+
                 {/* Visibility */}
                 <section className="space-y-3">
                   <SettingsSectionLabel>Visibility</SettingsSectionLabel>

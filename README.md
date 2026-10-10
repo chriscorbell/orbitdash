@@ -52,6 +52,7 @@ version before creating the matching tag.
 - Inline search and filtering
 - UI-native service management (no config file needed)
 - Toggle between 3, 4 and 5 column grids for service links
+- Layout settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
 - Reorder category sections with a shared saved layout
 - Collapse category sections with saved per-browser state
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
