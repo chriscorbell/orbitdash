@@ -221,3 +221,21 @@ export interface RenameCategoryResponse {
 
 /** Response shape for GET /api/services */
 export type ServicesResponse = Service[];
+
+/** Where a library icon comes from. */
+export type IconLibrarySource = "dashboard-icons" | "selfhst";
+
+/** One icon from the dashboard-icons or selfh.st libraries. */
+export interface IconLibraryEntry {
+  id: string; // `${source}:${slug}`
+  source: IconLibrarySource;
+  slug: string;
+  name: string;
+  url: string; // CDN URL of the preferred format (SVG when there is one)
+}
+
+/** Response shape for GET /api/icon-library */
+export interface IconLibraryResponse {
+  entries: IconLibraryEntry[];
+  updatedAt: number; // when the library index was fetched, ms since epoch
+}

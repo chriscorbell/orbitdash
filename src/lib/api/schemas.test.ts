@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as iconLibraryMini from "@/lib/api/icon-library";
 import * as metricMini from "@/lib/api/metric-schemas";
 import * as mini from "@/lib/api/schemas";
 import * as full from "@shared/schemas";
@@ -123,6 +124,26 @@ const pairs = [
     full: full.metricsResponseSchema,
     valid: { samples: [{ ts: 1, cpu: 2, ram: 3, disk: 4 }] },
     invalid: [{ samples: [{ ts: 1, cpu: 2, ram: 3 }] }],
+  },
+  {
+    name: "icon library",
+    mini: iconLibraryMini.iconLibraryResponseSchema,
+    full: full.iconLibraryResponseSchema,
+    valid: {
+      entries: [
+        {
+          id: "selfhst:plex",
+          source: "selfhst",
+          slug: "plex",
+          name: "Plex",
+          url: "https://x/p.svg",
+        },
+      ],
+      updatedAt: 1,
+    },
+    invalid: [
+      { entries: [{ id: "x", source: "nope", slug: "x", name: "x", url: "x" }], updatedAt: 1 },
+    ],
   },
   {
     name: "categories",
