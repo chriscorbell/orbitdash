@@ -12,7 +12,7 @@ export function getIconsDir(): string {
   return dir;
 }
 
-function detectIconExt(buffer: Buffer): string | null {
+export function detectIconExt(buffer: Buffer): string | null {
   if (
     buffer.byteLength >= 8 &&
     buffer.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))

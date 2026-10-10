@@ -1,7 +1,8 @@
 import { Database } from "bun:sqlite";
 import path from "path";
 import fs from "fs";
-import { applyMigrations } from "./migrations";
+import { applyMigrations, needsPreMigrationSnapshot } from "./migrations";
+import { createSnapshot } from "./services/backup-snapshots";
 
 interface DatabaseInitOptions {
   dataDir?: string;
@@ -73,6 +74,10 @@ export function initializeDb(options: DatabaseInitOptions = {}): Database {
 
     db = new Database(currentDbPath);
     applyPragmas(db);
+    if (needsPreMigrationSnapshot(db)) {
+      // Schema upgrades are the riskiest moment for user data, so keep a restore point first.
+      createSnapshot(db, currentDataDir, "pre-migration");
+    }
     applyMigrations(db);
   }
 

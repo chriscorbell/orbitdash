@@ -54,6 +54,7 @@ version before creating the matching tag.
 - Toggle between 3, 4 and 5 column grids for service links
 - Reorder category sections with a shared saved layout
 - Collapse category sections with saved per-browser state
+- Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
 
 ## Platform Support
 
@@ -97,6 +98,7 @@ All data is stored under `/data` inside the container:
 
 - `orbitdash.db` (SQLite database)
 - `icons/` (uploaded/downloaded service icons)
+- `backups/` (automatic snapshots, the newest 7 by default; see `ORBITDASH_BACKUP_KEEP`)
 
 The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.
 

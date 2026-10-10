@@ -25,6 +25,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { SortableCategoryItem } from "@/components/services/SortableCategoryItem";
+import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 
 interface HeaderProps {
@@ -168,7 +169,7 @@ export function Header({
             </svg>
           </Button>
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Dashboard settings</DialogTitle>
                 <DialogDescription className="sr-only">
@@ -297,6 +298,11 @@ export function Header({
                     )}
                   </section>
                 )}
+
+                <section className="space-y-3">
+                  <SettingsSectionLabel>Data</SettingsSectionLabel>
+                  <BackupSettingsSection />
+                </section>
               </div>
 
               <DialogFooter showCloseButton />

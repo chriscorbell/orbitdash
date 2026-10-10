@@ -6,6 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Header } from "@/components/Header";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 
+vi.mock("@/components/settings/BackupSettingsSection", () => ({
+  BackupSettingsSection: () => <div data-testid="backup-settings" />,
+}));
+
 afterEach(() => {
   cleanup();
 });
