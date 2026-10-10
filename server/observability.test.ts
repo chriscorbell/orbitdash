@@ -15,7 +15,7 @@ function captureConsole() {
   };
 }
 
-function parsedLines(spy: ReturnType<typeof spyOn>): Array<Record<string, unknown>> {
+function parsedLines(spy: { mock: { calls: unknown[][] } }): Array<Record<string, unknown>> {
   return spy.mock.calls.map(([line]) => JSON.parse(String(line)) as Record<string, unknown>);
 }
 
@@ -43,7 +43,7 @@ describe("getLogLevel", () => {
   });
 
   it("accepts each known level, ignoring case and whitespace", () => {
-    for (const level of ["debug", "info", "warn", "error"]) {
+    for (const level of ["debug", "info", "warn", "error"] as const) {
       process.env.LOG_LEVEL = ` ${level.toUpperCase()} `;
       expect(getLogLevel()).toBe(level);
     }

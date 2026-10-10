@@ -423,13 +423,13 @@ describe("service icon files", () => {
         body: serviceFormData({ name: "Orbit", url: "https://example.com" }, PNG_BYTES),
       })
     ).json()) as Service;
-    expect(iconFiles()).toEqual([created.icon]);
+    expect(iconFiles()).toEqual([created.icon!]);
 
     const updated = (await (
       await updateService(created.id, serviceFormData({}, PNG_BYTES))
     ).json()) as Service;
     expect(updated.icon).not.toBe(created.icon);
-    expect(iconFiles()).toEqual([updated.icon]);
+    expect(iconFiles()).toEqual([updated.icon!]);
   });
 
   it("removes a newly written icon when the service insert fails", async () => {
@@ -470,7 +470,7 @@ describe("service icon files", () => {
     expect(uploadResponse.status).toBe(500);
     expect(downloadResponse.status).toBe(500);
     expect(removeResponse.status).toBe(500);
-    expect(iconFiles()).toEqual([created.icon]);
+    expect(iconFiles()).toEqual([created.icon!]);
     expect((await app.request(`/api/icons/${created.icon}`)).status).toBe(200);
     errorLog.mockRestore();
   });
@@ -491,7 +491,7 @@ describe("service icon files", () => {
 
     const response = await app.request(`/api/services/${created.id}`, { method: "DELETE" });
     expect(response.status).toBe(500);
-    expect(iconFiles()).toEqual([created.icon]);
+    expect(iconFiles()).toEqual([created.icon!]);
     errorLog.mockRestore();
   });
 
@@ -509,7 +509,7 @@ describe("service icon files", () => {
     fs.mkdirSync(path.join(iconsDir, "nested"));
 
     expect(cleanupOrphanIcons()).toBe(2);
-    expect(iconFiles()).toEqual([created.icon, "nested"].sort());
+    expect(iconFiles()).toEqual([created.icon!, "nested"].sort());
     expect(cleanupOrphanIcons()).toBe(0);
   });
 });
