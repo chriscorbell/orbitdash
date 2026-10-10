@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,8 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { AlertSettings } from "@/components/settings/AlertSettings";
 import { AppearanceSettingsSection } from "@/components/settings/AppearanceSettingsSection";
 import { CustomCssSettings } from "@/components/settings/CustomCssSettings";
@@ -16,6 +15,12 @@ import { DashboardTitleField } from "@/components/settings/DashboardTitleField";
 import { WallpaperSettings } from "@/components/settings/WallpaperSettings";
 import { WebSearchSettings } from "@/components/settings/WebSearchSettings";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
+import {
+  SettingsChoiceRow,
+  SettingsSectionLabel,
+  SettingsToggleRow,
+  type ChoiceOption,
+} from "@/components/settings/SettingsRows";
 import { DashboardImportSettings } from "@/components/settings/DashboardImportSettings";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
 import type {
@@ -23,18 +28,17 @@ import type {
   CardDensity,
   DashboardAppearanceSettings,
   DashboardSearchSettings,
+  DashboardWidgetSettings,
   StatsPosition,
 } from "@shared/dashboard-settings";
-import {
-  Columns3,
-  LayoutGrid,
-  LayoutList,
-  List,
-  LogOut,
-  PencilRuler,
-  Rows3,
-  type LucideIcon,
-} from "lucide-react";
+import { Columns3, LayoutGrid, LayoutList, List, LogOut, PencilRuler, Rows3 } from "lucide-react";
+
+// Its own chunk, fetched as the dialog opens; the section sits below the fold.
+const WidgetSettings = lazy(() =>
+  import("@/components/settings/WidgetSettings").then((module) => ({
+    default: module.WidgetSettings,
+  }))
+);
 
 interface SettingsAccount {
   mode: "password" | "proxy";
@@ -44,6 +48,10 @@ interface SettingsAccount {
 }
 
 interface SettingsDialogProps {
+  /** A section to scroll into view when the dialog opens. */
+  focusSection?: "widgets" | null;
+  widgets: DashboardWidgetSettings;
+  onWidgetsChange: (widgets: Partial<DashboardWidgetSettings>) => void;
   /** Who is signed in, when auth is on. */
   account?: SettingsAccount;
   appearance: DashboardAppearanceSettings;
@@ -72,119 +80,6 @@ interface SettingsDialogProps {
   onShowStatsPageChange: (enabled: boolean) => void;
 }
 
-interface SettingsToggleRowProps {
-  checked: boolean;
-  description: string;
-  id: string;
-  title: string;
-  onCheckedChange: (checked: boolean) => void;
-}
-
-function SettingsToggleRow({
-  checked,
-  description,
-  id,
-  title,
-  onCheckedChange,
-}: SettingsToggleRowProps) {
-  const descriptionId = `${id}-description`;
-
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
-      <div className="space-y-0.5">
-        <Label htmlFor={id}>{title}</Label>
-        <p id={descriptionId} className="text-muted-foreground text-sm">
-          {description}
-        </p>
-      </div>
-      <Switch
-        id={id}
-        checked={checked}
-        aria-describedby={descriptionId}
-        onCheckedChange={onCheckedChange}
-      />
-    </div>
-  );
-}
-
-interface ChoiceOption<T extends string> {
-  value: T;
-  label: string;
-  icon?: LucideIcon;
-}
-
-interface SettingsChoiceRowProps<T extends string> {
-  description: string;
-  id: string;
-  options: readonly ChoiceOption<T>[];
-  title: string;
-  value: T;
-  onChange: (value: T) => void;
-}
-
-/** A labelled radio group of segmented buttons; arrow keys move the choice like native radios. */
-function SettingsChoiceRow<T extends string>({
-  description,
-  id,
-  options,
-  title,
-  value,
-  onChange,
-}: SettingsChoiceRowProps<T>) {
-  const labelId = `${id}-label`;
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const step =
-      event.key === "ArrowRight" || event.key === "ArrowDown"
-        ? 1
-        : event.key === "ArrowLeft" || event.key === "ArrowUp"
-          ? -1
-          : 0;
-    if (step === 0) return;
-    event.preventDefault();
-    const current = options.findIndex((option) => option.value === value);
-    const next = (current + step + options.length) % options.length;
-    onChange(options[next].value);
-    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
-  };
-
-  return (
-    <div className="space-y-3 rounded-lg border border-border p-3">
-      <div className="space-y-0.5">
-        <Label id={labelId}>{title}</Label>
-        <p className="text-muted-foreground text-sm">{description}</p>
-      </div>
-      <div
-        role="radiogroup"
-        aria-labelledby={labelId}
-        className="grid auto-cols-fr grid-flow-col gap-2"
-        onKeyDown={handleKeyDown}
-      >
-        {options.map((option) => {
-          const checked = option.value === value;
-          const Icon = option.icon;
-          return (
-            <Button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={checked}
-              tabIndex={checked ? 0 : -1}
-              variant={checked ? "outline" : "ghost"}
-              size="sm"
-              className="w-full"
-              onClick={() => onChange(option.value)}
-            >
-              {Icon && <Icon aria-hidden="true" />}
-              {option.label}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 const MODE_OPTIONS: readonly ChoiceOption<BoardMode>[] = [
   { value: "columns", label: "Columns", icon: Columns3 },
   { value: "rows", label: "Rows", icon: Rows3 },
@@ -200,10 +95,6 @@ const STATS_POSITION_OPTIONS: readonly ChoiceOption<StatsPosition>[] = [
   { value: "top", label: "Above services" },
   { value: "bottom", label: "Below services" },
 ];
-
-function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-muted-foreground text-xs font-medium">{children}</h3>;
-}
 
 function AccountRow({ account }: { account: SettingsAccount }) {
   const viaProxy = account.mode === "proxy";
@@ -236,6 +127,9 @@ function AccountRow({ account }: { account: SettingsAccount }) {
 
 export function SettingsDialog({
   account,
+  focusSection = null,
+  widgets,
+  onWidgetsChange,
   appearance,
   density,
   mode,
@@ -390,6 +284,25 @@ export function SettingsDialog({
                 </Button>
               </div>
             </div>
+          </section>
+
+          <section
+            id="settings-widgets"
+            className="scroll-mt-4 space-y-3"
+            ref={(node) => {
+              if (node && open && focusSection === "widgets") {
+                node.scrollIntoView({ block: "start" });
+              }
+            }}
+          >
+            <SettingsSectionLabel>Widgets</SettingsSectionLabel>
+            <Suspense
+              fallback={
+                <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
+              }
+            >
+              <WidgetSettings widgets={widgets} onChange={onWidgetsChange} />
+            </Suspense>
           </section>
 
           <section className="space-y-3">

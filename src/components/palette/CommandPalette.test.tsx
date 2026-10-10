@@ -3,10 +3,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CommandPalette, type PaletteActionWithIcon } from "@/components/palette/CommandPalette";
+import { CommandPalette, type PaletteContext } from "@/components/palette/CommandPalette";
 import { DEFAULT_DASHBOARD_SETTINGS } from "@shared/dashboard-settings";
 import type { Service } from "@shared/types";
-import { Settings } from "lucide-react";
 
 function service(name: string, extra: Partial<Service> = {}): Service {
   return {
@@ -51,15 +50,24 @@ afterEach(() => {
 function renderPalette(initialQuery = "", search = DEFAULT_DASHBOARD_SETTINGS.search) {
   const onOpenChange = vi.fn();
   const runSettings = vi.fn();
-  const actions: PaletteActionWithIcon[] = [
-    { id: "open-settings", label: "Open settings", icon: Settings, run: runSettings },
-  ];
+  const context: PaletteContext = {
+    canEdit: true,
+    page: "services",
+    showServices: false,
+    showStatsPage: false,
+    theme: "dark",
+    onAddService: vi.fn(),
+    onEditLayout: vi.fn(),
+    onNavigate: vi.fn(),
+    onOpenSettings: runSettings,
+    onThemeChange: vi.fn(),
+  };
   render(
     <CommandPalette
       open
       initialQuery={initialQuery}
       services={services}
-      actions={actions}
+      context={context}
       search={search}
       onOpenChange={onOpenChange}
     />

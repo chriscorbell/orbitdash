@@ -44,6 +44,8 @@ function renderHeader(overrides: Partial<DialogProps> = {}) {
     density: "comfortable",
     mode: "columns",
     search: DEFAULT_DASHBOARD_SETTINGS.search,
+    widgets: DEFAULT_DASHBOARD_SETTINGS.widgets,
+    onWidgetsChange: vi.fn(),
     statsPosition: "top",
     settingsScope: "all",
     showServicesSection: true,
@@ -70,6 +72,31 @@ function renderHeader(overrides: Partial<DialogProps> = {}) {
 }
 
 describe("SettingsDialog", () => {
+  it("turns widgets on and picks where they show", async () => {
+    const user = userEvent.setup();
+    const { props } = renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    await user.click(await screen.findByRole("switch", { name: "Clock" }));
+    expect(props.onWidgetsChange).toHaveBeenCalledWith({ clock: true });
+    await user.click(screen.getByRole("radio", { name: "In the header" }));
+    expect(props.onWidgetsChange).toHaveBeenLastCalledWith({ placement: "header" });
+    await user.click(screen.getByRole("radio", { name: "24-hour" }));
+    expect(props.onWidgetsChange).toHaveBeenLastCalledWith({ clockFormat: "24h" });
+    // The greeting belongs to the clock, so it only shows once the clock is on.
+    expect(screen.queryByRole("switch", { name: "Greeting" })).toBeNull();
+  });
+
+  it("hides row-only widgets when they show in the header", async () => {
+    const user = userEvent.setup();
+    renderHeader({
+      widgets: { ...DEFAULT_DASHBOARD_SETTINGS.widgets, placement: "header", clock: true },
+    });
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(await screen.findByRole("switch", { name: "Weather" })).toBeTruthy();
+    expect(screen.queryByRole("switch", { name: "Clock" })).toBeNull();
+  });
+
   it("changes the theme and accent from settings", async () => {
     const user = userEvent.setup();
     const { props } = renderHeader();

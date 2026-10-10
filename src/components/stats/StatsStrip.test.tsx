@@ -89,7 +89,7 @@ describe("Sparkline", () => {
     expect(area.getAttribute("d")).toContain("Z");
   });
 
-  it("shows firing alerts above the tiles, red once well past the threshold", () => {
+  it("shows firing alerts above the tiles, red once well past the threshold", async () => {
     setMetrics({ status: "connected" });
     const alert: MetricAlert = {
       id: "a",
@@ -109,7 +109,9 @@ describe("Sparkline", () => {
     ];
     render(<StatsStrip />);
 
-    const items = screen.getByRole("list", { name: "Active alerts" }).querySelectorAll("li");
+    const items = (await screen.findByRole("list", { name: "Active alerts" })).querySelectorAll(
+      "li"
+    );
     expect(items[0].textContent).toContain("CPU above 90% for 5 min");
     expect(items[0].textContent).toContain("now 97%");
     expect(items[0].className).toContain("destructive");
