@@ -34,7 +34,7 @@ happens.
 
 | Asset group           | Budget raw | Budget gzip | Current baseline                             |
 | --------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`          |      62 kB |       20 kB | about 55 kB raw / 18.7 kB gzip / 16.6 kB br  |
+| `index-*.js`          |      62 kB |       20 kB | about 56 kB raw / 19.2 kB gzip / 17.0 kB br  |
 | `index-*.css`         |      76 kB |       13 kB | about 76 kB raw / 12.6 kB gzip / 10.8 kB br  |
 | `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`         |     110 kB |       34 kB | about 96 kB raw / 29.0 kB gzip / 26.0 kB br  |
@@ -43,8 +43,12 @@ happens.
 | `SettingsDialog-*.js` |      24 kB |        8 kB | about 10 kB raw / 3.4 kB gzip / 3.0 kB br    |
 | `EditableBoard-*.js`  |      44 kB |       14 kB | about 38 kB raw / 12.0 kB gzip / 10.8 kB br  |
 | `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
+| `sw.js`               |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
 
 Sizes are in KiB, as printed by the check script.
+
+`sw.js` is the offline service worker. It is built separately into the site root and never loads
+with the page, so it is not part of the chunk layout above.
 
 ## How To Check
 
@@ -57,7 +61,7 @@ npm run bundle:check
 to every text asset of 512 bytes or more. The server sends those precompressed files to browsers
 that accept them.
 
-The check reads the built files in `dist/assets` and fails if:
+The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if:
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
@@ -65,6 +69,9 @@ The check reads the built files in `dist/assets` and fails if:
 
 ## History
 
+- The installable app added the service worker registration and the stale-chunk reload to the
+  entry, about 0.7 kB raw / 0.3 kB gzip, within its budget. The worker itself is the separate
+  `sw.js` with its own budget.
 - Edit mode moved card menus and drag and drop into a lazy `EditableBoard-*` chunk, loaded when
   the Edit layout button is hovered, focused or clicked. Outside edit mode cards are plain links, so
   the Radix dropdown menu left the first paint and `vendor-*` fell from about 163 kB / 51 kB to

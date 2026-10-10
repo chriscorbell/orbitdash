@@ -54,6 +54,39 @@ per-second payload only grows for views that ask for the detail. Some host facts
 reader's namespace: `/proc/net` and `/proc/self/mounts` describe the container, so the collector
 reads PID 1's (`/proc/1/net/dev`, `/proc/1/mounts`), which are the host's through a host root.
 
+### Installable App And Offline Shell
+
+orbitdash ships a web app manifest (`public/manifest.webmanifest`, icons in `public/icons/` made by
+`scripts/generate-pwa-icons.mjs`) and a small hand-written service worker, so it can be installed
+on phones and desktops and still opens, with the last known services, categories and settings,
+while the server is unreachable. Browsers only allow both on https or localhost; over plain http the
+app works as before.
+
+The worker is about 4 kB and has no dependencies. Workbox (through `vite-plugin-pwa`) was the
+alternative, but it adds a second bundler toolchain (Rollup, Babel, terser) to the dev
+dependencies and a larger runtime for the handful of rules orbitdash needs. The pieces:
+
+- `src/sw/routes.ts` decides how each request is handled, `src/sw/strategies.ts` holds the
+  network-first, cache-first and stale-while-revalidate strategies, and `src/sw/respond.ts` ties
+  them together. All three are pure enough to unit test with a fake Cache.
+- `scripts/vite-service-worker.ts` bundles `src/sw/service-worker.ts` on its own during
+  `vite build` and writes it to `dist/sw.js` with the build's precache list (`src/sw/precache.ts`:
+  index.html, every script and stylesheet including the lazy chunks, and the Latin fonts) and a
+  version hash of those files. `tsconfig.sw.json` type-checks it with worker globals.
+- Page loads and the dashboard's JSON (`/api/services`, `/api/categories`, `/api/settings*`) are
+  network first. They fall back to the cache when the network fails, answers 5xx, or takes longer
+  than 4 seconds, and after one fallback the cache answers at once for 10 seconds. Hashed
+  `/assets/*` and wallpapers are cache first, icons stale-while-revalidate. Non-GET requests, the
+  event stream, metrics and `/api/system` (live uptime) always go to the network, and nothing marked
+  `no-store` is cached.
+- Updates: each build changes `sw.js`, which the server sends with `Cache-Control: no-cache`. The
+  new worker precaches its build, calls `skipWaiting()` and `clients.claim()`, and deletes the
+  previous build's cache. Pages load network first, so the next load is always the new build, and
+  the app also checks for a new worker when it comes back into view. An open page that asks for a
+  lazy chunk the new deploy no longer has reloads into the new build (`vite:preloadError`).
+- `src/lib/pwa.ts` registers the worker in production builds only; development unregisters any
+  worker a production build left on the same origin.
+
 ### Shared Types And Schemas
 
 Shared TypeScript types define API contracts used on both client and server. Shared runtime schemas

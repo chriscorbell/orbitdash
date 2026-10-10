@@ -24,9 +24,9 @@ WORKDIR /app
 # Copy only the files needed for the production build to keep cache hits stable.
 COPY package.json bun.lock* ./
 COPY index.html ./
-COPY tsconfig.json tsconfig.app.json tsconfig.node.json tsconfig.server.json ./
+COPY tsconfig.json tsconfig.app.json tsconfig.node.json tsconfig.server.json tsconfig.sw.json ./
 COPY vite.config.ts ./
-COPY scripts/compress-assets.mjs ./scripts/compress-assets.mjs
+COPY scripts/compress-assets.mjs scripts/vite-service-worker.ts ./scripts/
 COPY public/ ./public/
 COPY server/ ./server/
 COPY shared/ ./shared/

@@ -57,6 +57,8 @@ version before creating the matching tag.
 - Collapse category sections with saved per-browser state
 - Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
 - Deleting a service can be undone for 30 minutes
+- Installable as an app on phones and desktops, and opens with your last known services while the
+  server is unreachable (needs https, see below)
 
 ## Platform Support
 
@@ -93,6 +95,20 @@ services:
 After deployment, the dashboard is accessible at `http://<IP-ADDRESS>:7770`.
 
 Change `7770` in the docker run/compose examples above if you want to serve the dashboard on a different port.
+
+## Install As An App
+
+Browsers only allow installing a web app, and keeping it available offline, over https (or on
+`localhost`). Put orbitdash behind a reverse proxy with a certificate, or use something like
+`tailscale serve`, then:
+
+- iPhone and iPad: open it in Safari, tap Share, then Add to Home Screen.
+- Android: open it in Chrome and tap Install app (or Add to Home screen) in the menu.
+- Desktop Chrome or Edge: use the install icon in the address bar.
+
+The installed app opens full screen. When the server can't be reached, it still opens with the last
+services, categories and settings it saw; live stats come back once the server does. Over plain
+http everything else works the same, just not installed or offline.
 
 ## Data Persistence
 
