@@ -64,7 +64,15 @@ const service = {
 };
 
 const settings = {
-  appearance: { accent: "mint", theme: "system" },
+  appearance: {
+    accent: "mint",
+    theme: "system",
+    title: "Homelab",
+    wallpaper: "wallpaper-0123456789abcdef.png",
+    wallpaperBlur: 4,
+    wallpaperDim: 30,
+    customCss: "",
+  },
   layout: {
     mode: "columns",
     density: "comfortable",

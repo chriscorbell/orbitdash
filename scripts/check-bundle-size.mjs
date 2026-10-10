@@ -6,12 +6,12 @@ const distDir = path.resolve(process.cwd(), "dist");
 const distAssetsDir = path.join(distDir, "assets");
 
 const budgets = [
-  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 62, maxGzipKb: 20 },
+  { label: "entry js", prefix: "index-", extension: ".js", maxRawKb: 64, maxGzipKb: 21 },
   {
     label: "entry css",
     prefix: "index-",
     extension: ".css",
-    maxRawKb: 76,
+    maxRawKb: 80,
     maxGzipKb: 13,
   },
   {

@@ -34,8 +34,8 @@ happens.
 
 | Asset group           | Budget raw | Budget gzip | Current baseline                             |
 | --------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`          |      62 kB |       20 kB | about 55 kB raw / 18.7 kB gzip / 16.6 kB br  |
-| `index-*.css`         |      76 kB |       13 kB | about 76 kB raw / 12.6 kB gzip / 10.8 kB br  |
+| `index-*.js`          |      64 kB |       21 kB | about 58 kB raw / 20.0 kB gzip / 17.7 kB br  |
+| `index-*.css`         |      80 kB |       13 kB | about 78 kB raw / 12.8 kB gzip / 11.0 kB br  |
 | `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`         |     110 kB |       34 kB | about 96 kB raw / 29.0 kB gzip / 26.0 kB br  |
 | `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
@@ -65,6 +65,10 @@ The check reads the built files in `dist/assets` and fails if:
 
 ## History
 
+- Wallpaper, dashboard name, accent favicon and custom CSS added about 1.5 kB gzip to the entry
+  (the settings controls themselves load with the lazy settings dialog). With the previous change
+  having taken about 22 kB gzip off the first paint, the entry budget went from 62 kB / 20 kB to
+  64 kB / 21 kB and the CSS raw budget from 76 kB to 80 kB (its gzip budget stays at 13 kB).
 - Edit mode moved card menus and drag and drop into a lazy `EditableBoard-*` chunk, loaded when
   the Edit layout button is hovered, focused or clicked. Outside edit mode cards are plain links, so
   the Radix dropdown menu left the first paint and `vendor-*` fell from about 163 kB / 51 kB to

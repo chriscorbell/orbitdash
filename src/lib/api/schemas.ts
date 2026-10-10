@@ -70,7 +70,14 @@ const layoutSchema = z.object({
 const appearanceSchema = z.object({
   accent: z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]),
   theme: z.enum(["dark", "light", "system"]),
+  title: z.string(),
+  wallpaper: z.nullable(z.string()),
+  wallpaperBlur: z.number(),
+  wallpaperDim: z.number(),
+  customCss: z.string(),
 });
+
+export const wallpaperUploadSchema = z.object({ filename: z.string() });
 
 const settingsSchema = z.object({ appearance: appearanceSchema, layout: layoutSchema });
 
