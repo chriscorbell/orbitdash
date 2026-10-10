@@ -34,6 +34,19 @@ export const categoriesResponseSchema = z.object({
   categories: z.array(categorySchema),
 });
 
+export const iconLibraryResponseSchema = z.object({
+  entries: z.array(
+    z.object({
+      id: z.string(),
+      source: z.enum(["dashboard-icons", "selfhst"]),
+      slug: z.string(),
+      name: z.string(),
+      url: z.string(),
+    })
+  ),
+  updatedAt: z.number(),
+});
+
 export const servicesResponseSchema = z.array(serviceSchema);
 
 export const metricsResponseSchema = z.object({

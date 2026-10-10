@@ -49,7 +49,7 @@ version before creating the matching tag.
 - Live CPU, memory and disk usage in a compact strip with sparklines
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Simple service links with icons and categories; dark icons get a light plate automatically
-- Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
+- Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
 - A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
 - UI-native service management (no config file needed)
 - Categories as balanced columns or stacked rows, with compact, card or tile styles
@@ -119,6 +119,7 @@ All data is stored under `/data` inside the container:
 - `orbitdash.db` (SQLite database)
 - `icons/` (uploaded/downloaded service icons)
 - `wallpapers/` (uploaded wallpapers; ones no setting uses are cleaned up after an hour)
+- `cache/` (the icon library index, refreshed daily; safe to delete)
 - `backups/` (automatic snapshots, the newest 7 by default; see `ORBITDASH_BACKUP_KEEP`)
 
 The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.

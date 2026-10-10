@@ -210,6 +210,7 @@ function ServiceDialogBody({
           onIconChange={handleIconChange}
           onIconUrlChange={handleIconUrlChange}
           onRemoveIcon={handleRemoveIcon}
+          serviceName={name}
         />
 
         {errorMessage && <p className="text-sm font-medium text-destructive">{errorMessage}</p>}

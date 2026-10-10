@@ -4,6 +4,7 @@ import backupRouter from "./routes/backup";
 import categoriesRouter from "./routes/categories";
 import eventsRouter from "./routes/events";
 import metricsRouter from "./routes/metrics";
+import iconLibraryRouter from "./routes/icon-library";
 import settingsRouter from "./routes/settings";
 import wallpapersRouter from "./routes/wallpapers";
 import servicesRouter from "./routes/services";
@@ -124,6 +125,7 @@ app.get("/readyz", (c) => {
 app.route("/api/backup", backupRouter);
 app.route("/api/categories", categoriesRouter);
 app.route("/api/events", eventsRouter);
+app.route("/api/icon-library", iconLibraryRouter);
 app.route("/api/metrics", metricsRouter);
 app.route("/api/settings", settingsRouter);
 app.route("/api/services", servicesRouter);
