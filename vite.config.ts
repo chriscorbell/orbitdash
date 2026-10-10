@@ -53,6 +53,15 @@ export default defineConfig({
               priority: 15,
             },
             {
+              // The browser's response schemas, with the settings defaults they
+              // fill in: the first render parses with them, and lazy chunks (the
+              // editor's bulk actions) do too. Named, so the bundler splits them
+              // the same way every build, and they stay cached across app changes.
+              name: "api-schemas",
+              test: /[\\/]src[\\/]lib[\\/]api[\\/]schemas\.ts$/,
+              priority: 14,
+            },
+            {
               name: "icons",
               test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
               priority: 10,

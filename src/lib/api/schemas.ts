@@ -73,21 +73,22 @@ export const importSummarySchema = z.object({
 
 const linkPreferenceSchema = z.enum(["auto", "internal", "external"]);
 
-const layoutOverridesSchema = z.object({
+const layoutShape = {
   mode: z.enum(["columns", "rows"]),
   density: z.enum(["compact", "comfortable", "tiles"]),
   statsPosition: z.enum(["top", "bottom"]),
   showServices: z.boolean(),
   showStats: z.boolean(),
   showStatsPage: z.boolean(),
-  linkPreference: linkPreferenceSchema,
-});
+};
 
 // Settings cached before link preferences existed read as auto. Overrides keep no default, since
 // a partial schema would otherwise fill one in as if the device had chosen it.
-const layoutSchema = z.extend(layoutOverridesSchema, {
+const layoutSchema = z.object({
+  ...layoutShape,
   linkPreference: z._default(linkPreferenceSchema, "auto"),
 });
+const layoutOverridesSchema = z.object({ ...layoutShape, linkPreference: linkPreferenceSchema });
 
 const appearanceSchema = z.object({
   accent: z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]),
