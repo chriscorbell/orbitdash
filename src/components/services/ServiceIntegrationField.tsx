@@ -128,6 +128,7 @@ export function ServiceIntegrationField({
               size="sm"
               disabled={problem !== null || !normalizeServiceUrl(linkUrl) || test.isPending}
               title={problem ?? undefined}
+              aria-label={`Test ${type.name}`}
               onClick={runTest}
             >
               {test.isPending ? (

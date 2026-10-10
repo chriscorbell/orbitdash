@@ -94,6 +94,28 @@ function resolveInitialCategoryState(
   };
 }
 
+/**
+ * Keeps the category choice valid when the list changes while the form is open, say because
+ * another browser added or renamed one. A typed name that now exists gets picked, and a picked
+ * category that went away becomes a new one of that name, so saving still puts the service there.
+ */
+export function reconcileCategory(
+  formState: ServiceDialogFormState,
+  categoryOptions: string[]
+): ServiceDialogFormState {
+  const { newCategory, selectedCategory } = formState;
+  if (selectedCategory === NEW_CATEGORY_VALUE) {
+    const typed = newCategory.trim();
+    return categoryOptions.includes(typed)
+      ? { ...formState, newCategory: "", selectedCategory: typed }
+      : formState;
+  }
+  if (selectedCategory === NONE_CATEGORY_VALUE || categoryOptions.includes(selectedCategory)) {
+    return formState;
+  }
+  return { ...formState, newCategory: selectedCategory, selectedCategory: NEW_CATEGORY_VALUE };
+}
+
 export function createInitialFormState(
   service: Service | null | undefined,
   categoryOptions: string[],
@@ -244,6 +266,12 @@ export function useServiceDialogState({
   const [formState, setFormState] = useState<ServiceDialogFormState>(() =>
     createInitialFormState(service, categoryOptions, defaultCategory)
   );
+  const optionsKey = categoryOptions.join("\n");
+  const [seenOptionsKey, setSeenOptionsKey] = useState(optionsKey);
+  if (seenOptionsKey !== optionsKey) {
+    setSeenOptionsKey(optionsKey);
+    setFormState((current) => reconcileCategory(current, categoryOptions));
+  }
 
   const handleIconChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

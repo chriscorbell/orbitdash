@@ -170,8 +170,8 @@ evaluator stay as they were.
   the delivery log keeps only the short reason.
 - **Log.** `notification_deliveries` keeps the newest 50 deliveries for the settings section.
 
-In the browser the section is its own lazy chunk (`NotificationSettings-*`), loaded with the
-settings dialog. Its zod/mini response schemas live in `src/lib/api/notifications.ts` and use a
+In the browser the section is its own lazy chunk (`NotificationSettings-*`), loaded when the
+settings page opens its Notifications section. Its zod/mini response schemas live in `src/lib/api/notifications.ts` and use a
 plain union rather than `discriminatedUnion`, which would pull more of zod into the first-paint
 `validation` chunk.
 
@@ -216,6 +216,86 @@ browser writes straight into the services cache. Since each is one request, each
 are already there in place. Bulk delete uses the same 30-minute trash as single deletes, and
 restore puts services back lowest position first so a category's order comes back intact. The bulk
 API client and its cache updates (`board/useBulkServiceActions.ts`) live with the lazy editor.
+
+### Docker And Discovery
+
+`server/docker/` reads containers from the Docker Engine API. `client.ts` finds Docker through
+`ORBITDASH_DOCKER_HOST`, then `DOCKER_HOST`, then a socket mounted at `/var/run/docker.sock`; `off`
+turns it off. The documented setup is a docker-socket-proxy that only allows reads
+(`CONTAINERS=1 EVENTS=1 POST=0`), since a mounted socket grants full control of the host. orbitdash
+never starts, stops or changes a container.
+
+- **Monitor** (`monitor.ts`) lists containers every 30 seconds, reads CPU and memory every 15
+  seconds (4 containers at a time), and follows `/events` so a start or stop shows within a second;
+  bursts of events are debounced into one refresh, and the stream reconnects with backoff. Each
+  change is published on the `containers` topic and kept as the latest snapshot for
+  `GET /api/docker`, the Docker integration and `/metrics`.
+- **Labels** (`containers.ts`) are trimmed to the ones discovery reads before they leave the
+  module: `orbitdash.*`, `homepage.*` except `homepage.widget.*` (Homepage keeps API keys there),
+  and the Compose service name.
+- **Discovery** (`discovery.ts`) suggests running containers that aren't on the dashboard yet:
+  labeled ones first, then ones publishing a web port. A container drops out once a service uses
+  its link or port, when it's dismissed (`settings` key, so it survives restarts and backups), or
+  when it opts out with `orbitdash.enable=false`. Icons resolve the way imports do (a label, else
+  the container's name in the icon library), and adding one is an ordinary service create.
+
+In the browser the containers tile and card load on demand, and the discovery banner only asks once
+Docker is configured.
+
+### Integrations
+
+An integration reads a few figures from an app's own API and shows them on its card. Adapters live
+in `server/integrations/adapters/`, one file per app, and only describe their fields and turn an
+HTTP response into figures; `docs/integrations.md` is the contract for writing one. Around them:
+
+- **Settings** are stored per service under `integration.<serviceId>`. Fields marked secret are
+  encrypted with AES-256-GCM using `<data>/secret.key` (created on first use, mode 600), so a
+  backup alone doesn't hand out API keys, and API responses only say whether a secret is set.
+- **HTTP** (`http.ts`) gives adapters relative requests against the service's URL with an 8-second
+  deadline, a 4 MB cap, optional self-signed TLS and the same error-code-only messages as status
+  checks.
+- **Poller** (`poller.ts`) only polls while someone is looking: a browser subscribed to the
+  `integrations` topic keeps the cards it shows active for 5 minutes, and readings go out as
+  `integration` events. A dashboard nobody has open makes no requests.
+
+In the browser the lazy `IntegrationLayer` subscribes for the cards on screen and fills a small
+external store (`src/lib/integration-readings.ts`); cards read it with `useSyncExternalStore`, so
+they need no query client. The service dialog's integration field tests a draft before it's saved.
+
+### Widgets
+
+The clock, weather and agenda widgets sit in a row above the board or as pills in the header
+(`widgets.placement`). The clock runs in the browser. Weather and calendars go through the server
+(`server/widgets/`), so browsers never contact third parties and feed URLs, which often carry
+private tokens, stay on the server:
+
+- **Weather** comes from Open-Meteo, which needs no API key. Forecasts are cached for 10 minutes
+  and place searches for a day, keyed by rounded coordinates.
+- **Agenda** feeds (`widgets.agenda.feeds` in `settings`) are checked when added and downloaded at
+  most every 15 minutes. `ical.js` expands recurring events across the chosen range. The API lists
+  feeds without their URLs.
+
+### Importing
+
+`server/importers/` reads Homepage, Dashy, Homer and Homarr configs, browser bookmark exports and
+orbitdash seed files. `formats.ts` detects the format and parses it into groups of services without
+touching the database; `service.ts` previews them (resolving icons, flagging links already on the
+dashboard) and applies the picked ones after taking a `pre-import` backup snapshot. The same path
+seeds an empty dashboard from `ORBITDASH_SEED_FILE` (or `<data>/seed.yaml`) once on first start.
+
+### Prometheus
+
+`GET /metrics` (outside `/api`) serves host metrics, service checks, containers and the firing alert
+count in the text exposition format. It's off unless `ORBITDASH_PROMETHEUS=true`. With
+`ORBITDASH_PROMETHEUS_TOKEN` set it needs that bearer token; while sign-in is on it refuses to
+answer without one, since a scraper can't hold a session. It reads the latest snapshots and never
+starts a collection of its own.
+
+### Settings Page
+
+Settings are a page at `/settings/<section>` (`src/components/settings/SettingsPage.tsx`), loaded
+lazily with its sections. The section list in `settings-sections.ts` is the one place that names
+them; the page validates the path and falls back to General. Guests never see it.
 
 ### Installable App And Offline Shell
 
@@ -310,6 +390,9 @@ form validation.
 - `server/status/` owns status checks: the checker, the scheduler, state rules, storage and the
   monitor that wires them to the database and the event bus. `server/routes/status.ts` only reads
   from the monitor.
+- `server/docker/` owns the Docker client, the container monitor and discovery;
+  `server/integrations/` the adapters, their encrypted settings and the poller;
+  `server/importers/` file formats and imports; `server/widgets/` weather and calendar feeds.
 - `server/notifications/` owns notifications and only listens to the event bus; the status monitor
   and alert evaluator don't know it exists. `server/routes/notifications.ts` translates HTTP and
   delegates to `notifications` in `service.ts`.
