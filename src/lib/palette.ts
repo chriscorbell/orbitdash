@@ -53,7 +53,11 @@ export function rankPaletteItems(
         ...service.tags.map((tag) => ({ text: tag, weight: 0.6, scattered: false })),
         { text: service.description, weight: 0.55, scattered: false },
         { text: hostOf(service.url), weight: 0.5, scattered: false },
-        { text: service.external_url && hostOf(service.external_url), weight: 0.5, scattered: false },
+        {
+          text: service.external_url && hostOf(service.external_url),
+          weight: 0.5,
+          scattered: false,
+        },
       ]);
       if (score === null) return null;
       const tags = service.tags.filter(

@@ -31,7 +31,10 @@ function isPrivateIPv4(a: number, b: number): boolean {
  * names like `nas`, and the usual private suffixes (.local, .lan, .home.arpa, .internal, .ts.net).
  */
 export function isPrivateHostname(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  const host = hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
   if (host.includes(":")) {
     const mapped = MAPPED_IPV4.exec(host);
     if (mapped) {

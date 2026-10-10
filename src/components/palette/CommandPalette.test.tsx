@@ -33,7 +33,10 @@ function service(name: string, extra: Partial<Service> = {}): Service {
   };
 }
 
-const services = [service("Jellyfin"), service("Plex", { open_in_new_tab: true })];
+const services = [
+  service("Jellyfin", { external_url: "https://jellyfin.example.org/", tags: ["video"] }),
+  service("Plex", { open_in_new_tab: true }),
+];
 let openSpy: ReturnType<typeof vi.fn>;
 let assignSpy: ReturnType<typeof vi.fn<(url: string | URL) => void>>;
 
@@ -50,7 +53,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function renderPalette(initialQuery = "", search = DEFAULT_DASHBOARD_SETTINGS.search) {
+function renderPalette(
+  initialQuery = "",
+  search = DEFAULT_DASHBOARD_SETTINGS.search,
+  linkTarget: "internal" | "external" = "internal"
+) {
   const onOpenChange = vi.fn();
   const runSettings = vi.fn();
   const context: PaletteContext = {
@@ -69,7 +76,7 @@ function renderPalette(initialQuery = "", search = DEFAULT_DASHBOARD_SETTINGS.se
     <CommandPalette
       open
       initialQuery={initialQuery}
-      linkTarget="internal"
+      linkTarget={linkTarget}
       services={services}
       context={context}
       search={search}
@@ -98,6 +105,16 @@ describe("CommandPalette", () => {
     await user.keyboard("{Enter}");
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(assignSpy).toHaveBeenCalledWith("https://jellyfin.example.com/");
+  });
+
+  it("opens the URL the cards open, and shows the matching tag", async () => {
+    const user = userEvent.setup();
+    renderPalette("video", DEFAULT_DASHBOARD_SETTINGS.search, "external");
+    const option = screen.getAllByRole("option")[0];
+    expect(option.textContent).toContain("#video");
+    expect(option.textContent).toContain("jellyfin.example.org");
+    await user.keyboard("{Enter}");
+    expect(assignSpy).toHaveBeenCalledWith("https://jellyfin.example.org/");
   });
 
   it("opens in a new tab for services set that way, or with Ctrl+Enter", async () => {

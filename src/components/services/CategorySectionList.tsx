@@ -126,12 +126,7 @@ export function ServiceGrid({
   return (
     <div className={ROW_GRID[density]}>
       {services.map((service) => (
-        <ServiceCard
-          key={service.id}
-          service={service}
-          density={density}
-          linkTarget={linkTarget}
-        />
+        <ServiceCard key={service.id} service={service} density={density} linkTarget={linkTarget} />
       ))}
     </div>
   );

@@ -208,3 +208,87 @@ test("changes made in one browser show up in another without a reload", async ({
   await first.close();
   await second.close();
 });
+
+test("cards offer their extra links, and tags are searchable", async ({ page }) => {
+  const created = await page.request.post("/api/services", {
+    data: {
+      name: "Linked Grafana",
+      url: "http://grafana.lan:3000",
+      external_url: "https://grafana.example.com",
+      links: [{ label: "Explore", url: "http://grafana.lan:3000/explore" }],
+      tags: ["E2E Metrics"],
+      category: "Linked",
+    },
+  });
+  expect(created.status()).toBe(201);
+  await page.goto("/");
+
+  // The test page is on 127.0.0.1, your own network, so the card opens the main URL.
+  const card = serviceLink(page, "Linked Grafana");
+  await expect(card).toHaveAttribute("href", "http://grafana.lan:3000/");
+  await card.hover();
+  await page.getByRole("button", { name: "More links for Linked Grafana" }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem", { name: /^External URL/ })).toHaveAttribute(
+    "href",
+    "https://grafana.example.com/"
+  );
+  await expect(menu.getByRole("menuitem", { name: /^Explore/ })).toHaveAttribute(
+    "href",
+    "http://grafana.lan:3000/explore"
+  );
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("/");
+  await page.getByRole("combobox", { name: "Search services and commands" }).fill("e2e metr");
+  await expect(page.getByRole("option", { name: /Linked Grafana/ })).toContainText("#e2e metrics");
+});
+
+test("selected cards move, change checks and delete together, with one undo", async ({ page }) => {
+  for (const name of ["Bulk One", "Bulk Two", "Bulk Three"]) {
+    const response = await page.request.post("/api/services", {
+      data: { name, url: `https://${name.replace(" ", "-").toLowerCase()}.test`, category: "Bulk" },
+    });
+    expect(response.status()).toBe(201);
+  }
+  expect((await page.request.post("/api/categories", { data: { name: "Bulk Target" } })).ok()).toBe(
+    true
+  );
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Edit layout" }).click();
+  await expect(page.getByText("Editing layout")).toBeVisible();
+  await page.getByRole("checkbox", { name: "Select Bulk One" }).click();
+  await page.getByRole("checkbox", { name: "Select Bulk Two" }).click({ modifiers: ["Shift"] });
+  const bar = page.getByRole("toolbar", { name: "Selected services" });
+  await expect(bar.getByText("2 selected")).toBeVisible();
+
+  await bar.getByRole("button", { name: "Status checks" }).click();
+  await page.getByRole("menuitem", { name: "5 min", exact: true }).click();
+  await expect(page.getByText("Checking 2 services every 5 min", { exact: true })).toBeVisible();
+
+  await bar.getByRole("button", { name: "Move", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Bulk Target", exact: true }).click();
+  await expect(bar).toBeHidden();
+  const target = page.getByRole("region", { name: "Bulk Target category" });
+  await expect(target.getByRole("button", { name: /^Bulk One\./ })).toBeVisible();
+  await expect(target.getByRole("button", { name: /^Bulk Two\./ })).toBeVisible();
+
+  await page.getByRole("checkbox", { name: "Select all in Bulk Target" }).click();
+  await bar.getByRole("button", { name: "Delete" }).click();
+  await expect(target.getByRole("button", { name: /^Bulk One\./ })).toBeHidden();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Restored 2 services", { exact: true })).toBeVisible();
+  await expect(target.getByRole("button", { name: /^Bulk One\./ })).toBeVisible();
+  await expect(target.getByRole("button", { name: /^Bulk Two\./ })).toBeVisible();
+
+  // The interval change was saved with the services.
+  const services = (await (await page.request.get("/api/services")).json()) as Array<{
+    check_interval: number;
+    name: string;
+  }>;
+  const intervals = Object.fromEntries(
+    services.map((service) => [service.name, service.check_interval])
+  );
+  expect(intervals).toMatchObject({ "Bulk One": 300, "Bulk Two": 300, "Bulk Three": 60 });
+});

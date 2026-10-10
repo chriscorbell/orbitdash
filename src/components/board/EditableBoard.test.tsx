@@ -215,7 +215,9 @@ describe("EditableBoard", () => {
       "http://plex.lan:32400/"
     );
     expect(
-      within(menu).getByRole("menuitem", { name: /^External URL/ }).getAttribute("href")
+      within(menu)
+        .getByRole("menuitem", { name: /^External URL/ })
+        .getAttribute("href")
     ).toBe("https://plex.example.com/");
     expect(within(menu).getByRole("menuitem", { name: /^Logs/ }).getAttribute("href")).toBe(
       "https://logs.example.com/"
@@ -232,9 +234,9 @@ describe("EditableBoard selection", () => {
     await user.click(screen.getByRole("checkbox", { name: "Select Plex" }));
     const bar = screen.getByRole("toolbar", { name: "Selected services" });
     expect(within(bar).getByText("1 selected")).toBeTruthy();
-    expect(screen.getByRole("checkbox", { name: "Select all in Media" }).getAttribute("aria-checked")).toBe(
-      "true"
-    );
+    expect(
+      screen.getByRole("checkbox", { name: "Select all in Media" }).getAttribute("aria-checked")
+    ).toBe("true");
 
     await user.keyboard("{Shift>}");
     await user.click(screen.getByRole("checkbox", { name: "Select Loose" }));
@@ -243,9 +245,9 @@ describe("EditableBoard selection", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "Select all in Uncategorized" }));
     expect(within(bar).getByText("1 selected")).toBeTruthy();
-    expect(screen.getByRole("checkbox", { name: "Select Loose" }).getAttribute("aria-checked")).toBe(
-      "false"
-    );
+    expect(
+      screen.getByRole("checkbox", { name: "Select Loose" }).getAttribute("aria-checked")
+    ).toBe("false");
 
     await user.click(within(bar).getByRole("button", { name: "Clear selection" }));
     expect(screen.queryByRole("toolbar")).toBeNull();

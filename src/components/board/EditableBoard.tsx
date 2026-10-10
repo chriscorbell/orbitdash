@@ -44,11 +44,7 @@ import { IconButton } from "@/components/common/IconButton";
 import { ServiceCardFace } from "@/components/ServiceCard";
 import { moveItem, type BoardGroup, type ServiceMove } from "@/lib/board-groups";
 import { cardListClassName, estimateCategoryHeight } from "@/lib/board-layout";
-import {
-  groupSelectionState,
-  toggleGroupSelection,
-  toggleSelection,
-} from "@/lib/board-selection";
+import { groupSelectionState, toggleGroupSelection, toggleSelection } from "@/lib/board-selection";
 import type { LinkTarget } from "@/lib/link-target";
 import { cn } from "@/lib/utils";
 import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
@@ -421,76 +417,76 @@ export function EditableBoard({
         }
       }}
     >
-    <DndContext
-      sensors={sensors}
-      collisionDetection={collisionDetection}
-      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-      accessibility={{
-        announcements,
-        screenReaderInstructions: {
-          draggable:
-            "To pick up a card or category, press Space. Use the arrow keys to move it, then Space to drop it or Escape to cancel. Press Enter on a card to edit it.",
-        },
-      }}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      <SortableContext items={sortableCategoryIds} strategy={noShift}>
-        <BoardColumns
-          density={density}
-          groups={groups}
-          mode={mode}
-          heightOf={heightOf}
-          renderGroup={(group) => (
-            <EditableCategory
-              key={group.key}
-              density={density}
-              group={group}
-              animateMoves={drag?.type !== "service"}
-              isDropTarget={
-                drag?.type === "category" && drag.overKey === group.key && drag.key !== group.key
-              }
-              linkTarget={linkTarget}
-              listClassName={cardListClassName(mode, density)}
-              renaming={renamingKey === group.key}
-              selected={selected}
-              selecting={selecting}
-              serviceIds={containers[group.key] ?? []}
-              servicesById={servicesById}
-              suppressClickRef={suppressClickRef}
-              onAddService={onAddService}
-              onDeleteCategory={onDeleteCategory}
-              onDeleteService={onDeleteService}
-              onDuplicateService={onDuplicateService}
-              onEditService={onEditService}
-              onRenameCategory={onRenameCategory}
-              onRenamingKeyChange={onRenamingKeyChange}
-              onToggleGroup={toggleGroup}
-              onToggleService={toggleService}
-            />
-          )}
-        />
-      </SortableContext>
-      <DragOverlay>
-        {activeService ? (
-          <ServiceCardFace
-            service={activeService}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        accessibility={{
+          announcements,
+          screenReaderInstructions: {
+            draggable:
+              "To pick up a card or category, press Space. Use the arrow keys to move it, then Space to drop it or Escape to cancel. Press Enter on a card to edit it.",
+          },
+        }}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <SortableContext items={sortableCategoryIds} strategy={noShift}>
+          <BoardColumns
             density={density}
-            className="cursor-grabbing shadow-xl ring-1 ring-brand/50"
+            groups={groups}
+            mode={mode}
+            heightOf={heightOf}
+            renderGroup={(group) => (
+              <EditableCategory
+                key={group.key}
+                density={density}
+                group={group}
+                animateMoves={drag?.type !== "service"}
+                isDropTarget={
+                  drag?.type === "category" && drag.overKey === group.key && drag.key !== group.key
+                }
+                linkTarget={linkTarget}
+                listClassName={cardListClassName(mode, density)}
+                renaming={renamingKey === group.key}
+                selected={selected}
+                selecting={selecting}
+                serviceIds={containers[group.key] ?? []}
+                servicesById={servicesById}
+                suppressClickRef={suppressClickRef}
+                onAddService={onAddService}
+                onDeleteCategory={onDeleteCategory}
+                onDeleteService={onDeleteService}
+                onDuplicateService={onDuplicateService}
+                onEditService={onEditService}
+                onRenameCategory={onRenameCategory}
+                onRenamingKeyChange={onRenamingKeyChange}
+                onToggleGroup={toggleGroup}
+                onToggleService={toggleService}
+              />
+            )}
           />
-        ) : activeCategory ? (
-          <div className="inline-flex cursor-grabbing items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1.5 text-sm font-semibold shadow-xl ring-1 ring-brand/50">
-            <GripVertical aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
-            {activeCategory.name}
-            <span className="text-xs font-normal tabular-nums text-muted-foreground">
-              {activeCategory.services.length}
-            </span>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        </SortableContext>
+        <DragOverlay>
+          {activeService ? (
+            <ServiceCardFace
+              service={activeService}
+              density={density}
+              className="cursor-grabbing shadow-xl ring-1 ring-brand/50"
+            />
+          ) : activeCategory ? (
+            <div className="inline-flex cursor-grabbing items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1.5 text-sm font-semibold shadow-xl ring-1 ring-brand/50">
+              <GripVertical aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
+              {activeCategory.name}
+              <span className="text-xs font-normal tabular-nums text-muted-foreground">
+                {activeCategory.services.length}
+              </span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
       {selecting && (
         <BulkActionBar
           busy={bulk.busy}
@@ -574,14 +570,6 @@ function EditableCategory({
       )}
     >
       <div className="group flex min-h-8 items-center gap-1">
-        {serviceIds.length > 0 && (
-          <SelectToggle
-            checked={groupSelectionState(selected, serviceIds)}
-            label={`Select all in ${group.name}`}
-            className={cn("mr-1", !selecting && REVEAL_TOGGLE)}
-            onToggle={() => onToggleGroup(serviceIds)}
-          />
-        )}
         {isCategory && (
           <button
             ref={setActivatorNodeRef}
@@ -620,6 +608,15 @@ function EditableCategory({
           <span className="px-1 text-sm font-semibold text-muted-foreground">{group.name}</span>
         )}
         <span className="text-xs tabular-nums text-muted-foreground/60">{serviceIds.length}</span>
+        {serviceIds.length > 0 && (
+          // After the count, so it takes no room from the name while hidden.
+          <SelectToggle
+            checked={groupSelectionState(selected, serviceIds)}
+            label={`Select all in ${group.name}`}
+            className={cn("ml-1.5", !selecting && REVEAL_TOGGLE)}
+            onToggle={() => onToggleGroup(serviceIds)}
+          />
+        )}
         {isCategory && (
           <IconButton
             variant="ghost"
@@ -764,10 +761,7 @@ const SortableService = memo(function SortableService({
       <SelectToggle
         checked={selected}
         label={`Select ${service.name}`}
-        className={cn(
-          "absolute -top-1.5 -left-1.5 z-10",
-          !selecting && !selected && REVEAL_TOGGLE
-        )}
+        className={cn("absolute -top-1.5 -left-1.5 z-10", !selecting && !selected && REVEAL_TOGGLE)}
         onToggle={(range) => onToggle(service.id, range)}
       />
       <div

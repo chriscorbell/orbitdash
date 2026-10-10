@@ -167,6 +167,22 @@ describe("SettingsDialog", () => {
     expect(props.onStatsPositionChange).toHaveBeenCalledWith("bottom");
   });
 
+  it("picks which URL services open, saying what auto does on this address", async () => {
+    const user = userEvent.setup();
+    const { props } = renderHeader({ linkPreference: "auto" });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    const links = screen.getByRole("radiogroup", { name: "Service links" });
+    expect(within(links).getByRole("radio", { name: "Auto" }).getAttribute("aria-checked")).toBe(
+      "true"
+    );
+    // The test page runs on localhost, which is your own network.
+    expect(screen.getByText(/Auto picks internal on this address/)).toBeTruthy();
+    await user.click(within(links).getByRole("radio", { name: "External" }));
+
+    expect(props.onLinkPreferenceChange).toHaveBeenCalledWith("external");
+  });
+
   it("switches the arrangement and card style", async () => {
     const user = userEvent.setup();
     const { props } = renderHeader();

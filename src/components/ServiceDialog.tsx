@@ -253,7 +253,7 @@ function ServiceDialogBody({
             className="font-normal"
           />
           <p id={`${fieldIds.externalUrlInputId}-hint`} className="text-xs text-muted-foreground">
-            Opens instead of the URL when this dashboard is reached from outside your network.
+            Used when the dashboard is opened from outside your network.
           </p>
         </div>
 

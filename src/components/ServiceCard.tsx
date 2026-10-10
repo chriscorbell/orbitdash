@@ -139,7 +139,11 @@ interface ServiceCardProps {
   linkTarget?: LinkTarget;
 }
 
-function ServiceCardView({ service, density = "comfortable", linkTarget = "internal" }: ServiceCardProps) {
+function ServiceCardView({
+  service,
+  density = "comfortable",
+  linkTarget = "internal",
+}: ServiceCardProps) {
   const safeUrl = normalizeServiceUrl(serviceHref(service, linkTarget));
   // Named links and a second URL go in a menu beside the link, since a link can't hold a button.
   const hasMenu = service.links.length > 0 || service.external_url !== null;
@@ -172,7 +176,9 @@ function ServiceCardView({ service, density = "comfortable", linkTarget = "inter
         density={density}
         className={sideMenu ? "pointer-coarse:pr-6" : undefined}
         statusClassName={
-          sideMenu ? "transition-opacity group-hover:opacity-0 group-has-focus-visible:opacity-0" : undefined
+          sideMenu
+            ? "transition-opacity group-hover:opacity-0 group-has-focus-visible:opacity-0"
+            : undefined
         }
       />
     </a>

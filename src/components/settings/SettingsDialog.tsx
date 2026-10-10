@@ -272,7 +272,7 @@ export function SettingsDialog({
               <SettingsChoiceRow
                 id="link-preference"
                 title="Service links"
-                description={`Which URL opens for services with an external one. Auto uses ${resolveLinkTarget("auto", window.location.hostname)} on this address.`}
+                description={`For services with an external URL. Auto picks ${resolveLinkTarget("auto", window.location.hostname)} on this address.`}
                 options={LINK_PREFERENCE_OPTIONS}
                 value={linkPreference}
                 onChange={onLinkPreferenceChange}

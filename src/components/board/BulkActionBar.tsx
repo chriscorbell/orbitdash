@@ -55,12 +55,18 @@ export function BulkActionBar({
 
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="sm" disabled={busy}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            className="pointer-coarse:h-9"
+          >
             <FolderInput aria-hidden="true" />
             <span className="sr-only sm:not-sr-only">Move</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" className="w-64">
+        <DropdownMenuContent side="top" align="start" collisionPadding={12} className="w-64">
           <DropdownMenuLabel>Move to</DropdownMenuLabel>
           {categories.map((category) => (
             <DropdownMenuItem key={category.id} onSelect={() => onMove(category)}>
@@ -68,18 +74,26 @@ export function BulkActionBar({
             </DropdownMenuItem>
           ))}
           {categories.length > 0 && <DropdownMenuSeparator />}
-          <DropdownMenuItem onSelect={() => onMove(null)}>{UNCATEGORIZED_CATEGORY}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onMove(null)}>
+            {UNCATEGORIZED_CATEGORY}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="sm" disabled={busy}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            className="pointer-coarse:h-9"
+          >
             <Activity aria-hidden="true" />
             <span className="sr-only sm:not-sr-only">Status checks</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="center" className="w-36">
+        <DropdownMenuContent side="top" align="center" collisionPadding={12} className="w-36">
           <DropdownMenuItem onSelect={() => onChecks({ check_enabled: true })}>
             <Activity aria-hidden="true" className="h-3.5 w-3.5" />
             Turn on
@@ -89,9 +103,13 @@ export function BulkActionBar({
             Turn off
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>Check every</DropdownMenuLabel>
+          <DropdownMenuLabel inset>Check every</DropdownMenuLabel>
           {CHECK_INTERVAL_PRESETS_S.map((seconds) => (
-            <DropdownMenuItem key={seconds} onSelect={() => onChecks({ check_interval: seconds })}>
+            <DropdownMenuItem
+              key={seconds}
+              inset
+              onSelect={() => onChecks({ check_interval: seconds })}
+            >
               {formatCheckInterval(seconds)}
             </DropdownMenuItem>
           ))}
@@ -103,7 +121,7 @@ export function BulkActionBar({
         variant="ghost"
         size="sm"
         disabled={busy}
-        className="text-destructive hover:text-destructive"
+        className="text-destructive hover:text-destructive pointer-coarse:h-9"
         onClick={onDelete}
       >
         <Trash2 aria-hidden="true" />
@@ -116,7 +134,7 @@ export function BulkActionBar({
         variant="ghost"
         size="icon-sm"
         aria-label="Clear selection"
-        className="text-muted-foreground"
+        className="text-muted-foreground pointer-coarse:size-9"
         onClick={onClear}
       >
         <X />

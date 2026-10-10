@@ -101,7 +101,7 @@ export function ServiceTagsField({
         </datalist>
       )}
       {tags.length > 0 && (
-        <ul aria-label="Tags" className="flex flex-wrap gap-1.5">
+        <ul aria-label="Current tags" className="flex flex-wrap gap-1.5">
           {tags.map((tag) => (
             <li
               key={tag}

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ServiceCard } from "@/components/ServiceCard";
 import * as statusApi from "@/lib/api/status";
@@ -105,6 +106,75 @@ describe("ServiceCard", () => {
     await waitFor(() =>
       expect(screen.getAllByRole("link").every((link) => !link.hasAttribute("title"))).toBe(true)
     );
+  });
+
+  it("opens the external URL when the dashboard is reached from outside", () => {
+    const service = { ...baseService, external_url: "https://crafty.example.org/" };
+    render(
+      <>
+        <ServiceCard service={service} linkTarget="external" />
+        <ServiceCard service={{ ...service, id: "b", name: "Inside" }} linkTarget="internal" />
+        <ServiceCard service={{ ...baseService, id: "c", name: "Only" }} linkTarget="external" />
+      </>
+    );
+
+    expect(screen.getByRole("link", { name: /^Crafty/ }).getAttribute("href")).toBe(
+      "https://crafty.example.org/"
+    );
+    expect(screen.getByRole("link", { name: /^Inside/ }).getAttribute("href")).toBe(
+      "https://example.com/crafty"
+    );
+    // Without an external URL there is only the one link to open.
+    expect(screen.getByRole("link", { name: /^Only/ }).getAttribute("href")).toBe(
+      "https://example.com/crafty"
+    );
+  });
+
+  it("offers named links and the other URL in a menu beside the card", async () => {
+    const user = userEvent.setup();
+    render(
+      <ServiceCard
+        service={{
+          ...baseService,
+          external_url: "https://crafty.example.org/",
+          links: [{ label: "Console", url: "https://example.com/crafty/console" }],
+        }}
+        linkTarget="internal"
+      />
+    );
+
+    // The link stays a plain link; the menu button sits beside it, not inside it.
+    const link = screen.getByRole("link", { name: /^Crafty/ });
+    const trigger = await screen.findByRole("button", { name: "More links for Crafty" });
+    expect(link.contains(trigger)).toBe(false);
+
+    await user.click(trigger);
+    const menu = await screen.findByRole("menu");
+    const external = within(menu).getByRole("menuitem", { name: /^External URL/ });
+    expect(external.getAttribute("href")).toBe("https://crafty.example.org/");
+    expect(external.getAttribute("target")).toBe("_blank");
+    expect(
+      within(menu)
+        .getByRole("menuitem", { name: /^Console/ })
+        .getAttribute("href")
+    ).toBe("https://example.com/crafty/console");
+    expect(within(menu).queryByRole("menuitem", { name: /^Open/ })).toBeNull();
+  });
+
+  it("names the main URL as internal in the menu when the card opens the external one", async () => {
+    const user = userEvent.setup();
+    render(
+      <ServiceCard
+        service={{ ...baseService, external_url: "https://crafty.example.org/" }}
+        density="tiles"
+        linkTarget="external"
+      />
+    );
+
+    await user.click(await screen.findByRole("button", { name: "More links for Crafty" }));
+    expect(
+      (await screen.findByRole("menuitem", { name: /^Internal URL/ })).getAttribute("href")
+    ).toBe("https://example.com/crafty");
   });
 
   it("does not navigate when the URL is unsafe", () => {

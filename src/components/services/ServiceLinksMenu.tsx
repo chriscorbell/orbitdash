@@ -45,7 +45,7 @@ export function ServiceLinksMenu({ density, linkTarget, service }: ServiceLinksM
           <EllipsisVertical className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" collisionPadding={12} className="w-64">
         <ServiceLinkItems linkTarget={linkTarget} service={service} />
       </DropdownMenuContent>
     </DropdownMenu>

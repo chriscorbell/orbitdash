@@ -566,3 +566,134 @@ describe("ServiceDialog", () => {
     expect(screen.queryByText(/Downloaded from/)).toBeNull();
   });
 });
+
+describe("ServiceDialog external URL, tags and links", () => {
+  const linked: Service = {
+    ...baseService,
+    external_url: "https://orbit.example.com/",
+    links: [{ label: "Logs", url: "https://example.com/orbit/logs" }],
+    tags: ["monitoring", "infra"],
+  };
+
+  function renderEdit(service: Service = linked, services: Service[] = []) {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ServiceDialog
+        open
+        onOpenChange={vi.fn()}
+        service={service}
+        categoryOptions={["Monitoring"]}
+        services={services}
+        onSubmit={onSubmit}
+      />
+    );
+    return { onSubmit, user: userEvent.setup() };
+  }
+
+  const tagInput = () => screen.getByLabelText("Tags") as HTMLInputElement;
+  const tagNames = () =>
+    screen
+      .queryAllByRole("button", { name: /^Remove tag / })
+      .map((button) => button.getAttribute("aria-label")!.replace("Remove tag ", ""));
+
+  it("shows what the service has and saves the changes", async () => {
+    const { onSubmit, user } = renderEdit();
+
+    expect((screen.getByLabelText("External URL") as HTMLInputElement).value).toBe(
+      "https://orbit.example.com/"
+    );
+    expect(tagNames()).toEqual(["monitoring", "infra"]);
+    expect((screen.getByLabelText("Label for link 1") as HTMLInputElement).value).toBe("Logs");
+
+    await user.type(tagInput(), "Home Lab{Enter}");
+    await user.type(tagInput(), "metrics,grafana,");
+    await user.click(screen.getByRole("button", { name: "Remove tag infra" }));
+    await user.click(tagInput());
+    await user.keyboard("{Backspace}");
+    expect(tagNames()).toEqual(["monitoring", "home lab", "metrics"]);
+    expect(await screen.findByText("Removed grafana")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Add link" }));
+    const label = screen.getByLabelText("Label for link 2");
+    expect(document.activeElement).toBe(label);
+    await user.type(label, "Admin");
+    await user.type(screen.getByLabelText("URL for link 2"), "example.com/orbit/admin");
+    await user.click(screen.getByRole("button", { name: "Remove Logs" }));
+
+    fireEvent.change(screen.getByLabelText("External URL"), {
+      target: { value: "orbit.example.org" },
+    });
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      external_url: "https://orbit.example.org/",
+      links: [{ label: "Admin", url: "https://example.com/orbit/admin" }],
+      tags: ["monitoring", "home lab", "metrics"],
+    });
+  });
+
+  it("keeps a tag that was typed but not added yet, and clears the external URL", async () => {
+    const { onSubmit, user } = renderEdit();
+
+    fireEvent.change(tagInput(), { target: { value: "Pending" } });
+    fireEvent.change(screen.getByLabelText("External URL"), { target: { value: " " } });
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      external_url: null,
+      tags: ["monitoring", "infra", "pending"],
+    });
+  });
+
+  it("suggests tags other services use and adds a picked one at once", () => {
+    renderEdit({ ...linked, tags: [] }, [
+      { ...baseService, id: "a", tags: ["media", "infra"] },
+      { ...baseService, id: "b", tags: ["infra"] },
+    ]);
+
+    const list = document.getElementById(tagInput().getAttribute("list")!)!;
+    expect(Array.from(list.querySelectorAll("option"), (option) => option.value)).toEqual([
+      "infra",
+      "media",
+    ]);
+
+    // Picking from the list fills the whole value in one plain change event.
+    fireEvent.change(tagInput(), { target: { value: "media" } });
+    expect(tagNames()).toEqual(["media"]);
+    expect(tagInput().value).toBe("");
+  });
+
+  it("stops taking tags at the limit", () => {
+    const tags = Array.from({ length: 10 }, (_, index) => `tag ${index}`);
+    renderEdit({ ...linked, tags });
+
+    expect(tagInput().disabled).toBe(true);
+    expect(tagInput().placeholder).toBe("Up to 10 tags");
+  });
+
+  it("stops offering new links at five", () => {
+    const links = Array.from({ length: 5 }, (_, index) => ({
+      label: `Link ${index}`,
+      url: `https://example.com/${index}`,
+    }));
+    renderEdit({ ...linked, links });
+
+    expect(screen.queryByRole("button", { name: "Add link" })).toBeNull();
+  });
+
+  it("explains a link or external URL that can't be saved", async () => {
+    const { onSubmit, user } = renderEdit();
+
+    fireEvent.change(screen.getByLabelText("External URL"), { target: { value: "ftp://x" } });
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("external url must be a valid URL")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("External URL"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Label for link 1"), { target: { value: "" } });
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("each link needs a label")).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});

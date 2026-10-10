@@ -25,7 +25,9 @@ function LinkItem({ icon: Icon, label, newTab, url }: LinkItemProps) {
       >
         <Icon aria-hidden="true" className="h-3.5 w-3.5" />
         <span className="min-w-0 truncate">{label}</span>
-        <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{hostOf(url)}</span>
+        <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">
+          {hostOf(url)}
+        </span>
       </a>
     </DropdownMenuItem>
   );
@@ -42,7 +44,11 @@ interface ServiceLinkItemsProps {
  * A service's links for a dropdown menu: its own link (when asked), the URL the card isn't using
  * when it has both, and its named links. Renders nothing when there are none.
  */
-export function ServiceLinkItems({ includeMain = false, linkTarget, service }: ServiceLinkItemsProps) {
+export function ServiceLinkItems({
+  includeMain = false,
+  linkTarget,
+  service,
+}: ServiceLinkItemsProps) {
   const newTab = service.open_in_new_tab;
   const external = service.external_url;
   const alternate =
