@@ -51,6 +51,7 @@ version before creating the matching tag.
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
 - Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
 - Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
+- Running containers that aren't on the dashboard yet are suggested, from their labels or published ports
 - An optional Prometheus `/metrics` endpoint with host, status check and container metrics
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
@@ -424,6 +425,27 @@ group id from `stat -c %g /var/run/docker.sock`). orbitdash finds a socket at
 `/var/run/docker.sock` on its own; `ORBITDASH_DOCKER_HOST` (or `DOCKER_HOST`) takes
 `tcp://host:port` or `unix:///path/to/socket`, and `ORBITDASH_DOCKER_HOST=off` turns Docker
 support off.
+
+### Adding containers as services
+
+When running containers aren't on the dashboard yet, a line above the board says so, and
+**Review** lists them with a name, link, icon and category filled in, ready to add or dismiss.
+Suggestions come from container labels first:
+
+| Label                                            | Used for                                       |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `orbitdash.name` / `homepage.name`               | Service name                                   |
+| `orbitdash.url` / `homepage.href`                | Link                                           |
+| `orbitdash.icon` / `homepage.icon`               | Icon: a URL or a dashboard-icons/selfh.st name |
+| `orbitdash.category` / `homepage.group`          | Category                                       |
+| `orbitdash.description` / `homepage.description` | Description                                    |
+| `orbitdash.enable=false`                         | Never suggest this container                   |
+
+A container without labels is suggested when it publishes a port that looks like a web UI, linked
+on the host you opened the dashboard from, with its name and icon matched against the icon
+library ("media-qbittorrent-1" becomes qBittorrent). Containers already on the dashboard (same link,
+or same port) aren't suggested, and dismissed ones stay hidden until you bring them back from the
+same dialog. Homepage's `homepage.widget.*` labels, which hold API keys, are never read.
 
 ## Status Checks
 

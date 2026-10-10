@@ -1,4 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSystemInfo } from "@/lib/api/system";
 import { Footer } from "@/components/Footer";
 import { AppHeader } from "@/components/header/AppHeader";
 import { ServicesSection } from "@/components/ServicesSection";
@@ -31,6 +33,13 @@ const StatsPage = lazy(() => loadStatsPage().then((module) => ({ default: module
 
 const CommandPalette = lazy(() =>
   loadCommandPalette().then((module) => ({ default: module.CommandPalette }))
+);
+
+// Only editors on hosts with Docker load the discovery banner.
+const DiscoveryBanner = lazy(() =>
+  import("@/components/discovery/DiscoveryBanner").then((module) => ({
+    default: module.DiscoveryBanner,
+  }))
 );
 
 // Widgets load only once one is turned on.
@@ -67,6 +76,12 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     reload,
   } = useServices();
   const categories = useCategories();
+  // Shared with the header and the stats strip; says whether Docker is set up.
+  const { data: system } = useQuery({
+    queryKey: ["system"],
+    queryFn: fetchSystemInfo,
+    staleTime: 10 * 60_000,
+  });
   const {
     error: settingsError,
     scope: settingsScope,
@@ -215,6 +230,14 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
             </Suspense>
           )}
           {statsPosition === "top" && stats}
+          {showServices && canEdit && system?.docker && (
+            <Suspense fallback={null}>
+              <DiscoveryBanner
+                categories={categories.categories.map((category) => category.name)}
+                onCreate={create}
+              />
+            </Suspense>
+          )}
           {showServices && (
             <ServicesSection
               services={services}

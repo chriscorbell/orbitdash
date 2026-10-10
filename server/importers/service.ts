@@ -25,7 +25,8 @@ async function libraryIcon(name: string): Promise<string | null> {
   return entries.find((entry) => entry.slug === slug)?.url ?? null;
 }
 
-async function resolveIcon(
+/** An icon for an imported or discovered service: its own URL, a library name, or its name. */
+export async function resolveIcon(
   service: ImportedService,
   warnings: Set<string>
 ): Promise<string | null> {
