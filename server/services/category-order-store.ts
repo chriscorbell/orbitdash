@@ -1,35 +1,17 @@
-import { CATEGORY_ORDER_SETTING_KEY, sanitizeCategoryOrder } from "@shared/category-order";
-import { getDb } from "../db";
+import { sanitizeCategoryOrder } from "@shared/category-order";
+import { listCategories, reorderCategories, resolveCategoryId } from "./category-store";
 
+/** Category names in display order (the legacy order shape some clients still use). */
 export function readCategoryOrder(): string[] {
-  const db = getDb();
-  const row = db
-    .prepare("SELECT value FROM settings WHERE key = ?")
-    .get(CATEGORY_ORDER_SETTING_KEY) as { value: string } | null;
-
-  if (!row) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(row.value);
-    if (!Array.isArray(parsed) || parsed.some((value) => typeof value !== "string")) {
-      return [];
-    }
-    return sanitizeCategoryOrder(parsed);
-  } catch {
-    return [];
-  }
+  return listCategories().map((category) => category.name);
 }
 
+/**
+ * Applies a legacy name-based order. Names without a category yet are created, matching the old
+ * behavior where a saved order could mention categories before any service used them.
+ */
 export function writeCategoryOrder(order: readonly string[]): string[] {
-  const sanitizedOrder = sanitizeCategoryOrder(order);
-  const db = getDb();
-  db.prepare(
-    `INSERT INTO settings (key, value)
-     VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).run(CATEGORY_ORDER_SETTING_KEY, JSON.stringify(sanitizedOrder));
-
-  return sanitizedOrder;
+  const ids = sanitizeCategoryOrder(order).map((name) => resolveCategoryId(name)!);
+  reorderCategories(ids);
+  return readCategoryOrder();
 }

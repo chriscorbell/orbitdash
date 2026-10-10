@@ -3,16 +3,9 @@ import type { Service, CreateServicePayload, UpdateServicePayload } from "@share
 import * as api from "@/lib/api/services";
 import { renameCategory as renameCategoryRequest } from "@/lib/api/categories";
 
+/** Services keep their saved position within a category; grouping happens in the view. */
 function compareServices(left: Service, right: Service) {
-  const leftCategory = left.category ?? "";
-  const rightCategory = right.category ?? "";
-  const categoryComparison = leftCategory.localeCompare(rightCategory);
-
-  if (categoryComparison !== 0) {
-    return categoryComparison;
-  }
-
-  return left.name.localeCompare(right.name);
+  return left.position - right.position || left.name.localeCompare(right.name);
 }
 
 function sortServices(services: Service[]) {

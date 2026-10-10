@@ -27,6 +27,8 @@ const existingService: Service = {
   description: "Dashboard",
   icon: null,
   category: "Infra",
+  category_id: "cat-infra",
+  position: 0,
   open_in_new_tab: true,
   created_at: 1,
   updated_at: 1,

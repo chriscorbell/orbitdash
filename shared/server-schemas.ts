@@ -52,6 +52,50 @@ export const categoryRenameSchema = z
     }
   });
 
+function rejectReservedCategoryName(name: string, ctx: z.RefinementCtx) {
+  if (name === UNCATEGORIZED_CATEGORY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `"${UNCATEGORIZED_CATEGORY}" is a reserved category name`,
+      path: ["name"],
+    });
+  }
+}
+
+const categoryNameSchema = z
+  .string({ error: "name must be a string" })
+  .trim()
+  .min(1, "name is required")
+  .max(80, "name must be 80 characters or fewer")
+  .superRefine(rejectReservedCategoryName);
+
+export const categoryCreateSchema = z.object({ name: categoryNameSchema });
+
+export const categoryUpdateSchema = z.object({ name: categoryNameSchema });
+
+const idListSchema = z.array(z.string({ error: "ids must be an array of ids" }), {
+  error: "ids must be an array of ids",
+});
+
+export const categoryReorderSchema = z.object({ ids: idListSchema });
+
+const nullableCategoryIdSchema = z
+  .string({ error: "category_id must be a string or null" })
+  .nullable();
+
+export const serviceMoveSchema = z.object({
+  category_id: nullableCategoryIdSchema,
+  index: z
+    .number({ error: "index must be a non-negative integer" })
+    .int("index must be a non-negative integer")
+    .min(0, "index must be a non-negative integer"),
+});
+
+export const serviceReorderSchema = z.object({
+  category_id: nullableCategoryIdSchema,
+  ids: idListSchema,
+});
+
 /** Samples older than this are pruned, so larger query windows would return nothing extra. */
 export const METRICS_RETENTION_SECONDS = 60;
 
@@ -68,6 +112,9 @@ export const metricsQuerySchema = z.object({
 
 export { getValidationMessage };
 
+export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
+export type ServiceMoveInput = z.infer<typeof serviceMoveSchema>;
+export type ServiceReorderInput = z.infer<typeof serviceReorderSchema>;
 export type CategoryOrderUpdateInput = z.infer<typeof categoryOrderUpdateSchema>;
 export type CategoryRenameInput = z.infer<typeof categoryRenameSchema>;
 export type MetricsQueryInput = z.infer<typeof metricsQuerySchema>;

@@ -51,6 +51,7 @@ let db: Database | null = null;
 function applyPragmas(database: Database): void {
   database.exec("PRAGMA journal_mode = WAL");
   database.exec("PRAGMA synchronous = NORMAL");
+  database.exec("PRAGMA foreign_keys = ON");
 }
 
 export function initializeDb(options: DatabaseInitOptions = {}): Database {

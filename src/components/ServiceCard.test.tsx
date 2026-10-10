@@ -16,6 +16,8 @@ const baseService: Service = {
   description: "Minecraft server console and status page",
   icon: null,
   category: "Games",
+  category_id: "cat-games",
+  position: 0,
   open_in_new_tab: true,
   created_at: 1,
   updated_at: 1,

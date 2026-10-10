@@ -1,7 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { RenameCategoryResponse, Service } from "@shared/types";
+import type { ServiceGroup } from "@/components/services/CategorySectionList";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+
+const UNCATEGORIZED_KEY = "uncategorized";
 
 interface UseServicesSectionStateOptions {
   categoryOrder: UseCategoryOrderResult;
@@ -55,18 +58,22 @@ export function useServicesSectionState({
   }, [search, services]);
 
   const groupedServices = useMemo(() => {
-    const groups = new Map<string, Service[]>();
+    const groups = new Map<string, ServiceGroup>();
 
     for (const service of filteredServices) {
-      const category = service.category?.trim() || UNCATEGORIZED_CATEGORY;
-      const servicesInCategory = groups.get(category) || [];
-      servicesInCategory.push(service);
-      groups.set(category, servicesInCategory);
+      const name = service.category?.trim() || UNCATEGORIZED_CATEGORY;
+      const group = groups.get(name) ?? {
+        key: service.category_id ?? UNCATEGORIZED_KEY,
+        name,
+        services: [],
+      };
+      group.services.push(service);
+      groups.set(name, group);
     }
 
     return visibleCategoryOrder
       .filter((category) => groups.has(category))
-      .map((category) => [category, groups.get(category) ?? []] as const);
+      .map((category) => groups.get(category)!);
   }, [filteredServices, visibleCategoryOrder]);
 
   const categoryOptions = useMemo(() => {

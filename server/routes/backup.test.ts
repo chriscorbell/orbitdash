@@ -74,15 +74,16 @@ describe("backup routes", () => {
 
     const document = (await response.json()) as BackupDocument;
     expect(document.format).toBe("orbitdash-backup");
-    expect(document.version).toBe(1);
+    expect(document.version).toBe(2);
+    expect(document.categories.map((category) => category.name)).toEqual(["Media"]);
     expect(document.services).toHaveLength(1);
     expect(document.services[0]).toMatchObject({
       id: service.id,
       name: "Jellyfin",
-      category: "Media",
+      category_id: document.categories[0].id,
+      position: 0,
       open_in_new_tab: true,
     });
-    expect(document.settings["services.categoryOrder"]).toBe('["Media"]');
     expect(document.icons).toEqual([
       { filename: service.icon!, data: PNG_BYTES.toString("base64") },
     ]);
@@ -109,6 +110,7 @@ describe("backup routes", () => {
     expect(await importResponse.json()).toMatchObject({ icons: 2, services: 2 });
 
     const restored = await exportDocument();
+    expect(restored.categories).toEqual(document.categories);
     expect(restored.services).toEqual(document.services);
     expect(restored.settings).toEqual(document.settings);
     expect(restored.icons).toEqual(document.icons);
@@ -151,7 +153,8 @@ describe("backup routes", () => {
         url: "https://example.com",
         description: null,
         icon: "svc.png",
-        category: null,
+        category_id: "missing-category",
+        position: 0,
         open_in_new_tab: false,
         created_at: 1,
         updated_at: 1,
@@ -167,7 +170,47 @@ describe("backup routes", () => {
 
     const [service] = (await (await app.request("/api/services")).json()) as Service[];
     expect(service.icon).toBeNull();
+    expect(service.category_id).toBeNull();
     expect(service.open_in_new_tab).toBe(false);
+  });
+
+  it("imports version 1 backups from orbitdash 0.2", async () => {
+    const v1 = {
+      format: "orbitdash-backup",
+      version: 1,
+      exportedAt: "2026-10-01T00:00:00.000Z",
+      settings: { "services.categoryOrder": '["Media","Infra"]', theme: "dark" },
+      icons: [],
+      services: [
+        { name: "Sonarr", category: "Media" },
+        { name: "Proxmox", category: "Infra" },
+        { name: "Jellyfin", category: " Media " },
+        { name: "Loose", category: null },
+      ].map((service, index) => ({
+        ...service,
+        id: `svc-${index}`,
+        url: "https://example.com",
+        description: null,
+        icon: null,
+        open_in_new_tab: true,
+        created_at: 1,
+        updated_at: 1,
+      })),
+    };
+
+    const response = await importDocument(v1);
+    expect(response.status).toBe(200);
+
+    const services = (await (await app.request("/api/services")).json()) as Service[];
+    expect(services.map((service) => [service.category, service.name, service.position])).toEqual([
+      ["Media", "Jellyfin", 0],
+      ["Media", "Sonarr", 1],
+      ["Infra", "Proxmox", 0],
+      [null, "Loose", 0],
+    ]);
+
+    const restored = await exportDocument();
+    expect(restored.settings).toEqual({ theme: "dark" });
   });
 
   it("rejects files that are not orbitdash backups without touching data", async () => {
