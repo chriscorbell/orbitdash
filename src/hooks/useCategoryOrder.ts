@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useConfigChanges } from "@/hooks/useConfigChanges";
+import { invalidateRequestCache } from "@/lib/api/client";
 import { fetchCategoryOrder, updateCategoryOrder } from "@/lib/api/settings";
 import { mergeCategoryOrder, UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service } from "@shared/types";
@@ -85,38 +87,43 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     return hasUncategorized ? [...mergedSavedOrder, UNCATEGORIZED_CATEGORY] : mergedSavedOrder;
   }, [hasUncategorized, mergedSavedOrder]);
 
+  const loadCategoryOrder = useCallback(async (isActive: () => boolean = () => true) => {
+    try {
+      const response = await fetchCategoryOrder();
+      if (!isActive()) {
+        return;
+      }
+      setSavedOrder(response.order);
+      setDraftOrder(response.order);
+      setError(null);
+    } catch (loadError) {
+      if (!isActive()) {
+        return;
+      }
+      setSavedOrder([]);
+      setDraftOrder([]);
+      setError(loadError instanceof Error ? loadError.message : "Failed to load category order");
+    } finally {
+      if (isActive()) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
-
-    const loadCategoryOrder = async () => {
-      try {
-        const response = await fetchCategoryOrder();
-        if (!active) {
-          return;
-        }
-        setSavedOrder(response.order);
-        setDraftOrder(response.order);
-        setError(null);
-      } catch (loadError) {
-        if (!active) {
-          return;
-        }
-        setSavedOrder([]);
-        setDraftOrder([]);
-        setError(loadError instanceof Error ? loadError.message : "Failed to load category order");
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadCategoryOrder();
-
+    // loadCategoryOrder only sets state after awaiting the fetch
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadCategoryOrder(() => active);
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadCategoryOrder]);
+
+  useConfigChanges(["layout"], () => {
+    invalidateRequestCache("/api/settings/category-order");
+    void loadCategoryOrder();
+  });
 
   const applyOrder = useCallback((order: string[]) => {
     setSavedOrder(order);

@@ -10,8 +10,14 @@ const LOG_LEVEL_RANK: Record<LogLevel, number> = {
 const DEFAULT_LOG_LEVEL: LogLevel = "info";
 
 // Successful hits on these are routine noise (Docker healthchecks, icon and asset fetches, the
-// long-lived metrics stream), so they only show up at LOG_LEVEL=debug.
-const QUIET_PATHS = new Set(["/healthz", "/readyz", "/api/health", "/api/metrics/stream"]);
+// long-lived event streams), so they only show up at LOG_LEVEL=debug.
+const QUIET_PATHS = new Set([
+  "/healthz",
+  "/readyz",
+  "/api/health",
+  "/api/events",
+  "/api/metrics/stream",
+]);
 const QUIET_PATH_PREFIXES = ["/api/icons/", "/assets/"];
 
 function isLogLevel(value: string): value is LogLevel {

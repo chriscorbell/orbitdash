@@ -1,4 +1,5 @@
-import { buildApiUrl, requestJsonCached } from "@/lib/api/client";
+import { requestJsonCached } from "@/lib/api/client";
+import { eventStream } from "@/lib/live/event-stream";
 import { metricSampleSchema, metricsResponseSchema } from "@shared/schemas";
 import type { MetricSample, MetricsResponse } from "@shared/types";
 
@@ -13,29 +14,25 @@ export async function fetchMetrics(windowSec: number = 30): Promise<MetricSample
   return data.samples;
 }
 
-/** Subscribe to SSE metric stream. Returns a cleanup function. */
+/** Live samples over the shared event stream. Returns a cleanup function. */
 export function subscribeMetrics(
   onSample: (sample: MetricSample) => void,
   onError?: (err: Event) => void
 ): () => void {
-  const es = new EventSource(buildApiUrl("/api/metrics/stream"));
-
-  es.addEventListener("sample", (e) => {
-    try {
-      const parsed = metricSampleSchema.safeParse(JSON.parse(e.data));
-      if (parsed.success) {
-        onSample(parsed.data);
-      }
-    } catch {
-      // Ignore malformed events.
+  const stopSamples = eventStream.subscribe("metrics", (event) => {
+    const parsed = metricSampleSchema.safeParse(event.sample);
+    if (parsed.success) {
+      onSample(parsed.data);
+    }
+  });
+  const stopConnection = eventStream.onConnection((connection) => {
+    if (connection === "error") {
+      onError?.(new Event("error"));
     }
   });
 
-  es.onerror = (e) => {
-    onError?.(e);
-  };
-
   return () => {
-    es.close();
+    stopSamples();
+    stopConnection();
   };
 }

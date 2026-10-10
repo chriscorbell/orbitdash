@@ -119,7 +119,7 @@ need to track a different mount.
 
 Logs are JSON lines on stdout/stderr. `LOG_LEVEL` sets the minimum level written: `debug`, `info`
 (default), `warn` or `error`. Successful health checks, icon and asset requests, and the live
-metrics stream are logged at `debug`; other successful requests at `info`; 4xx responses at `warn`;
+event streams are logged at `debug`; other successful requests at `info`; 4xx responses at `warn`;
 5xx responses at `error`.
 
 ## Health Checks

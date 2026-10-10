@@ -2,11 +2,14 @@ import { Hono, type Context } from "hono";
 import path from "path";
 import backupRouter from "./routes/backup";
 import categoriesRouter from "./routes/categories";
+import eventsRouter from "./routes/events";
 import metricsRouter from "./routes/metrics";
 import settingsRouter from "./routes/settings";
 import servicesRouter from "./routes/services";
 import { jsonError, jsonNotFound } from "./api-response";
+import { configScopeForMutation, ORIGIN_HEADER } from "@shared/events";
 import { isDbHealthy } from "./db";
+import { publish } from "./events";
 import { logOperationalError, recordRequest } from "./observability";
 import { getIconsDir } from "./services/icon-storage";
 
@@ -86,6 +89,21 @@ app.use("/api/*", async (c, next) => {
   return next();
 });
 
+// Tell every connected client when shared data changes, so other devices refresh without a
+// reload. Runs after the handler, and only for successful mutations.
+app.use("/api/*", async (c, next) => {
+  await next();
+
+  if (SAFE_METHODS.has(c.req.method) || c.res.status >= 400) {
+    return;
+  }
+
+  const scope = configScopeForMutation(c.req.path);
+  if (scope) {
+    publish({ type: "config.changed", scope, origin: c.req.header(ORIGIN_HEADER) ?? null });
+  }
+});
+
 app.get("/healthz", (c) => {
   return respondWithHealth(c, 200, createHealthPayload("ok"));
 });
@@ -103,6 +121,7 @@ app.get("/readyz", (c) => {
 
 app.route("/api/backup", backupRouter);
 app.route("/api/categories", categoriesRouter);
+app.route("/api/events", eventsRouter);
 app.route("/api/metrics", metricsRouter);
 app.route("/api/settings", settingsRouter);
 app.route("/api/services", servicesRouter);

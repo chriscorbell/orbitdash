@@ -64,6 +64,7 @@ describe("getRequestLogLevel", () => {
       "/healthz",
       "/readyz",
       "/api/health",
+      "/api/events",
       "/api/metrics/stream",
       "/api/icons/svc.png",
       "/assets/index-abc123.js",

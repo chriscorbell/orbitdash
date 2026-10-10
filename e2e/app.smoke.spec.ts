@@ -86,3 +86,21 @@ test("primary dashboard journey works end to end", async ({ page }) => {
     )
     .toEqual(["Collapse Media category", "Collapse Infrastructure category"]);
 });
+
+test("changes made in one browser show up in another without a reload", async ({ browser }) => {
+  const first = await browser.newPage();
+  const second = await browser.newPage();
+  await first.goto("/");
+  await second.goto("/");
+  await expect(second.getByRole("heading", { name: "Services" })).toBeVisible();
+
+  await createService(first, {
+    category: "Synced",
+    name: "Synced Service",
+    url: "https://example.com/synced",
+  });
+
+  await expect(second.getByText("Synced Service")).toBeVisible({ timeout: 5_000 });
+  await first.close();
+  await second.close();
+});
