@@ -19,6 +19,7 @@ const service = {
 };
 
 const settings = {
+  appearance: { accent: "mint", theme: "system" },
   layout: { gridColumns: 4, servicesFirst: true, showServices: true, showStats: false },
 };
 

@@ -7,6 +7,7 @@ import { readLegacyLayout, useDashboardSettings } from "@/hooks/useDashboardSett
 import {
   DEFAULT_DASHBOARD_SETTINGS,
   mergeDashboardSettings,
+  mergeSettingsPatches,
   type DashboardSettings,
   type DashboardSettingsPatch,
   type DashboardSettingsResponse,
@@ -42,9 +43,7 @@ function createServer(initial: { shared?: DashboardSettings; stored?: boolean } 
   });
   api.updateDeviceSettings.mockImplementation(async (_id: string, update: DeviceUpdate) => {
     overrides =
-      update.overrides === null
-        ? {}
-        : { layout: { ...overrides.layout, ...update.overrides?.layout } };
+      update.overrides === null ? {} : mergeSettingsPatches(overrides, update.overrides ?? {});
     return view();
   });
 
@@ -73,7 +72,12 @@ describe("useDashboardSettings", () => {
       "orbitdash.settingsCache",
       JSON.stringify({ layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 5 } })
     );
-    createServer({ shared: { layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 3 } } });
+    createServer({
+      shared: {
+        ...DEFAULT_DASHBOARD_SETTINGS,
+        layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 3 },
+      },
+    });
 
     const { result } = renderHook(() => useDashboardSettings(), {
       wrapper: createQueryWrapper().wrapper,
@@ -132,6 +136,18 @@ describe("useDashboardSettings", () => {
     expect(result.current.scope).toBe("all");
   });
 
+  it("saves appearance changes", async () => {
+    const server = createServer();
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.updateAppearance({ accent: "rose" }));
+    await waitFor(() => expect(result.current.settings.appearance.accent).toBe("rose"));
+    await waitFor(() => expect(server.shared.appearance.accent).toBe("rose"));
+  });
+
   it("saves layout changes to the shared settings by default", async () => {
     const server = createServer();
     const { result } = renderHook(() => useDashboardSettings(), {
@@ -158,7 +174,7 @@ describe("useDashboardSettings", () => {
 
     act(() => result.current.setScope("device"));
     await waitFor(() => expect(result.current.scope).toBe("device"));
-    expect(server.overrides).toEqual({ layout: DEFAULT_DASHBOARD_SETTINGS.layout });
+    expect(server.overrides).toEqual(DEFAULT_DASHBOARD_SETTINGS);
 
     act(() => result.current.updateLayout({ gridColumns: 3 }));
     await waitFor(() => expect(server.overrides.layout?.gridColumns).toBe(3));
@@ -211,6 +227,7 @@ describe("readLegacyLayout", () => {
     window.localStorage.setItem("orbitdash.servicesGrid", "3");
 
     expect(readLegacyLayout()).toEqual({
+      ...DEFAULT_DASHBOARD_SETTINGS,
       layout: { gridColumns: 3, servicesFirst: false, showServices: false, showStats: true },
     });
   });

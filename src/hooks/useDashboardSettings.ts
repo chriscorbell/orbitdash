@@ -12,8 +12,11 @@ import {
   diffDashboardSettings,
   isEmptySettingsPatch,
   mergeDashboardSettings,
+  mergeSettingsPatches,
   parseDashboardSettings,
+  type DashboardAppearanceSettings,
   type DashboardLayoutSettings,
+  type DashboardSettingsPatch,
   type DashboardSettings,
   type DashboardSettingsResponse,
 } from "@shared/dashboard-settings";
@@ -72,7 +75,7 @@ export function readLegacyLayout(): DashboardSettings | null {
   if (values.gridColumns === "3" || values.gridColumns === "5") {
     layout.gridColumns = Number(values.gridColumns) as 3 | 5;
   }
-  return { layout };
+  return { ...DEFAULT_DASHBOARD_SETTINGS, layout };
 }
 
 function clearLegacyLayout() {
@@ -112,17 +115,17 @@ async function importLegacyLayout(
 function applyPatchToView(
   view: DashboardSettingsResponse,
   scope: SettingsScope,
-  patch: Partial<DashboardLayoutSettings>
+  patch: DashboardSettingsPatch
 ): DashboardSettingsResponse {
   if (scope === "device" && view.device) {
-    const overrides = { layout: { ...view.device.overrides.layout, ...patch } };
+    const overrides = mergeSettingsPatches(view.device.overrides, patch);
     return {
       ...view,
       device: { ...view.device, overrides },
       effective: mergeDashboardSettings(view.settings, overrides),
     };
   }
-  const settings = mergeDashboardSettings(view.settings, { layout: patch });
+  const settings = mergeDashboardSettings(view.settings, patch);
   return { ...view, settings, effective: mergeDashboardSettings(settings, view.device?.overrides) };
 }
 
@@ -168,24 +171,34 @@ export function useDashboardSettings() {
     [queryClient, queryKey]
   );
 
-  const updateLayout = useCallback(
-    (patch: Partial<DashboardLayoutSettings>) => {
+  const updateSettings = useCallback(
+    (patch: DashboardSettingsPatch) => {
       void runUpdate(
         (current) => applyPatchToView(current, scope, patch),
         () =>
           scope === "device"
-            ? updateDeviceSettings(deviceId, { overrides: { layout: patch } })
-            : updateSharedSettings({ layout: patch }, deviceId)
+            ? updateDeviceSettings(deviceId, { overrides: patch })
+            : updateSharedSettings(patch, deviceId)
       );
     },
     [deviceId, runUpdate, scope]
+  );
+
+  const updateLayout = useCallback(
+    (layout: Partial<DashboardLayoutSettings>) => updateSettings({ layout }),
+    [updateSettings]
+  );
+
+  const updateAppearance = useCallback(
+    (appearance: Partial<DashboardAppearanceSettings>) => updateSettings({ appearance }),
+    [updateSettings]
   );
 
   /** "device" copies the current layout as this device's own; "all" drops the overrides. */
   const setScope = useCallback(
     (next: SettingsScope) => {
       if (next === scope || !view) return;
-      const overrides = next === "device" ? { layout: view.effective.layout } : {};
+      const overrides: DashboardSettingsPatch = next === "device" ? { ...view.effective } : {};
       void runUpdate(
         (current) => ({
           ...current,
@@ -194,7 +207,7 @@ export function useDashboardSettings() {
         }),
         () =>
           updateDeviceSettings(deviceId, {
-            overrides: next === "device" ? { layout: view.effective.layout } : null,
+            overrides: next === "device" ? { ...view.effective } : null,
           })
       );
     },
@@ -208,6 +221,7 @@ export function useDashboardSettings() {
     scope,
     settings,
     setScope,
+    updateAppearance,
     updateLayout,
   };
 }

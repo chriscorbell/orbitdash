@@ -125,16 +125,22 @@ describe("dashboard settings routes", () => {
     const response = await app.request(`/api/settings?device=${device}`);
     const body = (await response.json()) as View;
 
-    expect(body).toEqual({
-      device: null,
-      effective: {
-        layout: { gridColumns: 4, servicesFirst: true, showServices: true, showStats: true },
-      },
-      settings: {
-        layout: { gridColumns: 4, servicesFirst: true, showServices: true, showStats: true },
-      },
-      stored: false,
+    const defaults: View["settings"] = {
+      appearance: { accent: "ice", theme: "dark" },
+      layout: { gridColumns: 4, servicesFirst: true, showServices: true, showStats: true },
+    };
+    expect(body).toEqual({ device: null, effective: defaults, settings: defaults, stored: false });
+  });
+
+  it("patches appearance and rejects unknown accents", async () => {
+    const response = await put("/api/settings", {
+      appearance: { accent: "violet", theme: "light" },
     });
+    expect(((await response.json()) as View).settings.appearance).toEqual({
+      accent: "violet",
+      theme: "light",
+    });
+    expect((await put("/api/settings", { appearance: { accent: "teal" } })).status).toBe(400);
   });
 
   it("patches the shared settings", async () => {

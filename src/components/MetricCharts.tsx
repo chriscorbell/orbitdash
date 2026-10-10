@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Chart as ChartJS,
   Filler,
@@ -29,36 +29,87 @@ function isMetricKey(value: string): value is MetricKey {
 }
 
 const chartConfig = {
-  cpu: { label: "CPU", color: "#fafafa" },
-  ram: { label: "RAM", color: "#fafafa" },
-  disk: { label: "Disk", color: "#fafafa" },
-} satisfies Record<MetricKey, { color: string; label: string }>;
+  cpu: { label: "CPU" },
+  ram: { label: "RAM" },
+  disk: { label: "Disk" },
+} satisfies Record<MetricKey, { label: string }>;
 
-function createAreaFill(context: ScriptableContext<"line">) {
-  const { chart } = context;
-  const { chartArea, ctx } = chart;
+interface ChartColors {
+  border: string;
+  brand: string;
+  muted: string;
+  popover: string;
+  popoverForeground: string;
+}
 
-  if (!chartArea) {
-    return "rgba(250, 250, 250, 0.12)";
-  }
+/** Canvas can't read CSS variables, so resolve the theme tokens to concrete colors. */
+function readChartColors(): ChartColors {
+  const probe = document.createElement("span");
+  document.body.appendChild(probe);
+  const resolve = (token: string, fallback: string) => {
+    probe.style.color = `var(${token}, ${fallback})`;
+    return getComputedStyle(probe).color || fallback;
+  };
+  const colors = {
+    border: resolve("--border", "rgba(255,255,255,0.1)"),
+    brand: resolve("--brand", "#8cc8ee"),
+    muted: resolve("--muted-foreground", "#a1a1aa"),
+    popover: resolve("--popover", "#18181b"),
+    popoverForeground: resolve("--popover-foreground", "#fafafa"),
+  };
+  probe.remove();
+  return colors;
+}
 
-  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-  gradient.addColorStop(0, "rgba(250, 250, 250, 0.3)");
-  gradient.addColorStop(1, "rgba(250, 250, 250, 0)");
-  return gradient;
+/** The same color at a given opacity, for canvas gradients. */
+function withAlpha(color: string, alpha: number): string {
+  if (color.startsWith("rgb(")) return color.replace("rgb(", "rgba(").replace(")", `, ${alpha})`);
+  if (color.includes("(") && !color.includes("/")) return color.replace(/\)$/, ` / ${alpha})`);
+  return color;
+}
+
+/** Chart colors that follow theme and accent changes on <html>. */
+function useChartColors(): ChartColors {
+  const [colors, setColors] = useState(readChartColors);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => setColors(readChartColors()));
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-accent"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return colors;
+}
+
+function createAreaFill(brand: string) {
+  return (context: ScriptableContext<"line">) => {
+    const { chartArea, ctx } = context.chart;
+    if (!chartArea) {
+      return withAlpha(brand, 0.12);
+    }
+
+    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    gradient.addColorStop(0, withAlpha(brand, 0.3));
+    gradient.addColorStop(1, withAlpha(brand, 0));
+    return gradient;
+  };
 }
 
 function MetricLineChart({
+  colors,
   data,
-  color,
   label,
   nowTs,
 }: {
+  colors: ChartColors;
   data: Array<{ ts: number; value: number }>;
-  color: string;
   label: string;
   nowTs: number;
 }) {
+  const color = colors.brand;
   const domainStart = data.length > 0 ? data[0].ts : nowTs - 30_000;
   const latestValue = data.at(-1)?.value;
   const chartData = useMemo<ChartData<"line", Array<{ x: number; y: number }>>>(
@@ -68,7 +119,7 @@ function MetricLineChart({
           label,
           data: data.map((point) => ({ x: point.ts, y: point.value })),
           borderColor: color,
-          backgroundColor: createAreaFill,
+          backgroundColor: createAreaFill(color),
           borderWidth: 3,
           cubicInterpolationMode: "monotone",
           fill: true,
@@ -92,14 +143,14 @@ function MetricLineChart({
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: "#18181b",
-          borderColor: "rgba(255, 255, 255, 0.1)",
+          backgroundColor: colors.popover,
+          borderColor: colors.border,
           borderWidth: 1,
-          bodyColor: "#fafafa",
+          bodyColor: colors.popoverForeground,
           cornerRadius: 8,
           displayColors: false,
           padding: 8,
-          titleColor: "#a1a1aa",
+          titleColor: colors.muted,
           callbacks: {
             title: ([item]) => {
               if (!item) return "";
@@ -121,11 +172,11 @@ function MetricLineChart({
           max: 100,
           border: { display: false },
           grid: {
-            color: "rgba(255, 255, 255, 0.1)",
+            color: colors.border,
             drawTicks: false,
           },
           ticks: {
-            color: "#a1a1aa",
+            color: colors.muted,
             font: { size: 11 },
             padding: 8,
             stepSize: 25,
@@ -134,7 +185,7 @@ function MetricLineChart({
         },
       },
     }),
-    [domainStart, label, nowTs]
+    [colors, domainStart, label, nowTs]
   );
 
   return (
@@ -152,6 +203,7 @@ function MetricLineChart({
 
 export function MetricCharts({ samples }: MetricChartsProps) {
   const [activeMetric, setActiveMetric] = useState<MetricKey>("cpu");
+  const colors = useChartColors();
   const nowTs = samples.length > 0 ? samples[samples.length - 1].ts : 30_000;
 
   const cpuData = useMemo(() => samples.map((s) => ({ ts: s.ts, value: s.cpu })), [samples]);
@@ -210,7 +262,7 @@ export function MetricCharts({ samples }: MetricChartsProps) {
             <MetricLineChart
               data={chartData[activeMetric]}
               nowTs={nowTs}
-              color={activeChart.color}
+              colors={colors}
               label={activeChart.label}
             />
           </TabsContent>

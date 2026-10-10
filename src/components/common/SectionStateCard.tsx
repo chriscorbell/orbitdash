@@ -13,7 +13,7 @@ interface SectionStateCardProps {
 const toneConfig = {
   error: {
     icon: AlertCircle,
-    iconClassName: "text-red-500",
+    iconClassName: "text-destructive",
     liveMode: "assertive",
   },
   loading: {
@@ -23,12 +23,12 @@ const toneConfig = {
   },
   offline: {
     icon: WifiOff,
-    iconClassName: "text-amber-500",
+    iconClassName: "text-warning",
     liveMode: "polite",
   },
   success: {
     icon: CheckCircle2,
-    iconClassName: "text-emerald-600",
+    iconClassName: "text-success",
     liveMode: "polite",
   },
 } satisfies Record<

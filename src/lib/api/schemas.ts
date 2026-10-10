@@ -63,14 +63,22 @@ const layoutSchema = z.object({
   showStats: z.boolean(),
 });
 
-const settingsSchema = z.object({ layout: layoutSchema });
+const appearanceSchema = z.object({
+  accent: z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]),
+  theme: z.enum(["dark", "light", "system"]),
+});
+
+const settingsSchema = z.object({ appearance: appearanceSchema, layout: layoutSchema });
 
 export const dashboardSettingsResponseSchema = z.object({
   device: z.nullable(
     z.object({
       id: z.string(),
       name: z.nullable(z.string()),
-      overrides: z.object({ layout: z.optional(z.partial(layoutSchema)) }),
+      overrides: z.object({
+        appearance: z.optional(z.partial(appearanceSchema)),
+        layout: z.optional(z.partial(layoutSchema)),
+      }),
     })
   ),
   effective: settingsSchema,

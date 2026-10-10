@@ -20,15 +20,15 @@ export function MetricCard({ className, title, value, icon }: MetricCardProps) {
 
   const getValueColor = (v: number | null) => {
     if (v === null) return "text-muted-foreground";
-    if (v >= 90) return "text-red-500";
-    if (v >= 70) return "text-amber-500";
+    if (v >= 90) return "text-destructive";
+    if (v >= 70) return "text-warning";
     return "text-foreground";
   };
 
   const getBarColor = (v: number | null) => {
     if (v === null) return "bg-muted";
-    if (v >= 90) return "bg-red-500";
-    if (v >= 70) return "bg-amber-500";
+    if (v >= 90) return "bg-destructive";
+    if (v >= 70) return "bg-warning";
     return "bg-primary";
   };
 
