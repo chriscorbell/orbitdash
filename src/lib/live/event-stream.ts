@@ -4,6 +4,7 @@ import type {
   ConfigChangedEvent,
   ContainersEvent,
   EventTopic,
+  IntegrationEvent,
   HostEvent,
   MetricsEvent,
   ServerEvent,
@@ -17,6 +18,7 @@ interface EventsByTopic {
   config: ConfigChangedEvent;
   containers: ContainersEvent;
   host: HostEvent;
+  integrations: IntegrationEvent;
   metrics: MetricsEvent;
   status: StatusEvent;
 }
@@ -49,6 +51,7 @@ const EVENT_TYPES: Record<EventTopic, ServerEvent["type"]> = {
   config: "config.changed",
   containers: "containers",
   host: "host",
+  integrations: "integration",
   metrics: "metrics",
   status: "status",
 };

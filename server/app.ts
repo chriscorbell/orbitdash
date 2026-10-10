@@ -24,6 +24,7 @@ import { getIconsDir } from "./services/icon-storage";
 import { getSystemInfo } from "./system-info";
 import { dockerMonitor } from "./docker/monitor";
 import dockerRouter from "./routes/docker";
+import integrationsRouter from "./routes/integrations";
 import prometheusRouter from "./routes/prometheus";
 
 export const app = new Hono();
@@ -141,6 +142,7 @@ app.route("/api/auth", authRouter);
 app.route("/api/backup", backupRouter);
 app.route("/api/categories", categoriesRouter);
 app.route("/api/docker", dockerRouter);
+app.route("/api/integrations", integrationsRouter);
 app.route("/api/events", eventsRouter);
 app.route("/api/icon-library", iconLibraryRouter);
 app.route("/api/service-tools", serviceToolsRouter);

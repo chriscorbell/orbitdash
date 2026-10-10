@@ -1,5 +1,6 @@
 import type {
   DockerSnapshot,
+  IntegrationReading,
   HostSnapshot,
   MetricAlert,
   MetricSample,
@@ -10,7 +11,7 @@ import type {
  * Topics a client can subscribe to on GET /api/events?topics=... `metrics` carries the small
  * per-tick sample; `host` carries the full HostSnapshot from the same tick, for views that need it;
  * `status` carries a service's status after each check; `containers` the Docker container list
- * whenever it changes.
+ * whenever it changes; `integrations` a service's integration figures after each poll.
  */
 export const EVENT_TOPICS = [
   "metrics",
@@ -19,6 +20,7 @@ export const EVENT_TOPICS = [
   "alerts",
   "status",
   "containers",
+  "integrations",
 ] as const;
 export type EventTopic = (typeof EVENT_TOPICS)[number];
 
@@ -61,13 +63,27 @@ export interface ContainersEvent {
   type: "containers";
 }
 
+/** A service's integration figures after a poll. */
+export interface IntegrationEvent {
+  reading: IntegrationReading;
+  serviceId: string;
+  type: "integration";
+}
+
 export type ServerEvent =
-  AlertEvent | ConfigChangedEvent | ContainersEvent | HostEvent | MetricsEvent | StatusEvent;
+  | AlertEvent
+  | ConfigChangedEvent
+  | ContainersEvent
+  | HostEvent
+  | IntegrationEvent
+  | MetricsEvent
+  | StatusEvent;
 
 export const TOPIC_BY_EVENT_TYPE: Record<ServerEvent["type"], EventTopic> = {
   alert: "alerts",
   "config.changed": "config",
   containers: "containers",
+  integration: "integrations",
   host: "host",
   metrics: "metrics",
   status: "status",
@@ -95,7 +111,9 @@ export function configScopeForMutation(path: string): ConfigScope | null {
   if (path.startsWith("/api/backup")) return null;
   if (path.startsWith("/api/settings/category-order")) return "layout";
   if (path.startsWith("/api/settings") || path.startsWith("/api/alerts")) return "settings";
-  if (path.startsWith("/api/widgets/agenda/feeds")) return "settings";
+  if (path.startsWith("/api/widgets/agenda/feeds") || path.startsWith("/api/integrations")) {
+    return "settings";
+  }
   if (path.startsWith("/api/services") || path.startsWith("/api/categories")) return "layout";
   return null;
 }
