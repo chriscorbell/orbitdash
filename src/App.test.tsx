@@ -108,13 +108,14 @@ const categoryOrderStub: UseCategoryOrderResult = {
   isReorderMode: false,
   loading: false,
   namedCategories: [],
+  saveState: "idle",
   saving: false,
   visibleCategoryOrder: [],
   applyOrder: vi.fn(),
   beginReorder: vi.fn(),
   cancelReorder: vi.fn(),
-  moveCategory: vi.fn(),
-  reorderCategories: vi.fn(),
+  moveCategory: vi.fn().mockResolvedValue(undefined),
+  reorderCategories: vi.fn().mockResolvedValue(undefined),
   saveOrder: vi.fn().mockResolvedValue(undefined),
 };
 

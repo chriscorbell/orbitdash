@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { SortableCategoryItem } from "@/components/services/SortableCategoryItem";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
+import { CategoryOrderSaveStatus } from "@/components/settings/CategoryOrderSaveStatus";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 
 interface HeaderProps {
@@ -115,15 +116,12 @@ export function Header({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Each move saves on its own, so closing settings only drops any order that failed to save.
   useEffect(() => {
     if (isSettingsOpen) {
       categoryOrder.beginReorder();
     } else {
-      if (categoryOrder.isDirty) {
-        void categoryOrder.saveOrder();
-      } else {
-        categoryOrder.cancelReorder();
-      }
+      categoryOrder.cancelReorder();
     }
     // Only run when isSettingsOpen toggles
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,7 +130,7 @@ export function Header({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over) {
-      categoryOrder.reorderCategories(String(active.id), String(over.id));
+      void categoryOrder.reorderCategories(String(active.id), String(over.id));
     }
   };
 
@@ -256,7 +254,10 @@ export function Header({
                 {/* Category order */}
                 {canReorderCategories && (
                   <section className="space-y-3">
-                    <SettingsSectionLabel>Category order</SettingsSectionLabel>
+                    <div className="flex items-center justify-between gap-3">
+                      <SettingsSectionLabel>Category order</SettingsSectionLabel>
+                      <CategoryOrderSaveStatus state={categoryOrder.saveState} />
+                    </div>
                     <DndContext
                       collisionDetection={closestCenter}
                       sensors={sensors}
@@ -273,15 +274,29 @@ export function Header({
                               category={category}
                               index={index}
                               total={categoryOrder.draftOrder.length}
-                              onMoveUp={() => categoryOrder.moveCategory(category, "up")}
-                              onMoveDown={() => categoryOrder.moveCategory(category, "down")}
+                              onMoveUp={() => void categoryOrder.moveCategory(category, "up")}
+                              onMoveDown={() => void categoryOrder.moveCategory(category, "down")}
                             />
                           ))}
                         </div>
                       </SortableContext>
                     </DndContext>
                     {categoryOrder.error && (
-                      <p className="text-destructive text-sm font-medium">{categoryOrder.error}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p role="alert" className="text-destructive text-sm font-medium">
+                          {categoryOrder.error}
+                        </p>
+                        {categoryOrder.saveState === "error" && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            onClick={() => void categoryOrder.saveOrder()}
+                          >
+                            Retry
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </section>
                 )}

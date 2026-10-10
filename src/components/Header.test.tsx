@@ -22,13 +22,14 @@ const categoryOrderStub: UseCategoryOrderResult = {
   isReorderMode: false,
   loading: false,
   namedCategories: [],
+  saveState: "idle",
   saving: false,
   visibleCategoryOrder: [],
   applyOrder: vi.fn(),
   beginReorder: vi.fn(),
   cancelReorder: vi.fn(),
-  moveCategory: vi.fn(),
-  reorderCategories: vi.fn(),
+  moveCategory: vi.fn().mockResolvedValue(undefined),
+  reorderCategories: vi.fn().mockResolvedValue(undefined),
   saveOrder: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -115,5 +116,72 @@ describe("Header", () => {
     expect(screen.getByText("Category order")).toBeTruthy();
     expect(screen.getByText("Web")).toBeTruthy();
     expect(screen.getByText("Homelab")).toBeTruthy();
+  });
+
+  function reorderableCategoryOrder(
+    overrides: Partial<UseCategoryOrderResult> = {}
+  ): UseCategoryOrderResult {
+    return {
+      ...categoryOrderStub,
+      namedCategories: ["Web", "Homelab"],
+      draftOrder: ["Web", "Homelab"],
+      beginReorder: vi.fn(),
+      cancelReorder: vi.fn(),
+      moveCategory: vi.fn().mockResolvedValue(undefined),
+      saveOrder: vi.fn().mockResolvedValue(undefined),
+      ...overrides,
+    };
+  }
+
+  it("saves category moves right away instead of when settings close", async () => {
+    const user = userEvent.setup();
+    const categoryOrder = reorderableCategoryOrder({ isDirty: true });
+    renderHeader({ categoryOrder });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(categoryOrder.beginReorder).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Move Homelab up" }));
+    expect(categoryOrder.moveCategory).toHaveBeenCalledWith("Homelab", "up");
+
+    await user.keyboard("{Escape}");
+    expect(categoryOrder.cancelReorder).toHaveBeenCalled();
+    expect(categoryOrder.saveOrder).not.toHaveBeenCalled();
+  });
+
+  it("shows when the category order has been saved", async () => {
+    const user = userEvent.setup();
+    renderHeader({ categoryOrder: reorderableCategoryOrder({ saveState: "saved" }) });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+
+    expect(screen.getByText("Saved").closest("[role=status]")).toBeTruthy();
+  });
+
+  it("shows save errors with a retry", async () => {
+    const user = userEvent.setup();
+    const categoryOrder = reorderableCategoryOrder({
+      error: "Failed to save category order",
+      saveState: "error",
+    });
+    renderHeader({ categoryOrder });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+
+    expect(screen.getByRole("alert").textContent).toBe("Failed to save category order");
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(categoryOrder.saveOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer a retry for load errors", async () => {
+    const user = userEvent.setup();
+    renderHeader({
+      categoryOrder: reorderableCategoryOrder({ error: "Failed to fetch category order" }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+
+    expect(screen.getByRole("alert").textContent).toBe("Failed to fetch category order");
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });
 });
