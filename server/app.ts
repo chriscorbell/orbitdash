@@ -25,6 +25,7 @@ import { getSystemInfo } from "./system-info";
 import { dockerMonitor } from "./docker/monitor";
 import dockerRouter from "./routes/docker";
 import discoveryRouter from "./routes/discovery";
+import prometheusRouter from "./routes/prometheus";
 
 export const app = new Hono();
 
@@ -163,6 +164,9 @@ app.get("/api/health", (c) => {
     },
   });
 });
+
+// Outside /api: scrapers bring a bearer token instead of a session (see routes/prometheus.ts).
+app.route("/metrics", prometheusRouter);
 
 app.get("/api/system", (c) => {
   c.header("Cache-Control", "no-store");

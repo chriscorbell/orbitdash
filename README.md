@@ -51,6 +51,7 @@ version before creating the matching tag.
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
 - Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
 - Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
+- An optional Prometheus `/metrics` endpoint with host, status check and container metrics
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
@@ -465,6 +466,29 @@ calendar's name and host, plus event titles, times and locations. The server che
 is added, refreshes each calendar every 15 minutes, and reports a calendar that stops loading
 without hiding the others. With [authentication](#authentication) on, guests can see the widgets
 but only a signed-in user can add or remove calendars. Calendar links are included in backups.
+
+## Prometheus
+
+Set `ORBITDASH_PROMETHEUS=true` to serve metrics at `/metrics` in Prometheus text format: CPU
+(total and per core), load, memory and swap, each filesystem, disk and network rates,
+temperatures, firing alerts, each service's status check (`orbitdash_service_up`,
+`orbitdash_service_slow`, `orbitdash_service_response_milliseconds`, labelled with the service and
+category names) and, with Docker set up, containers by state and each container's running,
+health, CPU and memory. It's off by default.
+
+Set `ORBITDASH_PROMETHEUS_TOKEN` to require `Authorization: Bearer <token>`. With
+[authentication](#authentication) on, the token is required: the endpoint stays closed until one is
+set, since a scraper can't sign in.
+
+```yaml
+scrape_configs:
+  - job_name: orbitdash
+    metrics_path: /metrics
+    authorization:
+      credentials: your-token
+    static_configs:
+      - targets: ["orbitdash:3000"]
+```
 
 ## Health Checks
 
