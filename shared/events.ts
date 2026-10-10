@@ -1,10 +1,10 @@
-import type { HostSnapshot, MetricSample } from "./types";
+import type { HostSnapshot, MetricAlert, MetricSample } from "./types";
 
 /**
  * Topics a client can subscribe to on GET /api/events?topics=... `metrics` carries the small
  * per-tick sample; `host` carries the full HostSnapshot from the same tick, for views that need it.
  */
-export const EVENT_TOPICS = ["metrics", "config", "host"] as const;
+export const EVENT_TOPICS = ["metrics", "config", "host", "alerts"] as const;
 export type EventTopic = (typeof EVENT_TOPICS)[number];
 
 /** What a config change touched, so clients refetch only what they need. */
@@ -20,6 +20,12 @@ export interface HostEvent {
   type: "host";
 }
 
+/** A metric alert started firing (resolvedAt null) or resolved. */
+export interface AlertEvent {
+  alert: MetricAlert;
+  type: "alert";
+}
+
 export interface ConfigChangedEvent {
   /** The tab that made the change, so it can ignore its own echo. */
   origin: string | null;
@@ -27,9 +33,10 @@ export interface ConfigChangedEvent {
   type: "config.changed";
 }
 
-export type ServerEvent = ConfigChangedEvent | HostEvent | MetricsEvent;
+export type ServerEvent = AlertEvent | ConfigChangedEvent | HostEvent | MetricsEvent;
 
 export const TOPIC_BY_EVENT_TYPE: Record<ServerEvent["type"], EventTopic> = {
+  alert: "alerts",
   "config.changed": "config",
   host: "host",
   metrics: "metrics",
@@ -56,7 +63,7 @@ export function configScopeForMutation(path: string): ConfigScope | null {
   if (path === "/api/import/apply") return "layout";
   if (path.startsWith("/api/backup")) return null;
   if (path.startsWith("/api/settings/category-order")) return "layout";
-  if (path.startsWith("/api/settings")) return "settings";
+  if (path.startsWith("/api/settings") || path.startsWith("/api/alerts")) return "settings";
   if (path.startsWith("/api/services") || path.startsWith("/api/categories")) return "layout";
   return null;
 }

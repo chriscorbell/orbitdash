@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AlertsCard } from "@/components/stats-page/AlertsCard";
 import { TimeChart, type ChartSeries } from "@/components/stats-page/TimeChart";
 import { fetchHostSnapshot, subscribeHostSnapshots } from "@/lib/api/host";
 import { fetchMetricHistory } from "@/lib/api/history";
@@ -135,6 +136,8 @@ export function StatsPage({ themeKey }: StatsPageProps) {
       )}
 
       <SummaryTiles snapshot={current} />
+
+      <AlertsCard />
 
       {range !== "live" && history.error && (
         <p role="alert" className="text-sm text-destructive">

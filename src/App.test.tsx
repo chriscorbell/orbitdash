@@ -117,6 +117,12 @@ vi.mock("@/hooks/useServices", () => ({
   useServices: vi.fn(),
 }));
 
+vi.mock("@/lib/api/alerts", () => ({
+  fetchAlerts: vi.fn().mockResolvedValue({ active: [], recent: [], rules: [] }),
+  subscribeAlerts: vi.fn(() => () => {}),
+  updateAlertRules: vi.fn(),
+}));
+
 vi.mock("@/lib/api/system", () => ({
   fetchSystemInfo: vi.fn().mockResolvedValue({
     cpuCount: 8,

@@ -63,6 +63,7 @@ describe("database integration", () => {
 
     expect(tables.map((table) => table.name)).toEqual([
       "categories",
+      "metric_alerts",
       "metric_history_15m",
       "metric_history_1m",
       "schema_migrations",
@@ -100,6 +101,7 @@ describe("database integration", () => {
         id: 7,
         name: "metric-history",
       },
+      { id: 8, name: "metric-alerts" },
     ]);
   });
 
@@ -138,7 +140,7 @@ describe("database integration", () => {
           id: number;
         }>
       ).map((row) => row.id)
-    ).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it("supports insert, update, and delete flows against the services table", () => {

@@ -6,6 +6,7 @@ import { startCollection, stopCollection } from "./metrics";
 import { applySeedIfFresh } from "./importers/service";
 import { writeLog } from "./observability";
 import { runNightlySnapshotIfDue } from "./services/backup-schedule";
+import { metricAlerts } from "./alerts/service";
 import { purgeUnusedWallpapers } from "./services/wallpaper-storage";
 import { purgeTrash } from "./services/service-trash";
 import { cleanupOrphanIcons } from "./services/icon-storage";
@@ -49,6 +50,10 @@ function startBackgroundJobs() {
   scheduleJob("purge-trash", () => void purgeTrash(), {
     initialDelayMs: 30_000,
     intervalMs: 5 * 60 * 1000,
+  });
+  scheduleJob("prune-alerts", () => void metricAlerts.prune(), {
+    initialDelayMs: 10 * 60 * 1000,
+    intervalMs: HOUR_MS,
   });
   scheduleJob("purge-unused-wallpapers", () => void purgeUnusedWallpapers(), {
     initialDelayMs: 5 * 60 * 1000,

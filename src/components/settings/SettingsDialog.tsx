@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { AlertSettings } from "@/components/settings/AlertSettings";
 import { AppearanceSettingsSection } from "@/components/settings/AppearanceSettingsSection";
 import { CustomCssSettings } from "@/components/settings/CustomCssSettings";
 import { DashboardTitleField } from "@/components/settings/DashboardTitleField";
@@ -349,6 +350,11 @@ export function SettingsDialog({
                 </Button>
               </div>
             </div>
+          </section>
+
+          <section className="space-y-3">
+            <SettingsSectionLabel>Alerts</SettingsSectionLabel>
+            <AlertSettings />
           </section>
 
           <section className="space-y-3">

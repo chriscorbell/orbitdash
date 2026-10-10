@@ -39,6 +39,41 @@ vi.mock("@/lib/api/host", () => ({
 }));
 
 vi.mock("@/lib/api/history", () => ({ fetchMetricHistory: vi.fn() }));
+vi.mock("@/lib/api/alerts", () => ({
+  fetchAlerts: vi.fn().mockResolvedValue({
+    active: [
+      {
+        id: "a",
+        metric: "disk",
+        subject: "/srv",
+        threshold: 85,
+        durationSec: 60,
+        value: 88,
+        peak: 89,
+        startedAt: 0,
+        firedAt: 60_000,
+        resolvedAt: null,
+      },
+    ],
+    recent: [
+      {
+        id: "b",
+        metric: "cpu",
+        subject: null,
+        threshold: 90,
+        durationSec: 300,
+        value: 50,
+        peak: 98,
+        startedAt: 0,
+        firedAt: 300_000,
+        resolvedAt: 5_400_000,
+      },
+    ],
+    rules: [],
+  }),
+  subscribeAlerts: vi.fn(() => () => {}),
+  updateAlertRules: vi.fn(),
+}));
 vi.mock("@/lib/api/system", () => ({
   fetchSystemInfo: vi.fn().mockResolvedValue({
     cpuCount: 8,
@@ -147,6 +182,16 @@ describe("StatsPage", () => {
     expect(screen.getByRole("meter", { name: "/ used" }).getAttribute("aria-valuenow")).toBe("95");
     expect(screen.getByText("92°C").className).toContain("text-destructive");
     expect(await screen.findByText("Debian")).toBeTruthy();
+  });
+
+  it("lists firing and recent alerts", async () => {
+    renderPage();
+    const alerts = await screen.findByRole("region", { name: "Alerts" });
+    expect(within(alerts).getByText("Disk (/srv) above 85% for 1 min")).toBeTruthy();
+    const recent = within(alerts).getByRole("list", { name: "Recent alerts" });
+    expect(recent.textContent).toContain("CPU above 90% for 5 min");
+    expect(recent.textContent).toContain("1 h 30 min");
+    expect(recent.textContent).toContain("peak 98%");
   });
 
   it("draws live charts over the last five minutes and follows new readings", async () => {
