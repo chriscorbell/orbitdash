@@ -31,6 +31,11 @@ describe("parseEventTopics", () => {
 describe("configScopeForMutation", () => {
   it("maps routes to the data they change", () => {
     expect(configScopeForMutation("/api/alerts/rules")).toBe("settings");
+    expect(configScopeForMutation("/api/notifications/channels")).toBe("settings");
+    expect(configScopeForMutation("/api/notifications/channels/abc")).toBe("settings");
+    expect(configScopeForMutation("/api/notifications/options")).toBe("settings");
+    expect(configScopeForMutation("/api/notifications/channels/abc/test")).toBeNull();
+    expect(configScopeForMutation("/api/notifications/test")).toBeNull();
     expect(configScopeForMutation("/api/services")).toBe("layout");
     expect(configScopeForMutation("/api/services/abc/move")).toBe("layout");
     expect(configScopeForMutation("/api/categories/rename")).toBe("layout");

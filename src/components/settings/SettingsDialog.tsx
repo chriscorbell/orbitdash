@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,13 @@ import {
   Rows3,
   type LucideIcon,
 } from "lucide-react";
+
+// Its own chunk, fetched as the dialog opens; the section sits below the fold.
+const NotificationSettings = lazy(() =>
+  import("@/components/settings/notifications/NotificationSettings").then((module) => ({
+    default: module.NotificationSettings,
+  }))
+);
 
 interface SettingsAccount {
   mode: "password" | "proxy";
@@ -395,6 +403,17 @@ export function SettingsDialog({
           <section className="space-y-3">
             <SettingsSectionLabel>Alerts</SettingsSectionLabel>
             <AlertSettings />
+          </section>
+
+          <section className="space-y-3">
+            <SettingsSectionLabel>Notifications</SettingsSectionLabel>
+            <Suspense
+              fallback={
+                <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
+              }
+            >
+              <NotificationSettings />
+            </Suspense>
           </section>
 
           <section className="space-y-3">

@@ -276,6 +276,33 @@ const migrations: Migration[] = [
       )`,
     ],
   },
+  {
+    id: 11,
+    name: "notifications",
+    // Notifications (server/notifications/). Channels and options live in `settings`, so backups
+    // carry them; these two tables are runtime state and stay out of backups. A delivery row is one
+    // message to one channel, trimmed to the newest few. An incident is a service that is down, with
+    // when its "down" message went out (NULL until then), so a restart neither repeats nor loses it.
+    statements: [
+      `CREATE TABLE notification_deliveries (
+        id INTEGER PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        channel_name TEXT NOT NULL,
+        channel_type TEXT NOT NULL,
+        event TEXT NOT NULL,
+        title TEXT NOT NULL,
+        ok INTEGER NOT NULL CHECK (ok IN (0, 1)),
+        attempts INTEGER NOT NULL,
+        error TEXT,
+        sent_at INTEGER NOT NULL
+      )`,
+      `CREATE TABLE notification_incidents (
+        service_id TEXT PRIMARY KEY,
+        started_at INTEGER NOT NULL,
+        notified_at INTEGER
+      )`,
+    ],
+  },
 ];
 
 function ensureMigrationsTable(db: Database): void {
