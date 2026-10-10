@@ -11,7 +11,7 @@ export function useLiveQueries() {
 
   useConfigChanges(["layout"], () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.services });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.categoryOrder });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.categories });
   });
 
   useConfigChanges(["settings"], () => {

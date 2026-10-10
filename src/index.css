@@ -284,26 +284,6 @@
 }
 
 @layer utilities {
-  .service-card-menu-trigger {
-    opacity: 0.5;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .service-card-menu-trigger {
-      opacity: 0;
-    }
-
-    .group:hover .service-card-menu-trigger,
-    .group:focus-within .service-card-menu-trigger {
-      opacity: 1;
-    }
-
-    /* Rides along with the card's hover lift. */
-    .group:hover .service-card-menu-trigger {
-      transform: translateY(-0.125rem);
-    }
-  }
-
   /* Icons too dark for the dark theme, or too light for the light one, get a contrasting plate. */
   .service-icon,
   .service-icon > img {

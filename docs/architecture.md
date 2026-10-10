@@ -75,11 +75,15 @@ form validation.
   health, metrics collection, and observability stay in their dedicated `server/` modules.
 - `shared/` owns client/server contracts, runtime schemas, URL normalization, service form-data
   handling, and category-order rules.
-- Frontend hooks under `src/hooks/` own API-backed services, metrics, saved category order, and local
-  preferences.
-- `ServicesSection` composes service-management UI. Its filtering and dialog-selection state lives
-  in `services/useServicesSectionState.ts`, while category, empty, feedback, toolbar, and delete UI
-  live in focused components under `src/components/services/`.
+- Frontend hooks under `src/hooks/` own API-backed services (`useServices`, with optimistic moves),
+  categories (`useCategories`, with optimistic renames, deletes and reorders), metrics, and
+  dashboard settings.
+- `ServicesSection` composes service-management UI. Its filtering, grouping and dialog-selection
+  state lives in `services/useServicesSectionState.ts`. Services are grouped by category id
+  (`src/lib/board-groups.ts`) and laid out by `board/BoardColumns.tsx`, as balanced columns or
+  stacked rows. Outside edit mode the board is plain links (`services/CategorySectionList.tsx`); in
+  edit mode the lazily loaded `board/EditableBoard.tsx` adds dnd-kit dragging of cards and
+  categories, rename in place, add tiles and card menus.
 - `ServiceDialog` coordinates submission and validation. Form and icon-preview state lives in
   `services/useServiceDialogState.ts`, with category, icon, and action controls split into focused
   components.

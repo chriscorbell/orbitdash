@@ -31,6 +31,7 @@ interface ServiceDialogFieldIds {
 
 interface UseServiceDialogStateOptions {
   categoryOptions: string[];
+  defaultCategory?: string | null;
   service?: Service | null;
 }
 
@@ -40,9 +41,10 @@ function getServiceIconPreview(service?: Service | null) {
 
 function resolveInitialCategoryState(
   service: Service | null | undefined,
-  categoryOptions: string[]
+  categoryOptions: string[],
+  defaultCategory?: string | null
 ) {
-  const initialCategory = service?.category?.trim() ?? "";
+  const initialCategory = (service ? service.category : defaultCategory)?.trim() ?? "";
 
   if (!initialCategory) {
     return {
@@ -66,9 +68,10 @@ function resolveInitialCategoryState(
 
 export function createInitialFormState(
   service: Service | null | undefined,
-  categoryOptions: string[]
+  categoryOptions: string[],
+  defaultCategory?: string | null
 ): ServiceDialogFormState {
-  const categoryState = resolveInitialCategoryState(service, categoryOptions);
+  const categoryState = resolveInitialCategoryState(service, categoryOptions, defaultCategory);
 
   return {
     description: service?.description ?? "",
@@ -151,12 +154,16 @@ export function isServiceDialogSubmittable(formState: ServiceDialogFormState): b
   return resolveSelectedCategory(formState) !== null;
 }
 
-export function useServiceDialogState({ categoryOptions, service }: UseServiceDialogStateOptions) {
+export function useServiceDialogState({
+  categoryOptions,
+  defaultCategory,
+  service,
+}: UseServiceDialogStateOptions) {
   const [iconFile, setIconFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fieldIdPrefix = useId();
   const [formState, setFormState] = useState<ServiceDialogFormState>(() =>
-    createInitialFormState(service, categoryOptions)
+    createInitialFormState(service, categoryOptions, defaultCategory)
   );
 
   const handleIconChange = (event: ChangeEvent<HTMLInputElement>) => {

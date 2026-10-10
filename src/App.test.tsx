@@ -4,11 +4,13 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryWrapper } from "@/test/query";
-import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+import type { UseCategoriesResult } from "@/hooks/useCategories";
 import type { Service } from "@shared/types";
 
 interface MockServicesProps {
   addOpen: boolean;
+  editing: boolean;
+  renamingKey: string | null;
   search: string;
 }
 
@@ -24,9 +26,11 @@ vi.mock("@/components/Footer", () => ({
 }));
 
 vi.mock("@/components/ServicesSection", () => ({
-  ServicesSection: ({ addOpen, search }: MockServicesProps) => (
+  ServicesSection: ({ addOpen, editing, renamingKey, search }: MockServicesProps) => (
     <section data-testid="services-section">
       <span data-testid="add-open">{String(addOpen)}</span>
+      <span data-testid="editing">{String(editing)}</span>
+      <span data-testid="renaming">{renamingKey ?? ""}</span>
       <span data-testid="search">{search}</span>
     </section>
   ),
@@ -35,6 +39,8 @@ vi.mock("@/components/ServicesSection", () => ({
 // The app loads the settings dialog lazily through this module.
 vi.mock("@/components/settings/settings-preload", () => ({
   preloadSettingsDialog: vi.fn(),
+  preloadEditableBoard: vi.fn(),
+  loadEditableBoard: async () => ({ EditableBoard: () => null }),
   loadSettingsDialog: async () => ({
     SettingsDialog: ({
       open,
@@ -58,8 +64,8 @@ vi.mock("@/components/settings/settings-preload", () => ({
   }),
 }));
 
-vi.mock("@/hooks/useCategoryOrder", () => ({
-  useCategoryOrder: vi.fn(),
+vi.mock("@/hooks/useCategories", () => ({
+  useCategories: vi.fn(),
 }));
 
 vi.mock("@/hooks/useMetrics", () => ({
@@ -105,15 +111,26 @@ vi.mock("@/lib/api/dashboard-settings", async () => {
 });
 
 import App from "@/App";
-import { useCategoryOrder } from "@/hooks/useCategoryOrder";
+import { useCategories } from "@/hooks/useCategories";
 import { useServices } from "@/hooks/useServices";
 
-const categoryOrderStub = {
-  visibleCategoryOrder: [],
-  namedCategories: [],
-  beginReorder: vi.fn(),
-  cancelReorder: vi.fn(),
-} as unknown as UseCategoryOrderResult;
+function categoriesStub(): UseCategoriesResult {
+  return {
+    categories: [{ id: "cat-1", name: "New category", position: 0, created_at: 1, updated_at: 1 }],
+    loading: false,
+    error: null,
+    create: vi.fn().mockResolvedValue({
+      id: "cat-2",
+      name: "New category 2",
+      position: 1,
+      created_at: 1,
+      updated_at: 1,
+    }),
+    rename: vi.fn(),
+    remove: vi.fn(),
+    reorder: vi.fn(),
+  };
+}
 
 const serviceStub: Service = {
   id: "svc-1",
@@ -154,10 +171,10 @@ beforeEach(async () => {
     duplicate: vi.fn().mockResolvedValue(serviceStub),
     remove: vi.fn().mockResolvedValue(undefined),
     restore: vi.fn().mockResolvedValue(serviceStub),
-    renameCategory: vi.fn().mockResolvedValue({ services: [], order: [] }),
+    move: vi.fn().mockResolvedValue(serviceStub),
     reload: vi.fn().mockResolvedValue(undefined),
   });
-  vi.mocked(useCategoryOrder).mockReturnValue(categoryOrderStub);
+  vi.mocked(useCategories).mockReturnValue(categoriesStub());
 });
 
 afterEach(() => {
@@ -210,5 +227,38 @@ describe("App", () => {
     expect(await screen.findByText("Nothing is shown right now")).toBeTruthy();
     expect(screen.queryByTestId("services-section")).toBeNull();
     expect(screen.queryByRole("region", { name: "Live stats" })).toBeNull();
+  });
+
+  it("enters edit mode, names a new category in place, and leaves with Done", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.type(screen.getByRole("searchbox", { name: "Search services" }), "jelly");
+    await user.click(screen.getByRole("button", { name: "Edit layout" }));
+
+    expect(screen.getByTestId("editing").textContent).toBe("true");
+    expect(screen.getByTestId("search").textContent).toBe("");
+
+    await user.click(screen.getByRole("button", { name: "New category" }));
+    const categories = vi.mocked(useCategories).mock.results.at(-1)!.value as UseCategoriesResult;
+    expect(categories.create).toHaveBeenCalledWith("New category 2");
+    await waitFor(() => expect(screen.getByTestId("renaming").textContent).toBe("cat-2"));
+
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.getByTestId("editing").textContent).toBe("false");
+    expect(screen.getByTestId("renaming").textContent).toBe("");
+  });
+
+  it("reports a category that could not be created", async () => {
+    const user = userEvent.setup();
+    const categories = categoriesStub();
+    vi.mocked(categories.create).mockRejectedValue(new Error("Offline"));
+    vi.mocked(useCategories).mockReturnValue(categories);
+    renderApp();
+
+    await user.click(screen.getByRole("button", { name: "Edit layout" }));
+    await user.click(screen.getByRole("button", { name: "New category" }));
+
+    expect(await screen.findByText("Couldn't create the category")).toBeTruthy();
   });
 });

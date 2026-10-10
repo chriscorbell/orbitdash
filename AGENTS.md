@@ -61,7 +61,8 @@ Use this file as a practical handoff for future agents working in this repositor
 
 - Backend route files should mostly orchestrate HTTP concerns and delegate business logic to service-layer modules.
 - Service icon handling lives outside route handlers in dedicated service/storage code.
-- Frontend service management is decomposed across `ServicesSection`, `ServiceDialog`, and smaller helper components/hooks under `src/components/services/`.
+- Frontend service management is decomposed across `ServicesSection`, `ServiceDialog`, the board layout and edit mode under `src/components/board/`, and smaller helper components/hooks under `src/components/services/`.
+- The board groups services by category id (`src/lib/board-groups.ts`) using the categories from `GET /api/categories` (`useCategories`); category ordering is changed by dragging in edit mode, not in settings.
 - Shared runtime validation is centralized in `shared/schemas.ts`.
 - Shared multipart service request handling is centralized in `shared/service-form-data.ts` and is consumed by both client and server.
 - The metrics collector lives in `server/host/`. `host-fs.ts` is its only file access; every reader takes file contents or an injected `HostFs`, so tests run on fixture strings (`test-fixtures.ts`). The strip's `MetricSample` (`cpu`, `ram`, `disk`) is derived from the richer, versioned `HostSnapshot` of the same tick; keep its three fields stable and add detail to the snapshot.
@@ -71,12 +72,13 @@ Use this file as a practical handoff for future agents working in this repositor
 - `package.json` uses a guarded `prepare` script:
   - `if command -v simple-git-hooks >/dev/null 2>&1; then simple-git-hooks; fi`
   - This is intentional so production-only installs inside Docker do not fail when dev dependencies are absent.
-- `src/components/ServiceCard.tsx` uses `DropdownMenu modal={false}` intentionally.
+- `src/components/board/ServiceActionsMenu.tsx` uses `DropdownMenu modal={false}` intentionally.
   - This prevents pointer-event lockups after opening the edit dialog from the service action menu.
+- Outside edit mode service cards are plain links with no menu. Editing, duplicating, deleting and arranging happen in edit mode (`src/components/board/EditableBoard.tsx`, loaded lazily with dnd-kit).
 - The main bundle budget should not be raised casually.
   - Chunking uses Rolldown `codeSplitting.groups` in `vite.config.ts`. A group also captures its modules' dependencies, so group priority decides where shared packages like React land. `docs/bundle-size-budget.md` explains the layout and the tracked budgets.
   - If bundle budgets fail again, inspect chunk boundaries before raising thresholds.
-  - `charts-*` and `drag-drop-*` must stay lazy: modules loaded on first render import Chart.js and dnd-kit only through `lazy()` components. `npm run bundle:check` fails if `index.html` preloads either chunk.
+  - `drag-drop-*`, `SettingsDialog-*` and `EditableBoard-*` must stay lazy: modules loaded on first render reach dnd-kit, the settings dialog and the edit board only through `lazy()` components. `npm run bundle:check` fails if `index.html` preloads any of them.
 - Dependabot is configured for `bun`, not `npm`.
   - This was changed because npm-based Dependabot PRs were generated without `bun.lock` updates and always failed frozen-lockfile installs.
   - Existing stale npm-based Dependabot PRs were intentionally closed after the config fix.
