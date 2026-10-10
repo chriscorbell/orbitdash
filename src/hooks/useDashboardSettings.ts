@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchDashboardSettings,
   updateDeviceSettings,
   updateSharedSettings,
 } from "@/lib/api/dashboard-settings";
-import { useConfigChanges } from "@/hooks/useConfigChanges";
 import { getDeviceId } from "@/lib/device-id";
+import { queryKeys } from "@/lib/query-client";
 import {
   DEFAULT_DASHBOARD_SETTINGS,
   diffDashboardSettings,
@@ -108,93 +109,105 @@ async function importLegacyLayout(
   return next;
 }
 
+function applyPatchToView(
+  view: DashboardSettingsResponse,
+  scope: SettingsScope,
+  patch: Partial<DashboardLayoutSettings>
+): DashboardSettingsResponse {
+  if (scope === "device" && view.device) {
+    const overrides = { layout: { ...view.device.overrides.layout, ...patch } };
+    return {
+      ...view,
+      device: { ...view.device, overrides },
+      effective: mergeDashboardSettings(view.settings, overrides),
+    };
+  }
+  const settings = mergeDashboardSettings(view.settings, { layout: patch });
+  return { ...view, settings, effective: mergeDashboardSettings(settings, view.device?.overrides) };
+}
+
 /** Dashboard settings from the server, shared or per device, with optimistic updates. */
 export function useDashboardSettings() {
   const deviceId = useMemo(() => getDeviceId(), []);
-  const [settings, setSettings] = useState<DashboardSettings>(
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => queryKeys.settings(deviceId), [deviceId]);
+  const [initialSettings] = useState<DashboardSettings>(
     () => readCachedSettings() ?? readLegacyLayout() ?? DEFAULT_DASHBOARD_SETTINGS
   );
-  const [view, setView] = useState<DashboardSettingsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const viewRef = useRef<DashboardSettingsResponse | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const applyView = useCallback((next: DashboardSettingsResponse) => {
-    viewRef.current = next;
-    setView(next);
-    setSettings(next.effective);
-    writeCachedSettings(next.effective);
-  }, []);
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => importLegacyLayout(await fetchDashboardSettings(deviceId), deviceId),
+  });
+  const view = query.data ?? null;
+  const settings = view?.effective ?? initialSettings;
 
   useEffect(() => {
-    let active = true;
-
-    fetchDashboardSettings(deviceId)
-      .then((loaded) => importLegacyLayout(loaded, deviceId))
-      .then((next) => {
-        if (active) applyView(next);
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(loadError instanceof Error ? loadError.message : "Failed to load settings");
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [applyView, deviceId]);
-
-  // Another device changed shared settings (or this device's overrides): pick them up.
-  useConfigChanges(["settings"], () => {
-    fetchDashboardSettings(deviceId)
-      .then(applyView)
-      .catch(() => {
-        // Keep the current settings; the next change or reload will retry.
-      });
-  });
+    if (view) writeCachedSettings(view.effective);
+  }, [view]);
 
   const scope: SettingsScope =
     view?.device && !isEmptySettingsPatch(view.device.overrides) ? "device" : "all";
 
   const runUpdate = useCallback(
-    async (optimistic: DashboardSettings, request: () => Promise<DashboardSettingsResponse>) => {
-      setSettings(optimistic);
-      setError(null);
+    async (
+      optimistic: (current: DashboardSettingsResponse) => DashboardSettingsResponse,
+      request: () => Promise<DashboardSettingsResponse>
+    ) => {
+      const previous = queryClient.getQueryData<DashboardSettingsResponse>(queryKey);
+      if (previous) queryClient.setQueryData(queryKey, optimistic(previous));
+      setSaveError(null);
       try {
-        applyView(await request());
-      } catch (saveError) {
-        setSettings(viewRef.current?.effective ?? optimistic);
-        setError(saveError instanceof Error ? saveError.message : "Failed to save settings");
+        queryClient.setQueryData(queryKey, await request());
+      } catch (failure) {
+        if (previous) queryClient.setQueryData(queryKey, previous);
+        setSaveError(failure instanceof Error ? failure.message : "Failed to save settings");
       }
     },
-    [applyView]
+    [queryClient, queryKey]
   );
 
   const updateLayout = useCallback(
     (patch: Partial<DashboardLayoutSettings>) => {
-      const optimistic = mergeDashboardSettings(settings, { layout: patch });
-      void runUpdate(optimistic, () =>
-        scope === "device"
-          ? updateDeviceSettings(deviceId, { overrides: { layout: patch } })
-          : updateSharedSettings({ layout: patch }, deviceId)
+      void runUpdate(
+        (current) => applyPatchToView(current, scope, patch),
+        () =>
+          scope === "device"
+            ? updateDeviceSettings(deviceId, { overrides: { layout: patch } })
+            : updateSharedSettings({ layout: patch }, deviceId)
       );
     },
-    [deviceId, runUpdate, scope, settings]
+    [deviceId, runUpdate, scope]
   );
 
   /** "device" copies the current layout as this device's own; "all" drops the overrides. */
   const setScope = useCallback(
     (next: SettingsScope) => {
-      if (next === scope) return;
-      const shared = viewRef.current?.settings ?? settings;
-      void runUpdate(next === "device" ? settings : shared, () =>
-        updateDeviceSettings(deviceId, {
-          overrides: next === "device" ? { layout: settings.layout } : null,
-        })
+      if (next === scope || !view) return;
+      const overrides = next === "device" ? { layout: view.effective.layout } : {};
+      void runUpdate(
+        (current) => ({
+          ...current,
+          device: { id: deviceId, name: current.device?.name ?? null, overrides },
+          effective: mergeDashboardSettings(current.settings, overrides),
+        }),
+        () =>
+          updateDeviceSettings(deviceId, {
+            overrides: next === "device" ? { layout: view.effective.layout } : null,
+          })
       );
     },
-    [deviceId, runUpdate, scope, settings]
+    [deviceId, runUpdate, scope, view]
   );
 
-  return { error, scope, settings, setScope, updateLayout };
+  const loadError = query.error ? query.error.message || "Failed to load settings" : null;
+  return {
+    error: saveError ?? loadError,
+    loading: query.isPending,
+    scope,
+    settings,
+    setScope,
+    updateLayout,
+  };
 }

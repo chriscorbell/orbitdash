@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useConfigChanges } from "@/hooks/useConfigChanges";
-import { invalidateRequestCache } from "@/lib/api/client";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCategoryOrder, updateCategoryOrder } from "@/lib/api/settings";
+import { queryKeys } from "@/lib/query-client";
 import { mergeCategoryOrder, UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service } from "@shared/types";
 
@@ -46,13 +46,27 @@ function getNamedCategories(services: Service[]): string[] {
   return [...categories];
 }
 
+const NO_ORDER: string[] = [];
+
 export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
-  const [savedOrder, setSavedOrder] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+  const orderQuery = useQuery({
+    queryKey: queryKeys.categoryOrder,
+    queryFn: fetchCategoryOrder,
+  });
+  const savedOrder = orderQuery.data?.order ?? NO_ORDER;
+  const loading = orderQuery.isPending;
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
   const [isReorderMode, setIsReorderMode] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const error =
+    saveError ?? (orderQuery.error ? orderQuery.error.message || "Failed to load category order" : null);
+
+  const setSavedOrder = useCallback(
+    (order: string[]) => queryClient.setQueryData(queryKeys.categoryOrder, { order }),
+    [queryClient]
+  );
 
   const namedCategories = useMemo(() => getNamedCategories(services), [services]);
   const hasNamedCategories = namedCategories.length > 0;
@@ -77,58 +91,23 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     return hasUncategorized ? [...mergedSavedOrder, UNCATEGORIZED_CATEGORY] : mergedSavedOrder;
   }, [hasUncategorized, mergedSavedOrder]);
 
-  const loadCategoryOrder = useCallback(async (isActive: () => boolean = () => true) => {
-    try {
-      const response = await fetchCategoryOrder();
-      if (!isActive()) {
-        return;
-      }
-      setSavedOrder(response.order);
-      setDraftOrder(response.order);
-      setError(null);
-    } catch (loadError) {
-      if (!isActive()) {
-        return;
-      }
-      setSavedOrder([]);
-      setDraftOrder([]);
-      setError(loadError instanceof Error ? loadError.message : "Failed to load category order");
-    } finally {
-      if (isActive()) {
-        setLoading(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    // loadCategoryOrder only sets state after awaiting the fetch
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadCategoryOrder(() => active);
-    return () => {
-      active = false;
-    };
-  }, [loadCategoryOrder]);
-
-  useConfigChanges(["layout"], () => {
-    invalidateRequestCache("/api/settings/category-order");
-    void loadCategoryOrder();
-  });
-
-  const applyOrder = useCallback((order: string[]) => {
-    setSavedOrder(order);
-    setDraftOrder(order);
-  }, []);
+  const applyOrder = useCallback(
+    (order: string[]) => {
+      setSavedOrder(order);
+      setDraftOrder(order);
+    },
+    [setSavedOrder]
+  );
 
   const beginReorder = useCallback(() => {
     setDraftOrder(mergedSavedOrder);
-    setError(null);
+    setSaveError(null);
     setIsReorderMode(true);
   }, [mergedSavedOrder]);
 
   const cancelReorder = useCallback(() => {
     setDraftOrder(mergedSavedOrder);
-    setError(null);
+    setSaveError(null);
     setIsReorderMode(false);
   }, [mergedSavedOrder]);
 
@@ -179,14 +158,14 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
       const response = await updateCategoryOrder({ order: nextOrder });
       setSavedOrder(response.order);
       setDraftOrder(response.order);
-      setError(null);
+      setSaveError(null);
       setIsReorderMode(false);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save category order");
+    } catch (failure) {
+      setSaveError(failure instanceof Error ? failure.message : "Failed to save category order");
     } finally {
       setSaving(false);
     }
-  }, [mergedDraftOrder]);
+  }, [mergedDraftOrder, setSavedOrder]);
 
   return {
     draftOrder: mergedDraftOrder,

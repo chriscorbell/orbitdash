@@ -5,7 +5,7 @@ import {
   snapshotsResponseSchema,
   type ImportSummary,
   type Snapshot,
-} from "@shared/schemas";
+} from "@/lib/api/schemas";
 
 export const BACKUP_EXPORT_URL = buildApiUrl("/api/backup/export");
 

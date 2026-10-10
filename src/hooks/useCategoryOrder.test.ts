@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createQueryWrapper } from "@/test/query";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import * as settingsApi from "@/lib/api/settings";
 import type { Service } from "@shared/types";
@@ -64,7 +65,7 @@ describe("useCategoryOrder", () => {
   it("loads category order and exposes visible categories", async () => {
     fetchCategoryOrderMock.mockResolvedValue({ order: ["Media"] });
 
-    const { result } = renderHook(() => useCategoryOrder(services));
+    const { result } = renderHook(() => useCategoryOrder(services), { wrapper: createQueryWrapper().wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -79,7 +80,7 @@ describe("useCategoryOrder", () => {
     fetchCategoryOrderMock.mockResolvedValue({ order: ["Media", "Infra"] });
     updateCategoryOrderMock.mockResolvedValue({ order: ["Infra", "Media"] });
 
-    const { result } = renderHook(() => useCategoryOrder(services));
+    const { result } = renderHook(() => useCategoryOrder(services), { wrapper: createQueryWrapper().wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -106,7 +107,7 @@ describe("useCategoryOrder", () => {
     fetchCategoryOrderMock.mockRejectedValueOnce(new Error("load failed"));
     updateCategoryOrderMock.mockRejectedValueOnce(new Error("save failed"));
 
-    const { result } = renderHook(() => useCategoryOrder(services));
+    const { result } = renderHook(() => useCategoryOrder(services), { wrapper: createQueryWrapper().wrapper });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

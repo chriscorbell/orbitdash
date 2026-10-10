@@ -1,11 +1,11 @@
-import { requestJsonCached } from "@/lib/api/client";
+import { requestJson } from "@/lib/api/client";
 import { eventStream } from "@/lib/live/event-stream";
-import { metricSampleSchema, metricsResponseSchema } from "@shared/schemas";
-import type { MetricSample, MetricsResponse } from "@shared/types";
+import { metricSampleSchema, metricsResponseSchema } from "@/lib/api/schemas";
+import type { MetricSample } from "@shared/types";
 
 /** Fetch recent metric samples */
 export async function fetchMetrics(windowSec: number = 30): Promise<MetricSample[]> {
-  const data = await requestJsonCached<MetricsResponse>(
+  const data = await requestJson(
     `/api/metrics?window=${windowSec}`,
     {},
     "Failed to fetch metrics",

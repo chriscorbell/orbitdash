@@ -1,25 +1,13 @@
-import { invalidateRequestCache, requestJson } from "@/lib/api/client";
-import { renameCategoryResponseSchema } from "@shared/schemas";
+import { jsonBody, requestJson } from "@/lib/api/client";
+import { renameCategoryResponseSchema } from "@/lib/api/schemas";
 import type { RenameCategoryPayload, RenameCategoryResponse } from "@shared/types";
 
-/** Rename a category across all services that use it */
-export async function renameCategory(
-  payload: RenameCategoryPayload
-): Promise<RenameCategoryResponse> {
-  const response = await requestJson<RenameCategoryResponse>(
+/** Rename a category across all services that use it (renaming onto another merges them) */
+export function renameCategory(payload: RenameCategoryPayload): Promise<RenameCategoryResponse> {
+  return requestJson(
     "/api/categories/rename",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
+    jsonBody("POST", payload),
     "Failed to rename category",
     renameCategoryResponseSchema
   );
-
-  invalidateRequestCache("/api/services");
-  invalidateRequestCache("/api/settings/category-order");
-  return response;
 }

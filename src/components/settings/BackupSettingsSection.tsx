@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BACKUP_EXPORT_URL, createSnapshot, fetchSnapshots, importBackup } from "@/lib/api/backup";
 import { formatRelativeAge } from "@/lib/format";
-import type { Snapshot } from "@shared/schemas";
+import type { Snapshot } from "@/lib/api/schemas";
 
 interface PendingImport {
   contents: string;
