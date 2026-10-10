@@ -1,6 +1,7 @@
 import { Cpu, HardDrive, MemoryStick, type LucideIcon } from "lucide-react";
 import { Sparkline } from "@/components/stats/Sparkline";
 import { useMetrics } from "@/hooks/useMetrics";
+import { useTweenedNumber } from "@/hooks/useTweenedNumber";
 import { formatPercent } from "@/lib/format";
 import { MAX_POINTS } from "@/lib/live/metrics-store";
 import { sparklineCeiling } from "@/lib/sparkline";
@@ -34,6 +35,8 @@ function StatTile({
   value: number | null;
 }) {
   const tone = toneFor(value);
+  // The readout glides between samples; the label keeps the exact value for screen readers.
+  const shown = useTweenedNumber(value);
   return (
     <div className="min-w-0 rounded-xl border bg-card px-3 pt-2.5 pb-2 shadow-xs sm:px-3.5">
       <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -48,7 +51,7 @@ function StatTile({
           )}
           aria-label={`${label} ${value === null ? "unavailable" : `${value.toFixed(1)} percent`}`}
         >
-          {value === null ? "–" : formatPercent(value)}
+          {shown === null ? "–" : formatPercent(shown)}
           <span className="ml-px text-xs font-medium text-muted-foreground">%</span>
         </span>
         <Sparkline

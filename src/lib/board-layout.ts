@@ -66,15 +66,15 @@ export function distributeIntoColumns<T>(
 
 /** Cards fill each row of a category in the rows layout (and when nothing is categorized). */
 export const ROW_GRID: Record<CardDensity, string> = {
-  compact: "grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2",
-  comfortable: "grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3",
+  compact: "grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]",
+  comfortable: "grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] sm:gap-3",
   tiles: "grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-3",
 };
 
-/** Cards stack inside a category column in the columns layout. */
+/** Cards stack inside a category column in the columns layout; phones get two per row. */
 export const COLUMN_STACK: Record<CardDensity, string> = {
-  compact: "flex flex-col gap-1.5",
-  comfortable: "flex flex-col gap-2",
+  compact: "grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:gap-1.5",
+  comfortable: "grid grid-cols-2 gap-2 sm:flex sm:flex-col",
   tiles: "grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2",
 };
 

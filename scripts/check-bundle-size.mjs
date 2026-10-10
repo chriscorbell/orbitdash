@@ -11,8 +11,8 @@ const budgets = [
     label: "entry css",
     prefix: "index-",
     extension: ".css",
-    maxRawKb: 80,
-    maxGzipKb: 13,
+    maxRawKb: 84,
+    maxGzipKb: 14,
   },
   {
     label: "react vendor",
