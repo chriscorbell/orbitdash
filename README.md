@@ -503,14 +503,41 @@ URL, with a severity tag ntfy shows as an emoji, then your own tags:
 The server's URL (`https://push.example.com`, or with the path Gotify is served under) and an
 application token from Apps → Create Application. The token is sent in the `X-Gotify-Key` header.
 The priority (0 to 10, 8 by default) applies to outages and alerts; everything else stays at 5 or
-below.
+below. Messages go to `POST <server>/message`; a tap on the notification opens the service:
+
+```json
+{
+  "title": "Jellyfin is back up",
+  "message": "Down for 12 min, from 14:02 to 14:14.",
+  "priority": 5,
+  "extras": {
+    "client::display": { "contentType": "text/plain" },
+    "client::notification": { "click": { "url": "http://10.0.0.20:8096/" } }
+  }
+}
+```
 
 ### Discord
 
 In the Discord channel's settings: Integrations → Webhooks → New Webhook → Copy Webhook URL, and
 paste it as the channel's webhook URL. Messages are embeds colored by severity (red for down, amber
 for an alert, green when resolved, blue for tests) with mentions turned off, so a service name can
-never ping anyone.
+never ping anyone:
+
+```json
+{
+  "allowed_mentions": { "parse": [] },
+  "embeds": [
+    {
+      "title": "CPU above 90% for 5 min",
+      "description": "Now 97%, peak 98%. Since 14:02.",
+      "color": 16096779,
+      "timestamp": "2026-10-10T14:07:00.000Z",
+      "footer": { "text": "Homelab" }
+    }
+  ]
+}
+```
 
 ### Webhook
 
