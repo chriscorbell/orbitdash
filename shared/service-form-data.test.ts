@@ -175,6 +175,54 @@ describe("service form data helpers", () => {
     });
   });
 
+  it("round-trips status check settings", () => {
+    const formData = buildServiceFormData(
+      {
+        name: "Proxmox",
+        url: "https://pve.lan:8006",
+        check_enabled: true,
+        check_method: "tcp",
+        check_target: "pve.lan:8006",
+        check_interval: 30,
+        check_ignore_tls: false,
+      },
+      { includeDefaultOpenInNewTab: true }
+    );
+
+    expect(createServicePayloadFromFormData(formData)).toEqual({
+      name: "Proxmox",
+      url: "https://pve.lan:8006",
+      description: null,
+      category: null,
+      icon_url: null,
+      open_in_new_tab: true,
+      check_enabled: true,
+      check_method: "tcp",
+      check_target: "pve.lan:8006",
+      check_interval: 30,
+      check_ignore_tls: false,
+    });
+  });
+
+  it("sends an empty check target on update so it can be cleared", () => {
+    const formData = buildServiceFormData({ check_target: "" }, { allowEmptyFields: true });
+    expect(formData.get(SERVICE_FORM_DATA_KEYS.checkTarget)).toBe("");
+    expect(formData.get(SERVICE_FORM_DATA_KEYS.checkInterval)).toBeNull();
+    expect(updateServicePayloadFromFormData(formData)).toEqual({ check_target: null });
+  });
+
+  it("turns an unreadable check interval into NaN so validation rejects it", () => {
+    for (const value of ["", "soon"]) {
+      const formData = new FormData();
+      formData.set(SERVICE_FORM_DATA_KEYS.checkInterval, value);
+      formData.set(SERVICE_FORM_DATA_KEYS.checkIgnoreTls, "false");
+      expect(updateServicePayloadFromFormData(formData)).toEqual({
+        check_interval: Number.NaN,
+        check_ignore_tls: false,
+      });
+    }
+  });
+
   it("preserves an explicit true open-in-new-tab update value", () => {
     const formData = new FormData();
     formData.set(SERVICE_FORM_DATA_KEYS.openInNewTab, "true");

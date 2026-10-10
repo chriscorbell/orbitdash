@@ -20,6 +20,12 @@ export const serviceSchema = z.object({
   open_in_new_tab: z.boolean(),
   created_at: z.number(),
   updated_at: z.number(),
+  // Defaults read responses from before status checks (the offline worker's cache) as checks off.
+  check_enabled: z.boolean().default(false),
+  check_method: z.enum(["http", "tcp"]).default("http"),
+  check_target: z.string().nullable().default(null),
+  check_interval: z.number().default(60),
+  check_ignore_tls: z.boolean().default(false),
 });
 
 export const categorySchema = z.object({

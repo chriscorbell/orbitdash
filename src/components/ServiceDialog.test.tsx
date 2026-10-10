@@ -56,6 +56,11 @@ const baseService: Service = {
   open_in_new_tab: true,
   created_at: 1,
   updated_at: 1,
+  check_enabled: false,
+  check_method: "http",
+  check_target: null,
+  check_interval: 60,
+  check_ignore_tls: false,
 };
 
 describe("ServiceDialog", () => {
@@ -99,6 +104,11 @@ describe("ServiceDialog", () => {
         icon_url: "https://example.com/icon.svg",
         category: null,
         open_in_new_tab: true,
+        check_enabled: false,
+        check_method: "http",
+        check_target: null,
+        check_interval: 60,
+        check_ignore_tls: false,
       },
       undefined,
       false
@@ -314,6 +324,94 @@ describe("ServiceDialog", () => {
       expect(accept.split(",")).toContain(type);
     }
     expect(screen.getByText("Icon")).toBeTruthy();
+  });
+
+  describe("status check", () => {
+    function fillRequired(url = "https://jellyfin.example.com") {
+      fireEvent.change(screen.getByLabelText("Name *"), { target: { value: "Jellyfin" } });
+      fireEvent.change(screen.getByLabelText("URL *"), { target: { value: url } });
+    }
+
+    it("is off for a new service and opens its settings when switched on", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      render(
+        <ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={onSubmit} />
+      );
+      fillRequired("nas.lan:8096");
+
+      const toggle = screen.getByRole("switch", { name: "Status check" });
+      expect(toggle.getAttribute("aria-checked")).toBe("false");
+      expect(screen.queryByLabelText("Check URL")).toBeNull();
+
+      await user.click(toggle);
+      // The placeholder shows what gets checked when the field is left empty.
+      expect(screen.getByLabelText("Check URL").getAttribute("placeholder")).toBe(
+        "http://nas.lan:8096/"
+      );
+      expect(screen.getByRole("combobox", { name: "Method" }).textContent).toContain("HTTP");
+      expect(screen.getByRole("combobox", { name: "Every" }).textContent).toContain("1 min");
+
+      await user.click(screen.getByRole("switch", { name: "Allow self-signed certificates" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add service" }));
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({
+        check_enabled: true,
+        check_method: "http",
+        check_target: null,
+        check_interval: 60,
+        check_ignore_tls: true,
+      });
+    });
+
+    it("edits a TCP check and validates its address before saving", async () => {
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      render(
+        <ServiceDialog
+          open
+          onOpenChange={vi.fn()}
+          service={{
+            ...baseService,
+            check_enabled: true,
+            check_method: "tcp",
+            check_target: "nas.lan:22",
+            check_interval: 120,
+          }}
+          categoryOptions={["Monitoring"]}
+          onSubmit={onSubmit}
+        />
+      );
+
+      const address = screen.getByLabelText("Host and port");
+      expect((address as HTMLInputElement).value).toBe("nas.lan:22");
+      expect(address.getAttribute("placeholder")).toBe("example.com:443");
+      expect(screen.getByRole("combobox", { name: "Every" }).textContent).toContain("2 min");
+      expect(screen.queryByRole("switch", { name: "Allow self-signed certificates" })).toBeNull();
+
+      fireEvent.change(address, { target: { value: "nas.lan" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      await screen.findByText("check address must be a host and port, like nas.lan:22");
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      fireEvent.change(address, { target: { value: " NAS.lan:2222 " } });
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({
+        check_method: "tcp",
+        check_target: "nas.lan:2222",
+        check_interval: 120,
+      });
+    });
+
+    it("suggests example targets until the link URL is usable", async () => {
+      const user = userEvent.setup();
+      render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={vi.fn()} />);
+      await user.click(screen.getByRole("switch", { name: "Status check" }));
+      expect(screen.getByLabelText("Check URL").getAttribute("placeholder")).toBe(
+        "https://example.com/health"
+      );
+    });
   });
 
   it("shows where a downloaded icon came from until the icon is changed", () => {

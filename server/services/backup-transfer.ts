@@ -3,6 +3,13 @@ import path from "path";
 import { z } from "zod";
 import { CATEGORY_ORDER_SETTING_KEY, mergeCategoryOrder } from "@shared/category-order";
 import { WALLPAPER_FILENAME_PATTERN } from "@shared/dashboard-settings";
+import {
+  CHECK_INTERVAL_MAX_S,
+  CHECK_INTERVAL_MIN_S,
+  DEFAULT_CHECK_CONFIG,
+  normalizeCheckTarget,
+  STATUS_CHECK_METHODS,
+} from "@shared/status";
 import { normalizeServiceUrl } from "@shared/urls";
 import { apiFail, apiOk, type ApiResult } from "../api-response";
 import { getDataDir, getDb } from "../db";
@@ -29,16 +36,40 @@ const serviceFields = {
   open_in_new_tab: z.boolean(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
+  // Status checks came later too; a backup without them imports with checks off.
+  check_enabled: z.boolean().optional(),
+  check_method: z.enum(STATUS_CHECK_METHODS).optional(),
+  check_target: z.string().nullable().optional(),
+  check_interval: z.number().int().min(CHECK_INTERVAL_MIN_S).max(CHECK_INTERVAL_MAX_S).optional(),
+  check_ignore_tls: z.boolean().optional(),
 };
 
-/** Version 1 (orbitdash 0.2): categories were a free-text name on each service. */
-const backupServiceV1Schema = z.object({ ...serviceFields, category: z.string().nullable() });
+/** A check target that doesn't suit its method would only ever fail, so the file is rejected. */
+function rejectInvalidCheckTarget(
+  service: { check_method?: "http" | "tcp"; check_target?: string | null; name: string },
+  ctx: z.RefinementCtx
+) {
+  const target = normalizeCheckTarget(
+    service.check_method ?? DEFAULT_CHECK_CONFIG.check_method,
+    service.check_target
+  );
+  if (!target.ok) {
+    ctx.addIssue({ code: "custom", message: `${service.name}: ${target.error}` });
+  }
+}
 
-const backupServiceSchema = z.object({
-  ...serviceFields,
-  category_id: z.string().nullable(),
-  position: z.number().int(),
-});
+/** Version 1 (orbitdash 0.2): categories were a free-text name on each service. */
+const backupServiceV1Schema = z
+  .object({ ...serviceFields, category: z.string().nullable() })
+  .superRefine(rejectInvalidCheckTarget);
+
+const backupServiceSchema = z
+  .object({
+    ...serviceFields,
+    category_id: z.string().nullable(),
+    position: z.number().int(),
+  })
+  .superRefine(rejectInvalidCheckTarget);
 
 const backupCategorySchema = z.object({
   id: z.string().trim().min(1, "category id is required"),
@@ -136,6 +167,11 @@ interface ServiceRow {
   open_in_new_tab: number;
   created_at: number;
   updated_at: number;
+  check_enabled: number;
+  check_method: "http" | "tcp";
+  check_target: string | null;
+  check_interval: number;
+  check_ignore_tls: number;
 }
 
 function readAppVersion(): string | undefined {
@@ -152,7 +188,8 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
   const rows = db
     .prepare(
       `SELECT id, name, url, description, icon, icon_source_url, category_id, position,
-              open_in_new_tab, created_at, updated_at
+              open_in_new_tab, created_at, updated_at,
+              check_enabled, check_method, check_target, check_interval, check_ignore_tls
        FROM services ORDER BY category_id ASC, position ASC, name ASC`
     )
     .all() as ServiceRow[];
@@ -189,7 +226,12 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
     exportedAt: now.toISOString(),
     appVersion: readAppVersion(),
     categories,
-    services: rows.map((row) => ({ ...row, open_in_new_tab: Boolean(row.open_in_new_tab) })),
+    services: rows.map((row) => ({
+      ...row,
+      open_in_new_tab: Boolean(row.open_in_new_tab),
+      check_enabled: Boolean(row.check_enabled),
+      check_ignore_tls: Boolean(row.check_ignore_tls),
+    })),
     settings: Object.fromEntries(settings.map((setting) => [setting.key, setting.value])),
     icons,
     wallpapers,
@@ -300,8 +342,9 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
       "INSERT INTO categories (id, name, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
     );
     const insertService = db.prepare(
-      `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at,
+                             check_enabled, check_method, check_target, check_interval, check_ignore_tls)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
 
@@ -323,6 +366,9 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
 
       for (const service of document.services) {
         const icon = service.icon && icons.has(service.icon) ? service.icon : null;
+        const checkMethod = service.check_method ?? DEFAULT_CHECK_CONFIG.check_method;
+        // The schema already rejected targets that don't suit their method; this normalizes.
+        const checkTarget = normalizeCheckTarget(checkMethod, service.check_target);
         insertService.run(
           service.id,
           service.name,
@@ -334,7 +380,12 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
           service.position,
           service.open_in_new_tab ? 1 : 0,
           service.created_at,
-          service.updated_at
+          service.updated_at,
+          service.check_enabled ? 1 : 0,
+          checkMethod,
+          checkTarget.ok ? checkTarget.value : null,
+          service.check_interval ?? DEFAULT_CHECK_CONFIG.check_interval,
+          service.check_ignore_tls ? 1 : 0
         );
       }
 

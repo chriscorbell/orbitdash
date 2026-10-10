@@ -106,6 +106,18 @@ describe("event stream", () => {
     expect(FakeEventSource.instances).toHaveLength(1);
   });
 
+  it("subscribes to service statuses on the status topic", async () => {
+    const stream = createStream();
+    const onStatus = vi.fn();
+    stream.subscribe("config", () => {});
+    stream.subscribe("status", onStatus);
+    await flush();
+
+    expect(current().url).toBe("/api/events?topics=config,status");
+    current().emit("status", JSON.stringify({ type: "status", id: "svc", status: null }));
+    expect(onStatus).toHaveBeenCalledWith({ type: "status", id: "svc", status: null });
+  });
+
   it("routes events to their topic's listeners and ignores malformed data", async () => {
     const stream = createStream();
     const onConfig = vi.fn();
