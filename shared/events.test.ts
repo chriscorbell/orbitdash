@@ -24,6 +24,7 @@ describe("parseEventTopics", () => {
 
   it("includes the status topic among all topics", () => {
     expect(EVENT_TOPICS).toContain("status");
+    expect(EVENT_TOPICS).toContain("containers");
     expect(TOPIC_BY_EVENT_TYPE.status).toBe("status");
   });
 });
@@ -43,6 +44,8 @@ describe("configScopeForMutation", () => {
     expect(configScopeForMutation("/api/settings")).toBe("settings");
     expect(configScopeForMutation("/api/settings/devices/abc")).toBe("settings");
     expect(configScopeForMutation("/api/backup/import")).toBe("all");
+    expect(configScopeForMutation("/api/widgets/agenda/feeds/abc")).toBe("settings");
+    expect(configScopeForMutation("/api/widgets/weather")).toBeNull();
     expect(configScopeForMutation("/api/import/apply")).toBe("layout");
     expect(configScopeForMutation("/api/import/preview")).toBeNull();
   });

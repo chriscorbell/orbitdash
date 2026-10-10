@@ -43,36 +43,39 @@ vi.mock("@/components/settings/settings-preload", () => ({
   preloadStatsPage: vi.fn(),
   loadEditableBoard: async () => ({ EditableBoard: () => null }),
   preloadCommandPalette: vi.fn(),
-  loadCommandPalette: async () => ({
-    CommandPalette: ({
-      open,
-      initialQuery,
-      actions,
-      onOpenChange,
-    }: {
-      open: boolean;
-      initialQuery: string;
-      actions: Array<{ id: string; label: string; run: () => void }>;
-      onOpenChange: (open: boolean) => void;
-    }) =>
-      open ? (
-        <div role="dialog" aria-label="Palette">
-          <span data-testid="palette-query">{initialQuery}</span>
-          {actions.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => {
-                onOpenChange(false);
-                action.run();
-              }}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      ) : null,
-  }),
+  loadCommandPalette: async () => {
+    const { buildPaletteActions } = await import("@/components/palette/palette-actions");
+    return {
+      CommandPalette: ({
+        open,
+        initialQuery,
+        context,
+        onOpenChange,
+      }: {
+        open: boolean;
+        initialQuery: string;
+        context: Parameters<typeof buildPaletteActions>[0];
+        onOpenChange: (open: boolean) => void;
+      }) =>
+        open ? (
+          <div role="dialog" aria-label="Palette">
+            <span data-testid="palette-query">{initialQuery}</span>
+            {buildPaletteActions(context).map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  action.run();
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null,
+    };
+  },
   loadStatsPage: async () => ({
     StatsPage: ({ themeKey }: { themeKey: string }) => (
       <div data-testid="stats-page">{themeKey}</div>

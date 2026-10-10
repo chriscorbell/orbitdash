@@ -126,6 +126,8 @@ export interface SystemInfo {
   osName: string | null; // PRETTY_NAME from the host's os-release
   platform: string;
   uptimeSeconds: number;
+  /** A Docker endpoint is set up and answering. */
+  docker: boolean;
 }
 
 /** How a status check reaches a service: an HTTP request, or a plain TCP connect. */
@@ -328,6 +330,65 @@ export interface IconLibraryResponse {
   updatedAt: number; // when the library index was fetched, ms since epoch
 }
 
+/** Response shape for GET /api/widgets/weather (from Open-Meteo) */
+export interface WeatherReport {
+  timezone: string;
+  current: {
+    temperature: number;
+    apparentTemperature: number;
+    /** WMO weather interpretation code. */
+    weatherCode: number;
+    isDay: boolean;
+    windSpeed: number;
+    humidity: number;
+  };
+  /** Today first, as dates in the location's own time zone. */
+  daily: Array<{
+    date: string;
+    weatherCode: number;
+    max: number;
+    min: number;
+    precipitationChance: number | null;
+  }>;
+  units: { temperature: string; windSpeed: string };
+  fetchedAt: number;
+}
+
+/** One match from GET /api/widgets/geocode */
+export interface GeocodeResult {
+  id: number;
+  name: string;
+  region: string | null;
+  country: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+/** A calendar feed as the browser sees it: the secret URL stays on the server. */
+export interface AgendaFeed {
+  id: string;
+  name: string;
+  host: string;
+}
+
+/** One occurrence of a calendar event. All-day events use dates, others ISO timestamps. */
+export interface AgendaEvent {
+  id: string;
+  feedId: string;
+  title: string;
+  location: string | null;
+  allDay: boolean;
+  start: string;
+  end: string;
+}
+
+/** Response shape for GET /api/widgets/agenda */
+export interface AgendaResponse {
+  events: AgendaEvent[];
+  /** Feeds that couldn't be loaded this time, with a short reason. */
+  errors: Array<{ feedId: string; name: string; error: string }>;
+}
+
 /** One service in an import preview, ready to be picked and applied. */
 export interface ImportPreviewService {
   name: string;
@@ -462,4 +523,60 @@ export interface NotificationTestResult {
   ok: boolean;
   error: string | null; // may include the receiving service's own short explanation
   delivery: NotificationDelivery | null; // null for a channel that isn't saved yet
+}
+
+export type ContainerState =
+  "created" | "running" | "paused" | "restarting" | "removing" | "exited" | "dead";
+
+/** A Docker container as the dashboard shows it. */
+export interface ContainerInfo {
+  id: string; // short id
+  name: string;
+  image: string;
+  state: ContainerState;
+  /** Docker's own summary, e.g. "Up 3 hours (healthy)" or "Exited (0) 2 days ago". */
+  status: string;
+  health: "healthy" | "unhealthy" | "starting" | null;
+  createdAt: number; // ms
+  /** Published ports, deduplicated across IPv4 and IPv6. */
+  ports: Array<{ privatePort: number; publicPort: number; protocol: "tcp" | "udp" | "sctp" }>;
+  composeProject: string | null;
+  cpuPercent: number | null; // share of the whole host, 0 to 100
+  memoryBytes: number | null;
+  memoryLimitBytes: number | null;
+}
+
+/** Response shape for GET /api/docker */
+export interface DockerSnapshot {
+  /** Whether a Docker endpoint is configured or a socket is mounted. */
+  configured: boolean;
+  available: boolean;
+  error: string | null;
+  containers: ContainerInfo[];
+  updatedAt: number | null;
+}
+
+/** Response shape for POST /api/service-tools/inspect: what a link's page says about itself. */
+export interface ServiceInspection {
+  /** The link as it will be saved. */
+  url: string;
+  reachable: boolean;
+  /** Why the page couldn't be read, e.g. "Connection refused". */
+  error: string | null;
+  /** A name for the service from the page's metadata or title. */
+  name: string | null;
+  /** The page's best icon (apple-touch-icon, a large icon, or /favicon.ico). */
+  iconUrl: string | null;
+  /** The page only answered once its certificate was accepted as self-signed. */
+  selfSigned: boolean;
+}
+
+/** Response shape for POST /api/service-tools/test: one check, run now. */
+export interface ServiceTestResult {
+  /** What was checked: a URL or host:port. */
+  target: string;
+  state: "up" | "degraded" | "down";
+  latencyMs: number | null;
+  statusCode: number | null;
+  error: string | null;
 }

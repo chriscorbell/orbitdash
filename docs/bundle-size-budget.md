@@ -26,7 +26,7 @@ The entry chunk then holds only app code, so a typical app change invalidates ab
 brotli instead of the vendor code too.
 
 `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*`,
-`ImportDialog-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with
+`ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`, `ServiceStatus-*` (status dots and details, loaded by the first card with
 checks on), `SignInScreen-*` (only shown when auth is on), `toaster-*` (loaded with the first
 toast or once the page is idle) and `pwa-*` (service worker setup, imported after the page has
 loaded) must never be loaded up front. If React lands in one of them again,
@@ -39,7 +39,7 @@ happens.
 | Asset group           | Budget raw | Budget gzip | Current baseline                             |
 | --------------------- | ---------: | ----------: | -------------------------------------------- |
 | `index-*.js`          |      68 kB |       23 kB | about 66 kB raw / 22.8 kB gzip / 20.1 kB br  |
-| `index-*.css`         |      90 kB |       15 kB | about 90 kB raw / 14.6 kB gzip / 12.2 kB br  |
+| `index-*.css`         |      92 kB |       15 kB | about 90 kB raw / 14.6 kB gzip / 12.2 kB br  |
 | `react-vendor-*.js`   |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
 | `vendor-*.js`         |      75 kB |       23 kB | about 65 kB raw / 19.6 kB gzip / 17.5 kB br  |
 | `validation-*.js`     |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
@@ -49,6 +49,8 @@ happens.
 | `StatsPage-*.js`      |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
 | `CommandPalette-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
 | `ImportDialog-*.js`   |      16 kB |        6 kB | about 12 kB raw / 4.4 kB gzip                |
+| `Widgets-*.js`        |      14 kB |        5 kB | about 10 kB raw / 3.6 kB gzip                |
+| `WidgetSettings-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.5 kB gzip                 |
 | `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
 | `ServiceStatus-*.js`  |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip / 2.6 kB br     |
 | `SignInScreen-*.js`   |       6 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
@@ -76,11 +78,26 @@ The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
 - `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`,
-  `StatsPage-*`, `CommandPalette-*`, `ImportDialog-*`, `ServiceStatus-*`, `SignInScreen-*`,
+  `StatsPage-*`, `CommandPalette-*`, `ImportDialog-*`, `Widgets-*`, `WidgetSettings-*`,
+  `ServiceStatus-*`, `SignInScreen-*`,
   `toaster-*` or `pwa-*` chunk
 
 ## History
 
+- Clock, weather and agenda widgets load in a lazy `Widgets-*` chunk (about 3.6 kB gzip) only once
+  one is turned on, and their settings in `WidgetSettings-*` (about 2.5 kB gzip) as the settings
+  dialog opens. The entry gained the widgets settings section and the clock format. The event
+  stream module had also been folded into the entry along with `lib/format.ts` (both always loaded
+  at startup, previously as a separate `event-stream-*` chunk), so the event stream got its own
+  chunk group again. To stay within the budget, four things left the entry: the one-time move of
+  pre-0.3 browser preferences (`lib/legacy-layout.ts`, loaded only where old keys exist), the
+  strip's alert list (loaded once an alert fires), the command palette's action list (now built
+  inside the `CommandPalette-*` chunk from a small context the app passes) and the icon pixel
+  analysis behind the light and dark plates (`lib/icon-tone-analysis.ts`, loaded after first paint
+  with the first icon that has no cached tone). The entry went from about 22.8 kB to 22.2 kB gzip.
+  The widgets reuse existing utilities wherever they can, but together with optional auth the
+  shared CSS reached 90.2 kB raw, so its raw budget went from 90 kB to 92 kB. Its gzip budget stays
+  at 15 kB (about 14.6 kB now).
 - Optional auth added about 1.2 kB gzip to the entry: the session check that decides between the
   dashboard and the sign-in screen, the 401 handling in the API client, and the guest read-only
   state. The sign-in screen itself is the lazy `SignInScreen-*` chunk (about 1.9 kB gzip), loaded

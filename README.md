@@ -49,9 +49,13 @@ version before creating the matching tag.
 - Live CPU, memory and disk usage in a compact strip with sparklines
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
+- Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
+- Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
+- An optional Prometheus `/metrics` endpoint with host, status check and container metrics
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
+- Paste a link when adding a service and its name and icon fill in from the page; a Test button checks it before saving
 - A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
 - UI-native service management (no config file needed)
 - Categories as balanced columns or stacked rows, with compact, card or tile styles
@@ -382,6 +386,45 @@ If you only need the host's network interfaces, `network_mode: host` works witho
 Docker then ignores `ports:`, and the dashboard listens on the host's port `3000` (change it with
 `PORT`).
 
+## Docker Containers
+
+With access to Docker, orbitdash shows a Containers tile in the stats strip (running out of total,
+plus anything unhealthy, restarting or stopped) and a Containers list on the Stats page with each
+container's state, health, CPU (as a share of the whole host), memory and published ports. Ports
+link to the same host the dashboard was opened on. Updates arrive within a second of Docker
+reporting a change; CPU and memory refresh every 15 seconds. orbitdash only ever reads from
+Docker.
+
+The safest setup is a [docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy)
+that only allows reading containers, so orbitdash never touches the socket itself:
+
+```yaml
+services:
+  orbitdash:
+    image: ghcr.io/chriscorbell/orbitdash:latest
+    environment:
+      - ORBITDASH_DOCKER_HOST=tcp://dockerproxy:2375
+    # ...ports and volumes as above
+
+  dockerproxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1 # list and inspect containers
+      - EVENTS=1 # live updates (on by default)
+      - POST=0 # nothing can be changed
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+Mounting the socket straight into orbitdash also works (`- /var/run/docker.sock:/var/run/docker.sock`),
+but it gives the container full control of Docker: `:ro` on a socket doesn't stop writes. The
+container runs as uid 1000, which also needs to be in the socket's group (`group_add:` with the
+group id from `stat -c %g /var/run/docker.sock`). orbitdash finds a socket at
+`/var/run/docker.sock` on its own; `ORBITDASH_DOCKER_HOST` (or `DOCKER_HOST`) takes
+`tcp://host:port` or `unix:///path/to/socket`, and `ORBITDASH_DOCKER_HOST=off` turns Docker
+support off.
+
 ## Status Checks
 
 Status checks are off until you turn one on in a service's settings, so upgrading never makes
@@ -403,6 +446,49 @@ spread out so they don't all fire together.
 Results are kept for 24 hours and hourly totals for 30 days. `GET /api/status` returns the current
 status of every checked service, `GET /api/events?topics=status` streams each result, and
 `GET /api/status/:id/history?range=24h|30d` returns the uptime history.
+
+## Widgets
+
+Settings → Widgets turns on any of three widgets, shown as a row above the board or as small
+pills in the header:
+
+- **Clock**: the time and date in large type, with an optional greeting. The time format (auto,
+  12-hour or 24-hour) also applies to the header clock.
+- **Weather**: current conditions and a five-day forecast from
+  [Open-Meteo](https://open-meteo.com/), which needs no account or API key. Search for a place by
+  name or postal code; °C or °F. The server fetches the forecast and caches it for ten minutes.
+- **Agenda**: upcoming events from one or more iCal links (`https://` or `webcal://`, for example
+  a Google, iCloud, Fastmail or Nextcloud calendar's secret address), for today or the next 3, 7
+  or 14 days. Recurring events, moved and cancelled instances, and all-day events are handled.
+
+Calendar links are often secret, so they stay on the server: the browser only ever sees each
+calendar's name and host, plus event titles, times and locations. The server checks a link when it
+is added, refreshes each calendar every 15 minutes, and reports a calendar that stops loading
+without hiding the others. With [authentication](#authentication) on, guests can see the widgets
+but only a signed-in user can add or remove calendars. Calendar links are included in backups.
+
+## Prometheus
+
+Set `ORBITDASH_PROMETHEUS=true` to serve metrics at `/metrics` in Prometheus text format: CPU
+(total and per core), load, memory and swap, each filesystem, disk and network rates,
+temperatures, firing alerts, each service's status check (`orbitdash_service_up`,
+`orbitdash_service_slow`, `orbitdash_service_response_milliseconds`, labelled with the service and
+category names) and, with Docker set up, containers by state and each container's running,
+health, CPU and memory. It's off by default.
+
+Set `ORBITDASH_PROMETHEUS_TOKEN` to require `Authorization: Bearer <token>`. With
+[authentication](#authentication) on, the token is required: the endpoint stays closed until one is
+set, since a scraper can't sign in.
+
+```yaml
+scrape_configs:
+  - job_name: orbitdash
+    metrics_path: /metrics
+    authorization:
+      credentials: your-token
+    static_configs:
+      - targets: ["orbitdash:3000"]
+```
 
 ## Health Checks
 

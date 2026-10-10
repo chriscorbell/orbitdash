@@ -1,13 +1,8 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  classifyIconPixels,
-  getCachedIconTone,
-  measureIconTone,
-  perceivedLightness,
-  resetIconTonesForTesting,
-} from "@/lib/icon-tone";
+import { getCachedIconTone, measureIconTone, resetIconTonesForTesting } from "@/lib/icon-tone";
+import { classifyIconPixels, perceivedLightness } from "@/lib/icon-tone-analysis";
 
 /** RGBA data for `total` pixels, the first `filled` of which have the given color. */
 function pixels(total: number, filled: number, color: [number, number, number]) {
