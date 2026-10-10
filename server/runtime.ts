@@ -3,6 +3,7 @@ import { cancelAllJobs, scheduleJob } from "./jobs";
 import { startCollection, stopCollection } from "./metrics";
 import { writeLog } from "./observability";
 import { runNightlySnapshotIfDue } from "./services/backup-schedule";
+import { purgeTrash } from "./services/service-trash";
 import { cleanupOrphanIcons } from "./services/icon-storage";
 
 export interface InitializeServerOptions {
@@ -40,6 +41,10 @@ function startBackgroundJobs() {
   scheduleJob("nightly-snapshot", () => void runNightlySnapshotIfDue(), {
     initialDelayMs: 60_000,
     intervalMs: HOUR_MS,
+  });
+  scheduleJob("purge-trash", () => void purgeTrash(), {
+    initialDelayMs: 30_000,
+    intervalMs: 5 * 60 * 1000,
   });
 }
 

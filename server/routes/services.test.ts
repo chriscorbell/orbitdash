@@ -185,7 +185,9 @@ describe("services routes", () => {
     });
 
     expect(deleteResponse.status).toBe(200);
-    await expect(deleteResponse.json()).resolves.toEqual({ success: true });
+    const body = (await deleteResponse.json()) as { success: boolean; restorableUntil: number };
+    expect(body.success).toBe(true);
+    expect(body.restorableUntil).toBeGreaterThan(Date.now());
 
     const listResponse = await app.request("/api/services");
     await expect(listResponse.json()).resolves.toEqual([]);

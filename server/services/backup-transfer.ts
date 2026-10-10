@@ -289,6 +289,7 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
 
     db.transaction(() => {
       db.exec("DELETE FROM services");
+      db.exec("DELETE FROM service_trash");
       db.exec("DELETE FROM categories");
       db.exec("DELETE FROM settings");
 

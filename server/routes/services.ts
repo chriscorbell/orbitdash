@@ -9,6 +9,7 @@ import {
   listServices,
   moveService,
   reorderServices,
+  restoreDeletedService,
   updateService,
 } from "../services/service-operations";
 import { parseCreateServiceRequest, parseUpdateServiceRequest } from "../services/service-payloads";
@@ -42,6 +43,11 @@ servicesRouter.post("/:id/move", async (c) => {
   const body = await readValidatedJson(c, serviceMoveSchema);
   if (body.response) return body.response;
   return respondApiResult(c, moveService(c.req.param("id"), body.data));
+});
+
+/** POST /api/services/:id/restore — undoes a recent delete */
+servicesRouter.post("/:id/restore", (c) => {
+  return respondApiResult(c, restoreDeletedService(c.req.param("id")), 201);
 });
 
 /** POST /api/services/:id/duplicate */

@@ -64,6 +64,7 @@ describe("database integration", () => {
     expect(tables.map((table) => table.name)).toEqual([
       "categories",
       "schema_migrations",
+      "service_trash",
       "services",
       "settings",
     ]);
@@ -88,6 +89,10 @@ describe("database integration", () => {
       {
         id: 5,
         name: "categories-table",
+      },
+      {
+        id: 6,
+        name: "service-trash",
       },
     ]);
   });
@@ -127,7 +132,7 @@ describe("database integration", () => {
           id: number;
         }>
       ).map((row) => row.id)
-    ).toEqual([1, 2, 3, 4, 5]);
+    ).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it("supports insert, update, and delete flows against the services table", () => {
