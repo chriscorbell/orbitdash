@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  discoveryResponseSchema,
   dockerSnapshotSchema,
   HOST_SNAPSHOT_VERSION,
   hostSnapshotSchema,
@@ -56,6 +57,33 @@ const systemInfo: SystemInfo = {
   uptimeSeconds: 90_061,
   docker: true,
 };
+
+describe("discovery schema", () => {
+  it("accepts suggestions and rejects unknown sources", () => {
+    const response = {
+      suggestions: [
+        {
+          key: "jellyfin",
+          name: "Jellyfin",
+          url: null,
+          port: 8096,
+          iconUrl: null,
+          category: null,
+          description: null,
+          source: "port",
+        },
+      ],
+      dismissed: 0,
+    } as const;
+    expect(discoveryResponseSchema.parse(response)).toEqual(response);
+    expect(
+      discoveryResponseSchema.safeParse({
+        ...response,
+        suggestions: [{ ...response.suggestions[0], source: "guess" }],
+      }).success
+    ).toBe(false);
+  });
+});
 
 describe("docker snapshot schema", () => {
   it("accepts snapshots and rejects unknown states", () => {
