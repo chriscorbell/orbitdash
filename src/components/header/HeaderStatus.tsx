@@ -43,7 +43,9 @@ export function HeaderStatus() {
       {uptime !== null && (
         <span
           className="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 md:inline-flex"
-          title={data?.hostname ? `${data.hostname} has been up for ${formatUptime(uptime)}` : undefined}
+          title={
+            data?.hostname ? `${data.hostname} has been up for ${formatUptime(uptime)}` : undefined
+          }
         >
           {data?.hostname && <span className="text-foreground">{data.hostname}</span>}
           <span>up {formatUptime(uptime)}</span>

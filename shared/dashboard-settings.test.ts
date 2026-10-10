@@ -33,12 +33,17 @@ describe("parseDashboardSettings", () => {
   it("keeps valid fields and replaces only the invalid ones", () => {
     expect(
       parseDashboardSettings({
-        layout: { gridColumns: 9, servicesFirst: false, showServices: "yes" },
+        layout: {
+          gridColumns: 9,
+          statsPosition: "bottom",
+          showServices: "yes",
+          servicesFirst: true,
+        },
         future: { setting: true },
       })
     ).toEqual({
       ...DEFAULT_DASHBOARD_SETTINGS,
-      layout: { gridColumns: 4, servicesFirst: false, showServices: true, showStats: true },
+      layout: { gridColumns: 4, statsPosition: "bottom", showServices: true, showStats: true },
     });
   });
 

@@ -82,6 +82,10 @@ function renderServicesSection(
       loading={false}
       error={null}
       columnCount={4}
+      search=""
+      addOpen={false}
+      onAddOpenChange={vi.fn()}
+      onSearchChange={vi.fn()}
       onRetry={vi.fn().mockResolvedValue(undefined)}
       onCreate={vi.fn().mockResolvedValue(baseService)}
       onUpdate={vi.fn().mockResolvedValue(baseService)}
@@ -174,5 +178,22 @@ describe("ServicesSection", () => {
     expect(await screen.findByText("Couldn't restore the service")).toBeTruthy();
     expect(screen.getByText("Too late")).toBeTruthy();
     act(() => resetToastsForTesting());
+  });
+
+  it("filters by the search it is given and offers to clear a miss", () => {
+    const onSearchChange = vi.fn();
+    renderServicesSection({ services: [baseService], search: "nothing-matches", onSearchChange });
+
+    expect(screen.getByText("No services match that search")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(onSearchChange).toHaveBeenCalledWith("");
+  });
+
+  it("asks the app to open the add dialog from the empty state", () => {
+    const onAddOpenChange = vi.fn();
+    renderServicesSection({ onAddOpenChange });
+
+    fireEvent.click(screen.getByRole("button", { name: /Add your first service/ }));
+    expect(onAddOpenChange).toHaveBeenCalledWith(true);
   });
 });

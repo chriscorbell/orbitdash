@@ -13,6 +13,7 @@ interface UseServicesSectionStateOptions {
   error: string | null;
   loading: boolean;
   onDelete: (id: string) => Promise<void>;
+  search: string;
   onRestore: (id: string) => Promise<Service>;
   onDuplicate: (id: string) => Promise<Service>;
   onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
@@ -25,15 +26,14 @@ export function useServicesSectionState({
   error,
   loading,
   onDelete,
+  search,
   onRestore,
   onDuplicate,
   onRenameCategory,
   services,
 }: UseServicesSectionStateOptions) {
-  const [addOpen, setAddOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [renameCategoryTarget, setRenameCategoryTarget] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
 
   const {
     error: categoryOrderError,
@@ -141,7 +141,6 @@ export function useServicesSectionState({
   };
 
   return {
-    addOpen,
     categoryOptions,
     categoryOrderError,
     editingService,
@@ -159,11 +158,8 @@ export function useServicesSectionState({
     hasNamedCategories,
     isReorderMode,
     renameCategoryTarget,
-    search,
-    setAddOpen,
     setEditingService,
     setRenameCategoryTarget,
-    setSearch,
     showInitialError: !loading && error !== null && services.length === 0,
     showInitialLoading: loading && services.length === 0,
     showInlineError: error !== null && services.length > 0,

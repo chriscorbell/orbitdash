@@ -17,9 +17,9 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         // A group also captures the dependencies of the modules it matches, so
-        // React has to be claimed first (highest priority). Otherwise chart.js
-        // or dnd-kit drag React into their chunk, the entry has to import that
-        // chunk, and the lazy chart and settings imports stop being lazy.
+        // React has to be claimed first (highest priority). Otherwise dnd-kit
+        // drags React into its chunk, the entry has to import that chunk, and
+        // the lazy drag-and-drop imports stop being lazy.
         codeSplitting: {
           groups: [
             {
@@ -35,11 +35,6 @@ export default defineConfig({
               name: "validation",
               test: /[\\/]node_modules[\\/]zod[\\/](v4[\\/](core|mini|locales)|mini|v4-mini)[\\/]/,
               priority: 30,
-            },
-            {
-              name: "charts",
-              test: /[\\/]node_modules[\\/](chart\.js|react-chartjs-2|@kurkle[\\/]color)[\\/]/,
-              priority: 20,
             },
             {
               name: "drag-drop",

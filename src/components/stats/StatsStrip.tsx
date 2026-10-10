@@ -3,6 +3,7 @@ import { Sparkline } from "@/components/stats/Sparkline";
 import { useMetrics } from "@/hooks/useMetrics";
 import { formatPercent } from "@/lib/format";
 import { MAX_POINTS } from "@/lib/live/metrics-store";
+import { sparklineCeiling } from "@/lib/sparkline";
 import { cn } from "@/lib/utils";
 import type { MetricSample } from "@shared/types";
 
@@ -34,21 +35,35 @@ function StatTile({
 }) {
   const tone = toneFor(value);
   return (
-    <div className="min-w-0 rounded-xl border bg-card px-3.5 pt-3 pb-2 shadow-xs">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{label}</span>
-        </span>
+    <div className="min-w-0 rounded-xl border bg-card px-3 pt-2.5 pb-2 shadow-xs sm:px-3.5">
+      <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
+      </span>
+      <div className="mt-1 flex items-end gap-3">
         <span
-          className={cn("font-mono text-base font-semibold tabular-nums transition-colors", tone)}
+          className={cn(
+            "shrink-0 font-mono text-lg leading-none font-semibold tabular-nums transition-colors sm:text-xl",
+            tone
+          )}
           aria-label={`${label} ${value === null ? "unavailable" : `${value.toFixed(1)} percent`}`}
         >
           {value === null ? "–" : formatPercent(value)}
           <span className="ml-px text-xs font-medium text-muted-foreground">%</span>
         </span>
+        <Sparkline
+          className={cn("hidden h-7 min-w-0 flex-1 sm:block", tone)}
+          values={history}
+          max={sparklineCeiling(history)}
+          capacity={MAX_POINTS}
+        />
       </div>
-      <Sparkline className={cn("mt-1.5 h-8 w-full", tone)} values={history} capacity={MAX_POINTS} />
+      <Sparkline
+        className={cn("mt-2 h-6 w-full sm:hidden", tone)}
+        values={history}
+        max={sparklineCeiling(history)}
+        capacity={MAX_POINTS}
+      />
     </div>
   );
 }

@@ -14,7 +14,7 @@ async function createService(
     url: string;
   }
 ) {
-  await page.getByRole("button", { name: "Add service" }).click();
+  await page.getByRole("button", { name: "Add service" }).first().click();
   await expect(page.getByRole("dialog", { name: "Add Service" })).toBeVisible();
 
   await page.getByLabel("Name *").fill(options.name);
@@ -36,15 +36,12 @@ async function createService(
 test("primary dashboard journey works end to end", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Services" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Stats" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "CPU", selected: true })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "RAM" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Disk" })).toBeVisible();
-  await expect(page.getByRole("img", { name: /CPU usage over the last 30 seconds/ })).toBeVisible();
-
-  await page.getByRole("tab", { name: "RAM" }).click();
-  await expect(page.getByRole("img", { name: /RAM usage over the last 30 seconds/ })).toBeVisible();
+  const stats = page.getByRole("region", { name: "Live stats" });
+  await expect(stats).toBeVisible();
+  // Live values arrive over the event stream and replace the placeholders.
+  await expect(stats.getByLabel(/^CPU \d+(\.\d)? percent$/)).toBeVisible();
+  await expect(stats.getByLabel(/^Memory \d+(\.\d)? percent$/)).toBeVisible();
+  await expect(stats.getByLabel(/^Disk \d+(\.\d)? percent$/)).toBeVisible();
 
   await createService(page, {
     category: "Infrastructure",

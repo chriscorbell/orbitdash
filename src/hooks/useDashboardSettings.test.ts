@@ -92,7 +92,7 @@ describe("useDashboardSettings", () => {
   });
 
   it("imports old browser preferences as the shared settings on a fresh server", async () => {
-    window.localStorage.setItem("orbitdash.servicesFirst", "false");
+    window.localStorage.setItem("orbitdash.servicesFirst", "true");
     window.localStorage.setItem("orbitdash.servicesGrid", "5");
     const server = createServer({ stored: false });
 
@@ -101,7 +101,7 @@ describe("useDashboardSettings", () => {
     });
 
     await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(5));
-    expect(server.shared.layout).toMatchObject({ servicesFirst: false, gridColumns: 5 });
+    expect(server.shared.layout).toMatchObject({ statsPosition: "bottom", gridColumns: 5 });
     expect(result.current.scope).toBe("all");
     expect(window.localStorage.getItem("orbitdash.servicesGrid")).toBeNull();
   });
@@ -155,12 +155,12 @@ describe("useDashboardSettings", () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.updateLayout({ servicesFirst: false }));
-    await waitFor(() => expect(result.current.settings.layout.servicesFirst).toBe(false));
+    act(() => result.current.updateLayout({ statsPosition: "bottom" }));
+    await waitFor(() => expect(result.current.settings.layout.statsPosition).toBe("bottom"));
 
-    await waitFor(() => expect(server.shared.layout.servicesFirst).toBe(false));
+    await waitFor(() => expect(server.shared.layout.statsPosition).toBe("bottom"));
     expect(api.updateSharedSettings).toHaveBeenCalledWith(
-      { layout: { servicesFirst: false } },
+      { layout: { statsPosition: "bottom" } },
       "device-1"
     );
   });
@@ -222,13 +222,13 @@ describe("readLegacyLayout", () => {
   });
 
   it("reads the oldest section-order key and every newer key", () => {
-    window.localStorage.setItem("orbitdash.sectionOrder", "stats-first");
+    window.localStorage.setItem("orbitdash.sectionOrder", "services-first");
     window.localStorage.setItem("orbitdash.showServicesSection", "false");
     window.localStorage.setItem("orbitdash.servicesGrid", "3");
 
     expect(readLegacyLayout()).toEqual({
       ...DEFAULT_DASHBOARD_SETTINGS,
-      layout: { gridColumns: 3, servicesFirst: false, showServices: false, showStats: true },
+      layout: { gridColumns: 3, statsPosition: "bottom", showServices: false, showStats: true },
     });
   });
 

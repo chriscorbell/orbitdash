@@ -26,7 +26,9 @@ export function resolveHostname(
 }
 
 /** /proc/uptime reports the host's uptime even inside a container. */
-export function readUptimeSeconds(readFile: (path: string) => string = (path) => fs.readFileSync(path, "utf-8")): number {
+export function readUptimeSeconds(
+  readFile: (path: string) => string = (path) => fs.readFileSync(path, "utf-8")
+): number {
   try {
     const seconds = Number.parseFloat(readFile("/proc/uptime").split(" ")[0]);
     if (Number.isFinite(seconds)) return Math.floor(seconds);

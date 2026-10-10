@@ -3,7 +3,23 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Header } from "@/components/Header";
+import { useState, type ComponentProps } from "react";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+
+type DialogProps = Omit<ComponentProps<typeof SettingsDialog>, "open" | "onOpenChange">;
+
+/** The dialog with a trigger, the way the app header opens it. */
+function SettingsHarness(props: DialogProps) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open settings
+      </button>
+      <SettingsDialog {...props} open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 
 vi.mock("@/components/settings/BackupSettingsSection", () => ({
@@ -33,18 +49,18 @@ const categoryOrderStub: UseCategoryOrderResult = {
   saveOrder: vi.fn().mockResolvedValue(undefined),
 };
 
-function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = {}) {
-  const props: React.ComponentProps<typeof Header> = {
+function renderHeader(overrides: Partial<DialogProps> = {}) {
+  const props: DialogProps = {
     appearance: { accent: "ice", theme: "dark" },
     categoryOrder: categoryOrderStub,
     columnCount: 4,
-    servicesFirst: true,
+    statsPosition: "top",
     settingsScope: "all",
     showServicesSection: true,
     showStatsSection: true,
     onAppearanceChange: vi.fn(),
     onColumnCountChange: vi.fn(),
-    onServicesFirstChange: vi.fn(),
+    onStatsPositionChange: vi.fn(),
     onSettingsScopeChange: vi.fn(),
     onShowServicesSectionChange: vi.fn(),
     onShowStatsSectionChange: vi.fn(),
@@ -52,12 +68,12 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = 
   };
 
   return {
-    ...render(<Header {...props} />),
+    ...render(<SettingsHarness {...props} />),
     props,
   };
 }
 
-describe("Header", () => {
+describe("SettingsDialog", () => {
   it("changes the theme and accent from settings", async () => {
     const user = userEvent.setup();
     const { props } = renderHeader();
@@ -113,14 +129,17 @@ describe("Header", () => {
     expect(screen.getByRole("dialog", { name: "Dashboard settings" })).toBeTruthy();
   });
 
-  it("changes the section order via button group", async () => {
+  it("moves the stats strip above or below services", async () => {
     const user = userEvent.setup();
-    const { props } = renderHeader({ servicesFirst: true });
+    const { props } = renderHeader({ statsPosition: "top" });
 
     await user.click(screen.getByRole("button", { name: "Open settings" }));
-    await user.click(screen.getByRole("button", { name: "Stats → Services" }));
+    expect(screen.getByRole("radio", { name: "Above services" }).getAttribute("aria-checked")).toBe(
+      "true"
+    );
+    await user.click(screen.getByRole("radio", { name: "Below services" }));
 
-    expect(props.onServicesFirstChange).toHaveBeenCalledWith(false);
+    expect(props.onStatsPositionChange).toHaveBeenCalledWith("bottom");
   });
 
   it("changes the column count via button group", async () => {

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Plus, Search, Settings, X } from "lucide-react";
 import { HeaderStatus } from "@/components/header/HeaderStatus";
 import { Logo } from "@/components/common/Logo";
+import { preloadSettingsDialog } from "@/components/settings/settings-preload";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +21,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 /** Sticky top bar: brand, search (⌘K or /), host status and clock, add and settings. */
-export function AppHeader({ search, onAddService, onOpenSettings, onSearchChange }: AppHeaderProps) {
+export function AppHeader({
+  search,
+  onAddService,
+  onOpenSettings,
+  onSearchChange,
+}: AppHeaderProps) {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -97,6 +103,8 @@ export function AppHeader({ search, onAddService, onOpenSettings, onSearchChange
             size="icon-sm"
             aria-label="Open settings"
             onClick={onOpenSettings}
+            onFocus={preloadSettingsDialog}
+            onPointerEnter={preloadSettingsDialog}
           >
             <Settings />
           </Button>

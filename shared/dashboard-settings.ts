@@ -4,12 +4,15 @@ export type GridColumns = (typeof GRID_COLUMN_OPTIONS)[number];
 export const THEME_OPTIONS = ["dark", "light", "system"] as const;
 export type ThemePreference = (typeof THEME_OPTIONS)[number];
 
+export const STATS_POSITION_OPTIONS = ["top", "bottom"] as const;
+export type StatsPosition = (typeof STATS_POSITION_OPTIONS)[number];
+
 export const ACCENT_OPTIONS = ["ice", "mint", "amber", "rose", "violet", "graphite"] as const;
 export type AccentPreset = (typeof ACCENT_OPTIONS)[number];
 
 export interface DashboardLayoutSettings {
   gridColumns: GridColumns;
-  servicesFirst: boolean;
+  statsPosition: StatsPosition;
   showServices: boolean;
   showStats: boolean;
 }
@@ -35,7 +38,7 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
   },
   layout: {
     gridColumns: 4,
-    servicesFirst: true,
+    statsPosition: "top",
     showServices: true,
     showStats: true,
   },
@@ -59,7 +62,7 @@ const FIELD_VALIDATORS: {
   },
   layout: {
     gridColumns: oneOf(GRID_COLUMN_OPTIONS),
-    servicesFirst: isBoolean,
+    statsPosition: oneOf(STATS_POSITION_OPTIONS),
     showServices: isBoolean,
     showStats: isBoolean,
   },

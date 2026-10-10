@@ -16,7 +16,7 @@ export const dashboardSettingsPatchSchema = z
     layout: z
       .object({
         gridColumns: gridColumnsSchema.optional(),
-        servicesFirst: z.boolean().optional(),
+        statsPosition: z.enum(["top", "bottom"]).optional(),
         showServices: z.boolean().optional(),
         showStats: z.boolean().optional(),
       })
@@ -29,7 +29,7 @@ export const dashboardSettingsSchema = z.object({
   appearance: z.object({ accent: accentSchema, theme: themeSchema }),
   layout: z.object({
     gridColumns: gridColumnsSchema,
-    servicesFirst: z.boolean(),
+    statsPosition: z.enum(["top", "bottom"]),
     showServices: z.boolean(),
     showStats: z.boolean(),
   }),
