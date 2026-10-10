@@ -125,13 +125,11 @@ function renderServicesSection(
         error={null}
         density="comfortable"
         mode="columns"
-        search=""
         editing={false}
         renamingKey={null}
         addOpen={false}
         onAddOpenChange={vi.fn()}
         onRenamingKeyChange={vi.fn()}
-        onSearchChange={vi.fn()}
         onRetry={vi.fn().mockResolvedValue(undefined)}
         onCreate={vi.fn().mockResolvedValue(baseService)}
         onUpdate={vi.fn().mockResolvedValue(baseService)}
@@ -182,15 +180,6 @@ describe("ServicesSection", () => {
 
     expect(screen.getByRole("button", { name: "Collapse Monitoring category" })).toBeTruthy();
     expect(screen.queryByText("Empty")).toBeNull();
-  });
-
-  it("filters by the search it is given and offers to clear a miss", () => {
-    const onSearchChange = vi.fn();
-    renderServicesSection({ services: [baseService], search: "nothing-matches", onSearchChange });
-
-    expect(screen.getByText("No services match that search")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-    expect(onSearchChange).toHaveBeenCalledWith("");
   });
 
   it("asks the app to open the add dialog from the empty state", () => {

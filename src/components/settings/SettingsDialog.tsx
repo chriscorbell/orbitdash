@@ -13,12 +13,14 @@ import { AppearanceSettingsSection } from "@/components/settings/AppearanceSetti
 import { CustomCssSettings } from "@/components/settings/CustomCssSettings";
 import { DashboardTitleField } from "@/components/settings/DashboardTitleField";
 import { WallpaperSettings } from "@/components/settings/WallpaperSettings";
+import { WebSearchSettings } from "@/components/settings/WebSearchSettings";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
 import type {
   BoardMode,
   CardDensity,
   DashboardAppearanceSettings,
+  DashboardSearchSettings,
   StatsPosition,
 } from "@shared/dashboard-settings";
 import {
@@ -36,6 +38,7 @@ interface SettingsDialogProps {
   density: CardDensity;
   mode: BoardMode;
   open: boolean;
+  search: DashboardSearchSettings;
   statsPosition: StatsPosition;
   settingsError?: string | null;
   settingsScope: SettingsScope;
@@ -48,6 +51,7 @@ interface SettingsDialogProps {
   onDensityChange: (density: CardDensity) => void;
   onEditLayout: () => void;
   onModeChange: (mode: BoardMode) => void;
+  onSearchChange: (search: Partial<DashboardSearchSettings>) => void;
   onOpenChange: (open: boolean) => void;
   onStatsPositionChange: (position: StatsPosition) => void;
   onSettingsScopeChange: (scope: SettingsScope) => void;
@@ -194,6 +198,7 @@ export function SettingsDialog({
   density,
   mode,
   open,
+  search,
   statsPosition,
   settingsError = null,
   settingsScope,
@@ -205,6 +210,7 @@ export function SettingsDialog({
   onDensityChange,
   onEditLayout,
   onModeChange,
+  onSearchChange,
   onOpenChange,
   onStatsPositionChange,
   onSettingsScopeChange,
@@ -342,6 +348,11 @@ export function SettingsDialog({
                 </Button>
               </div>
             </div>
+          </section>
+
+          <section className="space-y-3">
+            <SettingsSectionLabel>Search</SettingsSectionLabel>
+            <WebSearchSettings search={search} onChange={onSearchChange} />
           </section>
 
           <section className="space-y-3">

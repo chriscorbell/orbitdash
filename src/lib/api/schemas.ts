@@ -80,7 +80,16 @@ const appearanceSchema = z.object({
 
 export const wallpaperUploadSchema = z.object({ filename: z.string() });
 
-const settingsSchema = z.object({ appearance: appearanceSchema, layout: layoutSchema });
+const searchSchema = z.object({
+  engine: z.enum(["duckduckgo", "google", "bing", "brave", "custom"]),
+  customUrl: z.string(),
+});
+
+const settingsSchema = z.object({
+  appearance: appearanceSchema,
+  layout: layoutSchema,
+  search: searchSchema,
+});
 
 export const dashboardSettingsResponseSchema = z.object({
   device: z.nullable(
@@ -90,6 +99,7 @@ export const dashboardSettingsResponseSchema = z.object({
       overrides: z.object({
         appearance: z.optional(z.partial(appearanceSchema)),
         layout: z.optional(z.partial(layoutSchema)),
+        search: z.optional(z.partial(searchSchema)),
       }),
     })
   ),

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   CUSTOM_CSS_MAX_LENGTH,
+  isSearchUrlTemplate,
+  SEARCH_ENGINE_OPTIONS,
   TITLE_MAX_LENGTH,
   WALLPAPER_BLUR_MAX,
   WALLPAPER_DIM_MAX,
@@ -22,6 +24,10 @@ const wallpaperSchema = z
   .nullable();
 const wallpaperBlurSchema = z.number().int().min(0).max(WALLPAPER_BLUR_MAX);
 const wallpaperDimSchema = z.number().int().min(0).max(WALLPAPER_DIM_MAX);
+const searchEngineSchema = z.enum(SEARCH_ENGINE_OPTIONS);
+const searchUrlSchema = z
+  .string()
+  .refine(isSearchUrlTemplate, "custom search URL must be an http(s) URL with %s for the query");
 const customCssSchema = z
   .string()
   .max(CUSTOM_CSS_MAX_LENGTH, `custom CSS must be ${CUSTOM_CSS_MAX_LENGTH} characters or fewer`);
@@ -52,6 +58,10 @@ export const dashboardSettingsPatchSchema = z
       })
       .strict()
       .optional(),
+    search: z
+      .object({ engine: searchEngineSchema.optional(), customUrl: searchUrlSchema.optional() })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -73,6 +83,7 @@ export const dashboardSettingsSchema = z.object({
     showStats: z.boolean(),
     showStatsPage: z.boolean(),
   }),
+  search: z.object({ engine: searchEngineSchema, customUrl: searchUrlSchema }),
 });
 
 export const deviceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/, "invalid device id");

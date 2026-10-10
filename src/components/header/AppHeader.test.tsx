@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppHeader } from "@/components/header/AppHeader";
@@ -28,51 +28,32 @@ vi.mock("@/lib/api/system", () => ({
 
 afterEach(() => cleanup());
 
-function renderHeader(search = "", options: { editing?: boolean; canEditLayout?: boolean } = {}) {
+function renderHeader(options: { editing?: boolean; canEditLayout?: boolean } = {}) {
   const props = {
     editing: options.editing ?? false,
-    search,
     canEditLayout: options.canEditLayout ?? true,
     onAddService: vi.fn(),
     onDoneEditing: vi.fn(),
     onEditLayout: vi.fn(),
     onNewCategory: vi.fn(),
     onOpenSettings: vi.fn(),
-    onSearchChange: vi.fn(),
+    onOpenPalette: vi.fn(),
+    onPreloadPalette: vi.fn(),
   };
   render(<AppHeader {...props} />, { wrapper: createQueryWrapper().wrapper });
   return props;
 }
 
 describe("AppHeader", () => {
-  it("focuses search with Ctrl+K or / but not while typing elsewhere", () => {
-    renderHeader();
-    const search = screen.getByRole("searchbox", { name: "Search services" });
-
-    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-    expect(document.activeElement).toBe(search);
-
-    search.blur();
-    fireEvent.keyDown(window, { key: "/" });
-    expect(document.activeElement).toBe(search);
-
-    const other = document.createElement("input");
-    document.body.appendChild(other);
-    other.focus();
-    fireEvent.keyDown(other, { key: "/" });
-    expect(document.activeElement).toBe(other);
-    other.remove();
-  });
-
-  it("clears the search with the button or Escape", async () => {
+  it("opens the command palette from the search field and loads it early on hover", async () => {
     const user = userEvent.setup();
-    const props = renderHeader("jelly");
+    const props = renderHeader();
+    const trigger = screen.getByRole("button", { name: "Search services and commands" });
 
-    await user.click(screen.getByRole("button", { name: "Clear search" }));
-    expect(props.onSearchChange).toHaveBeenCalledWith("");
-
-    fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Escape" });
-    expect(props.onSearchChange).toHaveBeenCalledTimes(2);
+    await user.hover(trigger);
+    expect(props.onPreloadPalette).toHaveBeenCalled();
+    await user.click(trigger);
+    expect(props.onOpenPalette).toHaveBeenCalledTimes(1);
   });
 
   it("opens add and settings, and shows the host's name and uptime", async () => {
@@ -98,15 +79,15 @@ describe("AppHeader", () => {
     expect(preloadEditableBoard).toHaveBeenCalled();
 
     cleanup();
-    renderHeader("", { canEditLayout: false });
+    renderHeader({ canEditLayout: false });
     expect(screen.queryByRole("button", { name: "Edit layout" })).toBeNull();
   });
 
   it("swaps search for the editing controls in edit mode", async () => {
     const user = userEvent.setup();
-    const props = renderHeader("", { editing: true });
+    const props = renderHeader({ editing: true });
 
-    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Search services and commands" })).toBeNull();
     expect(screen.getByText("Editing layout")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "New category" }));
     await user.click(screen.getByRole("button", { name: "Done" }));

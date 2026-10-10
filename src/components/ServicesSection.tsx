@@ -33,13 +33,11 @@ interface ServicesSectionProps {
   error: string | null;
   density: CardDensity;
   mode: BoardMode;
-  search: string;
   editing: boolean;
   renamingKey: string | null;
   addOpen: boolean;
   onAddOpenChange: (open: boolean) => void;
   onRenamingKeyChange: (key: string | null) => void;
-  onSearchChange: (value: string) => void;
   onRetry: () => Promise<void>;
   onCreate: (payload: CreateServicePayload, iconFile?: File) => Promise<Service>;
   onUpdate: (
@@ -61,13 +59,11 @@ export function ServicesSection({
   error,
   density,
   mode,
-  search,
   editing,
   renamingKey,
   addOpen,
   onAddOpenChange,
   onRenamingKeyChange,
-  onSearchChange,
   onRetry,
   onCreate,
   onUpdate,
@@ -82,7 +78,6 @@ export function ServicesSection({
     deleteCategory,
     deleteCategoryTarget,
     editingService,
-    filteredServices,
     groups,
     handleAddToGroup,
     handleDelete,
@@ -103,7 +98,6 @@ export function ServicesSection({
     editing,
     error,
     loading,
-    search,
     services,
     onAddOpenChange,
     onDelete,
@@ -117,7 +111,7 @@ export function ServicesSection({
   const readOnlyBoard = hasCategories ? (
     <CategorySectionList density={density} groups={groups} mode={mode} />
   ) : (
-    <ServiceGrid density={density} services={filteredServices} />
+    <ServiceGrid density={density} services={services} />
   );
 
   return (
@@ -137,16 +131,7 @@ export function ServicesSection({
       />
 
       {!showInitialLoading && !showInitialError && services.length === 0 && groups.length === 0 && (
-        <ServicesEmptyState mode="empty" onAddService={() => onAddOpenChange(true)} />
-      )}
-
-      {!showInitialLoading && filteredServices.length === 0 && services.length > 0 && !editing && (
-        <ServicesEmptyState
-          mode="search"
-          search={search}
-          onAddService={() => onAddOpenChange(true)}
-          onClearSearch={() => onSearchChange("")}
-        />
+        <ServicesEmptyState onAddService={() => onAddOpenChange(true)} />
       )}
 
       {showBoard &&
@@ -170,7 +155,7 @@ export function ServicesSection({
             />
           </Suspense>
         ) : (
-          filteredServices.length > 0 && readOnlyBoard
+          services.length > 0 && readOnlyBoard
         ))}
 
       {/* Add dialog */}

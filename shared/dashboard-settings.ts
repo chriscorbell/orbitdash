@@ -20,6 +20,10 @@ export const WALLPAPER_DIM_MAX = 90;
 export const TITLE_MAX_LENGTH = 60;
 export const CUSTOM_CSS_MAX_LENGTH = 20_000;
 
+export const SEARCH_ENGINE_OPTIONS = ["duckduckgo", "google", "bing", "brave", "custom"] as const;
+export type SearchEngine = (typeof SEARCH_ENGINE_OPTIONS)[number];
+export const SEARCH_URL_MAX_LENGTH = 500;
+
 export interface DashboardLayoutSettings {
   /** Categories side by side as columns, or stacked as rows of cards. */
   mode: BoardMode;
@@ -46,9 +50,17 @@ export interface DashboardAppearanceSettings {
   customCss: string;
 }
 
+export interface DashboardSearchSettings {
+  /** Where the command palette sends a query that matches no service. */
+  engine: SearchEngine;
+  /** For "custom": an http(s) URL with %s where the query goes, e.g. a SearXNG instance. */
+  customUrl: string;
+}
+
 export interface DashboardSettings {
   appearance: DashboardAppearanceSettings;
   layout: DashboardLayoutSettings;
+  search: DashboardSearchSettings;
 }
 
 export type DashboardSettingsPatch = {
@@ -73,6 +85,10 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
     showStats: true,
     showStatsPage: true,
   },
+  search: {
+    engine: "duckduckgo",
+    customUrl: "",
+  },
 };
 
 type Validator = (value: unknown) => boolean;
@@ -90,6 +106,19 @@ const isStringUpTo =
   (maxLength: number): Validator =>
   (value) =>
     typeof value === "string" && value.length <= maxLength;
+/** Empty, or an http(s) URL template with a %s placeholder for the query. */
+export function isSearchUrlTemplate(value: unknown): boolean {
+  if (typeof value !== "string" || value.length > SEARCH_URL_MAX_LENGTH) return false;
+  if (value === "") return true;
+  if (!value.includes("%s")) return false;
+  try {
+    const url = new URL(value.replace("%s", "query"));
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const isWallpaper: Validator = (value) =>
   value === null || (typeof value === "string" && WALLPAPER_FILENAME_PATTERN.test(value));
 
@@ -113,6 +142,10 @@ const FIELD_VALIDATORS: {
     showServices: isBoolean,
     showStats: isBoolean,
     showStatsPage: isBoolean,
+  },
+  search: {
+    engine: oneOf(SEARCH_ENGINE_OPTIONS),
+    customUrl: isSearchUrlTemplate,
   },
 };
 
@@ -184,6 +217,7 @@ export function mergeDashboardSettings(
   return {
     appearance: { ...base.appearance, ...patch?.appearance },
     layout: { ...base.layout, ...patch?.layout },
+    search: { ...base.search, ...patch?.search },
   };
 }
 
@@ -233,4 +267,20 @@ export function referencedWallpapers(documents: readonly unknown[]): Set<string>
     if (wallpaper) names.add(wallpaper);
   }
   return names;
+}
+
+const SEARCH_URLS: Record<Exclude<SearchEngine, "custom">, string> = {
+  bing: "https://www.bing.com/search?q=%s",
+  brave: "https://search.brave.com/search?q=%s",
+  duckduckgo: "https://duckduckgo.com/?q=%s",
+  google: "https://www.google.com/search?q=%s",
+};
+
+/** The web search URL for a query, falling back to DuckDuckGo when a custom URL isn't set. */
+export function buildSearchUrl(search: DashboardSearchSettings, query: string): string {
+  const template =
+    search.engine === "custom"
+      ? search.customUrl || SEARCH_URLS.duckduckgo
+      : SEARCH_URLS[search.engine];
+  return template.replace("%s", encodeURIComponent(query.trim()));
 }

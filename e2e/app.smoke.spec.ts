@@ -128,6 +128,22 @@ test("primary dashboard journey works end to end", async ({ page }) => {
     .toEqual(["Collapse Movies category", "Collapse Infrastructure category"]);
 });
 
+test("the command palette opens by typing and runs actions", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Services" })).toBeAttached();
+
+  await page.keyboard.press("s");
+  const input = page.getByRole("combobox", { name: "Search services and commands" });
+  await expect(input).toHaveValue("s");
+  await input.fill("settings");
+  await expect(page.getByRole("option", { name: /Open settings/ })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Dashboard settings" })).toBeVisible();
+});
+
 test("the Stats page shows live readings and switches ranges", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Stats" }).click();
