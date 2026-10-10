@@ -7,7 +7,7 @@ import { ServicesSection } from "@/components/ServicesSection";
 import type { PaletteContext } from "@/components/palette/palette-actions";
 import {
   loadCommandPalette,
-  loadSettingsDialog,
+  loadSettingsPage,
   loadStatsPage,
   loadWidgets,
   preloadCommandPalette,
@@ -56,8 +56,8 @@ const HeaderWidgets = lazy(() =>
   loadWidgets().then((module) => ({ default: module.HeaderWidgets }))
 );
 
-const SettingsDialog = lazy(() =>
-  loadSettingsDialog().then((module) => ({ default: module.SettingsDialog }))
+const SettingsPage = lazy(() =>
+  loadSettingsPage().then((module) => ({ default: module.SettingsPage }))
 );
 
 interface AppProps {
@@ -116,31 +116,30 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
     widgets.placement === "row" && (widgets.clock || widgets.weather || widgets.agenda);
   const headerWidgets = widgets.placement === "header" && (widgets.weather || widgets.agenda);
   const pathname = usePathname();
-  const page = showStatsPage && pathname === "/stats" ? "stats" : "services";
+  // Guests can't change settings, so /settings shows them the dashboard.
+  const page =
+    canEdit && (pathname === "/settings" || pathname.startsWith("/settings/"))
+      ? "settings"
+      : showStatsPage && pathname === "/stats"
+        ? "stats"
+        : "services";
+  // The page checks it against its sections, keeping their list out of the first paint.
+  const settingsSection = pathname.split("/")[2] || null;
 
   // Mounted on first use and kept; the query is what was typed before it opened.
   const [palette, setPalette] = useState({ mounted: false, open: false, query: "" });
   const openPalette = (query = "") => setPalette({ mounted: true, open: true, query });
   const [addOpen, setAddOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingState, setEditing] = useState(false);
   // Edit mode ends by itself if the session does (for example, signed out in another tab).
   const editing = editingState && canEdit;
   // The category whose name is being edited in place, e.g. one just created.
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
-  // Mounted on first open and kept, so closing still plays the exit animation.
-  const [settingsMounted, setSettingsMounted] = useState(false);
-  // A section to scroll to when settings open from somewhere specific, e.g. a widget.
-  const [settingsSection, setSettingsSection] = useState<"widgets" | null>(null);
-  const openSettingsAt = (section: "widgets" | null) => {
-    setSettingsSection(section);
-    setSettingsMounted(true);
-    setSettingsOpen(true);
-  };
+  const openSettingsAt = (section: "widgets" | null) =>
+    navigate(section ? `/settings/${section}` : "/settings");
   const openSettings = () => openSettingsAt(null);
 
   const startEditing = () => {
-    setSettingsOpen(false);
     navigate("/");
     setEditing(true);
   };
@@ -214,7 +213,55 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
           ) : null
         }
       />
-      {page === "stats" ? (
+      {page === "settings" ? (
+        <main
+          key="settings"
+          className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6"
+        >
+          <Suspense
+            fallback={
+              <div
+                role="status"
+                className="h-96 animate-pulse rounded-xl bg-muted/50 motion-reduce:animate-none"
+              >
+                <span className="sr-only">Loading settings</span>
+              </div>
+            }
+          >
+            <SettingsPage
+              section={settingsSection}
+              account={
+                auth.mode === "none" ? undefined : { mode: auth.mode, user: auth.user, onSignOut }
+              }
+              appearance={appearance}
+              density={density}
+              linkPreference={linkPreference}
+              mode={mode}
+              statsPosition={statsPosition}
+              settingsError={settingsError}
+              settingsScope={settingsScope}
+              showServicesSection={showServices}
+              showStatsSection={showStats}
+              onAppearanceChange={updateAppearance}
+              onAppearancePreview={setAppearancePreview}
+              onDensityChange={(value) => updateLayout({ density: value })}
+              onEditLayout={startEditing}
+              onLinkPreferenceChange={(value) => updateLayout({ linkPreference: value })}
+              search={settings.search}
+              onSearchChange={updateSearch}
+              widgets={widgets}
+              onWidgetsChange={updateWidgets}
+              onModeChange={(value) => updateLayout({ mode: value })}
+              onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
+              onSettingsScopeChange={setSettingsScope}
+              onShowServicesSectionChange={(visible) => updateLayout({ showServices: visible })}
+              onShowStatsSectionChange={(visible) => updateLayout({ showStats: visible })}
+              showStatsPage={showStatsPage}
+              onShowStatsPageChange={(visible) => updateLayout({ showStatsPage: visible })}
+            />
+          </Suspense>
+        </main>
+      ) : page === "stats" ? (
         <main key="stats" className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
           <Suspense
             fallback={
@@ -286,43 +333,6 @@ function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
         </main>
       )}
       <Footer />
-      {settingsMounted && canEdit && (
-        <Suspense fallback={null}>
-          <SettingsDialog
-            account={
-              auth.mode === "none" ? undefined : { mode: auth.mode, user: auth.user, onSignOut }
-            }
-            open={settingsOpen}
-            onOpenChange={setSettingsOpen}
-            appearance={appearance}
-            density={density}
-            linkPreference={linkPreference}
-            mode={mode}
-            statsPosition={statsPosition}
-            settingsError={settingsError}
-            settingsScope={settingsScope}
-            showServicesSection={showServices}
-            showStatsSection={showStats}
-            onAppearanceChange={updateAppearance}
-            onAppearancePreview={setAppearancePreview}
-            onDensityChange={(value) => updateLayout({ density: value })}
-            onEditLayout={startEditing}
-            onLinkPreferenceChange={(value) => updateLayout({ linkPreference: value })}
-            search={settings.search}
-            onSearchChange={updateSearch}
-            widgets={widgets}
-            onWidgetsChange={updateWidgets}
-            focusSection={settingsSection}
-            onModeChange={(value) => updateLayout({ mode: value })}
-            onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
-            onSettingsScopeChange={setSettingsScope}
-            onShowServicesSectionChange={(visible) => updateLayout({ showServices: visible })}
-            onShowStatsSectionChange={(visible) => updateLayout({ showStats: visible })}
-            showStatsPage={showStatsPage}
-            onShowStatsPageChange={(visible) => updateLayout({ showStatsPage: visible })}
-          />
-        </Suspense>
-      )}
       {palette.mounted && (
         <Suspense fallback={null}>
           <CommandPalette

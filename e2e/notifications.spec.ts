@@ -3,7 +3,12 @@ import { expect, test } from "@playwright/test";
 test("a notification channel can be added, tested and deleted from settings", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Open settings" }).click();
-  const settings = page.getByRole("dialog", { name: "Dashboard settings" });
+  await page
+    .getByRole("navigation", { name: "Settings" })
+    .getByRole("link", { name: "Notifications" })
+    .click();
+  await expect(page).toHaveURL(/\/settings\/notifications$/);
+  const settings = page.getByRole("main");
   await settings.getByRole("button", { name: "Add channel" }).click();
 
   const form = page.getByRole("dialog", { name: "Add channel" });

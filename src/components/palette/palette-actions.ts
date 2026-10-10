@@ -20,7 +20,7 @@ export interface PaletteActionWithIcon extends PaletteAction {
 export interface PaletteContext {
   /** Guests only get navigation; everything that changes the dashboard needs a sign-in. */
   canEdit: boolean;
-  page: "services" | "stats";
+  page: "services" | "stats" | "settings";
   showServices: boolean;
   showStatsPage: boolean;
   theme: ThemePreference;
@@ -57,33 +57,34 @@ export function buildPaletteActions(context: PaletteContext): PaletteActionWithI
       });
     }
   }
-  if (context.showStatsPage) {
-    actions.push(
-      context.page === "stats"
-        ? {
-            id: "go-services",
-            label: "Go to Services",
-            keywords: "home dashboard links",
-            icon: LayoutGrid,
-            run: () => context.onNavigate("/"),
-          }
-        : {
-            id: "go-stats",
-            label: "Go to Stats",
-            keywords: "metrics charts cpu memory disk network",
-            icon: Activity,
-            run: () => context.onNavigate("/stats"),
-          }
-    );
+  if (context.page !== "services") {
+    actions.push({
+      id: "go-services",
+      label: "Go to Services",
+      keywords: "home dashboard links",
+      icon: LayoutGrid,
+      run: () => context.onNavigate("/"),
+    });
+  }
+  if (context.showStatsPage && context.page !== "stats") {
+    actions.push({
+      id: "go-stats",
+      label: "Go to Stats",
+      keywords: "metrics charts cpu memory disk network",
+      icon: Activity,
+      run: () => context.onNavigate("/stats"),
+    });
   }
   if (context.canEdit) {
-    actions.push({
-      id: "open-settings",
-      label: "Open settings",
-      keywords: "preferences options configure",
-      icon: Settings,
-      run: context.onOpenSettings,
-    });
+    if (context.page !== "settings") {
+      actions.push({
+        id: "open-settings",
+        label: "Open settings",
+        keywords: "preferences options configure",
+        icon: Settings,
+        run: context.onOpenSettings,
+      });
+    }
     for (const [theme, label, icon] of THEMES) {
       if (theme === context.theme) continue;
       actions.push({
