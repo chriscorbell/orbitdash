@@ -14,6 +14,8 @@ const INDEX_HTML = `<!doctype html><html><head><title>orbitdash</title></head><b
 const ENTRY_JS = `export const answer = ${JSON.stringify("x".repeat(2000))};`;
 const ENTRY_PATH = "/assets/index-AbC_12-z.js";
 const FONT_PATH = "/assets/inter-latin-Dx4kXJAl.woff2";
+const SERVICE_WORKER = `self.addEventListener("fetch", () => {});${" ".repeat(600)}`;
+const MANIFEST = JSON.stringify({ name: "orbitdash", display: "standalone" });
 
 let distDir: string;
 let app: Hono;
@@ -47,6 +49,9 @@ beforeAll(() => {
   writeDistFile(ENTRY_PATH, ENTRY_JS);
   writeDistFile(FONT_PATH, new Uint8Array([0x77, 0x4f, 0x46, 0x32]), false);
   writeDistFile("/orbitdash.svg", `<svg xmlns="http://www.w3.org/2000/svg"></svg>`, false);
+  writeDistFile("/sw.js", SERVICE_WORKER);
+  writeDistFile("/manifest.webmanifest", MANIFEST, false);
+  writeDistFile("/icons/icon-192.png", new Uint8Array([0x89, 0x50, 0x4e, 0x47]), false);
   // A stray compressed file without an original is served as a file of its own.
   writeDistFile("/backup.gz", new Uint8Array([0x1f, 0x8b]), false);
 
@@ -187,6 +192,34 @@ describe("static assets: caching", () => {
     expect(otherEncoding.headers.get("content-encoding")).toBe("br");
   });
 
+  it("never lets browsers keep the service worker, manifest or app icons without asking", async () => {
+    const cases: [string, Record<string, string>, string][] = [
+      ["/sw.js", { "Accept-Encoding": "br" }, "text/javascript;charset=utf-8"],
+      ["/manifest.webmanifest", {}, "application/manifest+json"],
+      ["/icons/icon-192.png", {}, "image/png"],
+    ];
+
+    for (const [urlPath, headers, contentType] of cases) {
+      const response = await get(urlPath, headers);
+
+      expect([urlPath, response.status]).toEqual([urlPath, 200]);
+      expect(response.headers.get("cache-control")).toBe(REVALIDATE_CACHE_CONTROL);
+      expect(response.headers.get("content-type")).toBe(contentType);
+      expect(response.headers.get("etag")).toMatch(/^"[\w-]+"$/);
+    }
+  });
+
+  it("serves the precompressed service worker and revalidates it with a 304", async () => {
+    const first = await get("/sw.js", { "Accept-Encoding": "br" });
+    expect(first.headers.get("content-encoding")).toBe("br");
+    expect(await bodyBytes(first)).toEqual(readDistFile("/sw.js.br"));
+
+    const etag = first.headers.get("etag") ?? "";
+    const revalidated = await get("/sw.js", { "Accept-Encoding": "br", "If-None-Match": etag });
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get("cache-control")).toBe(REVALIDATE_CACHE_CONTROL);
+  });
+
   it("revalidates the SPA fallback against index.html's ETag", async () => {
     const etag = (await get("/")).headers.get("etag") ?? "";
 
@@ -219,6 +252,30 @@ describe("static assets: routing", () => {
 
     expect(response.status).toBe(404);
     expect(response.headers.get("content-type")).not.toContain("text/html");
+  });
+
+  it("returns 404 instead of HTML for any missing file, so only routes get the app", async () => {
+    for (const urlPath of ["/apple-touch-icon.png", "/icons/missing.png", "/old-worker.js"]) {
+      const response = await get(urlPath);
+
+      expect([urlPath, response.status]).toEqual([urlPath, 404]);
+      expect(response.headers.get("content-type")).not.toContain("text/html");
+    }
+  });
+
+  it("returns 404 for the service worker when the build has none", async () => {
+    const oldDist = fs.mkdtempSync(path.join(os.tmpdir(), "orbitdash-static-old-"));
+    fs.writeFileSync(path.join(oldDist, "index.html"), INDEX_HTML);
+    const oldApp = new Hono();
+    oldApp.get("*", createStaticAssetHandler(oldDist));
+
+    try {
+      expect((await oldApp.request("/sw.js")).status).toBe(404);
+      expect((await oldApp.request("/manifest.webmanifest")).status).toBe(404);
+      expect((await oldApp.request("/")).status).toBe(200);
+    } finally {
+      fs.rmSync(oldDist, { recursive: true, force: true });
+    }
   });
 
   it("serves index.html from memory, not from disk on each request", async () => {

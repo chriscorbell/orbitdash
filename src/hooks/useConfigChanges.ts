@@ -5,7 +5,7 @@ import type { ConfigScope } from "@shared/events";
 
 /**
  * Calls `onChange` when another tab or device changes data in one of `scopes`, and when this tab
- * returns from the background (it may have missed changes while hidden).
+ * returns from the background or reconnects after losing the server (it may have missed changes).
  */
 export function useConfigChanges(
   scopes: readonly Exclude<ConfigScope, "all">[],
@@ -27,8 +27,16 @@ export function useConfigChanges(
         onChangeRef.current();
       }
     });
+    // After the connection drops (server restart, or the app opened offline from the service
+    // worker's cache), changes may have been missed, so the next open counts as a change too.
+    let disconnected = false;
     const stopConnection = stream.onConnection((connection) => {
-      if (connection === "resumed") onChangeRef.current();
+      if (connection === "error") {
+        disconnected = true;
+      } else if (connection === "resumed" || disconnected) {
+        disconnected = false;
+        onChangeRef.current();
+      }
     });
 
     return () => {

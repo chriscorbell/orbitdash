@@ -10,6 +10,9 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${frontendPort}`,
     screenshot: "only-on-failure",
+    // The suite runs against the Vite dev server, which never registers the offline worker; block
+    // workers anyway so cached responses can never leak between tests.
+    serviceWorkers: "block",
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },

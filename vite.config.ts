@@ -2,10 +2,11 @@ import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { serviceWorker } from "./scripts/vite-service-worker.ts";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), serviceWorker({ entry: "src/sw/service-worker.ts" })],
   server: {
     proxy: {
       // Object form keeps changeOrigin off, so the backend sees the browser's

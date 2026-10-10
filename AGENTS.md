@@ -80,6 +80,11 @@ Use this file as a practical handoff for future agents working in this repositor
   - Chunking uses Rolldown `codeSplitting.groups` in `vite.config.ts`. A group also captures its modules' dependencies, so group priority decides where shared packages like React land. `docs/bundle-size-budget.md` explains the layout and the tracked budgets.
   - If bundle budgets fail again, inspect chunk boundaries before raising thresholds.
   - `drag-drop-*`, `SettingsDialog-*` and `EditableBoard-*` must stay lazy: modules loaded on first render reach dnd-kit, the settings dialog and the edit board only through `lazy()` components. `npm run bundle:check` fails if `index.html` preloads any of them.
+- The offline service worker (`src/sw/`, built to `dist/sw.js`) runs in production builds only; its caching rules are in `docs/architecture.md` under "Installable App And Offline Shell".
+  - A new GET endpoint the dashboard renders goes to the network until it gets a route in `src/sw/routes.ts`.
+  - `/sw.js` and `/manifest.webmanifest` must keep `Cache-Control: no-cache`, or browsers keep running an old build.
+  - The e2e suite runs on the Vite dev server, which never registers the worker. Check worker changes with `npm run build && npm start` on `localhost` (a secure context, so the worker registers).
+- The Dockerfile's build stage copies build inputs one by one. A new file that `vite.config.ts` or `tsc -b` needs (like `scripts/vite-service-worker.ts` or `tsconfig.sw.json`) also needs a `COPY` line there.
 - Dependabot is configured for `bun`, not `npm`.
   - This was changed because npm-based Dependabot PRs were generated without `bun.lock` updates and always failed frozen-lockfile installs.
   - Existing stale npm-based Dependabot PRs were intentionally closed after the config fix.

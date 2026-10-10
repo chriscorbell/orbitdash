@@ -1,12 +1,43 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { toHaveNoViolations } from "vitest-axe/dist/matchers.js";
 import { ServiceDialog } from "@/components/ServiceDialog";
+import * as iconLibraryApi from "@/lib/api/icon-library";
+import { createQueryWrapper } from "@/test/query";
 import type { Service } from "@shared/types";
+
+vi.mock("@/lib/api/icon-library", () => ({
+  searchIconLibrary: vi.fn(async (query: string) => ({
+    entries: query.toLowerCase().startsWith("pl")
+      ? [
+          {
+            id: "dashboard-icons:plex",
+            source: "dashboard-icons",
+            slug: "plex",
+            name: "Plex",
+            url: "https://cdn.example/plex.svg",
+          },
+          {
+            id: "selfhst:plex",
+            source: "selfhst",
+            slug: "plex",
+            name: "Plex",
+            url: "https://cdn.example/selfhst-plex.svg",
+          },
+        ]
+      : [],
+    updatedAt: 1,
+  })),
+}));
+
+/** The dialog with the query client its icon library needs. */
+function render(ui: React.ReactElement) {
+  return rtlRender(ui, { wrapper: createQueryWrapper().wrapper });
+}
 
 afterEach(() => {
   cleanup();
@@ -136,14 +167,51 @@ describe("ServiceDialog", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("includes a dashboardicons link for finding icon URLs", () => {
+  it("suggests library icons for the name and uses one", async () => {
     render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={vi.fn()} />);
 
-    const iconLink = screen.getByRole("link", { name: "dashboardicons.com" });
+    fireEvent.change(screen.getByLabelText("Name *"), { target: { value: "Plex" } });
+    const suggestion = await screen.findByRole("button", {
+      name: "Use the Plex icon from dashboard-icons",
+    });
+    fireEvent.click(suggestion);
 
-    expect(iconLink.getAttribute("href")).toBe("https://dashboardicons.com/");
-    expect(iconLink.getAttribute("target")).toBe("_blank");
-    expect(iconLink.getAttribute("rel")).toBe("noreferrer");
+    expect((screen.getByLabelText("Icon URL") as HTMLInputElement).value).toBe(
+      "https://cdn.example/plex.svg"
+    );
+    expect(screen.getByAltText("Icon preview").getAttribute("src")).toBe(
+      "https://cdn.example/plex.svg"
+    );
+  });
+
+  it("searches the icon library, credits both sources, and explains outages", async () => {
+    const user = userEvent.setup();
+    render(<ServiceDialog open onOpenChange={vi.fn()} categoryOptions={[]} onSubmit={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    const search = screen.getByRole("searchbox", { name: "Search the icon library" });
+    expect(screen.getByText("Type at least two letters.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "selfh.st/icons" })).toBeTruthy();
+
+    await user.type(search, "pl");
+    await user.click(
+      await screen.findByRole("button", { name: "Use the Plex icon from selfh.st" })
+    );
+    expect((screen.getByLabelText("Icon URL") as HTMLInputElement).value).toBe(
+      "https://cdn.example/selfhst-plex.svg"
+    );
+    expect(screen.queryByRole("searchbox", { name: "Search the icon library" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    await user.clear(screen.getByRole("searchbox", { name: "Search the icon library" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search the icon library" }), "zz");
+    expect(await screen.findByText("No icons match that.")).toBeTruthy();
+
+    vi.mocked(iconLibraryApi.searchIconLibrary).mockRejectedValueOnce(new Error("offline"));
+    await user.type(screen.getByRole("searchbox", { name: "Search the icon library" }), "x");
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "The icon library is unavailable right now"
+    );
   });
 
   it("supports icon preview removal and delete flow in edit mode", async () => {

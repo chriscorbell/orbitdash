@@ -25,7 +25,7 @@ matches, so group priority decides where shared packages land:
 The entry chunk then holds only app code, so a typical app change invalidates about 12 kB of
 brotli instead of the vendor code too.
 
-`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*` and `CommandPalette-*` must never be loaded up front. If React lands in one of them again,
+`drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*` and `pwa-*` (service worker setup, imported after the page has loaded) must never be loaded up front. If React lands in one of them again,
 or an always-loaded module imports dnd-kit directly, the entry starts importing that
 chunk statically and `index.html` modulepreloads it. `npm run bundle:check` fails when that
 happens.
@@ -45,8 +45,12 @@ happens.
 | `StatsPage-*.js`      |      74 kB |       30 kB | about 67 kB raw / 27.8 kB gzip (with uPlot)  |
 | `CommandPalette-*.js` |      10 kB |        4 kB | about 7 kB raw / 2.8 kB gzip                 |
 | `drag-drop-*.js`      |      48 kB |       16 kB | about 47 kB raw / 15.3 kB gzip / 13.8 kB br  |
+| `sw.js`               |       8 kB |        3 kB | about 4 kB raw / 1.8 kB gzip / 1.6 kB br     |
 
 Sizes are in KiB, as printed by the check script.
+
+`sw.js` is the offline service worker. It is built separately into the site root and never loads
+with the page, so it is not part of the chunk layout above.
 
 ## How To Check
 
@@ -59,14 +63,18 @@ npm run bundle:check
 to every text asset of 512 bytes or more. The server sends those precompressed files to browsers
 that accept them.
 
-The check reads the built files in `dist/assets` and fails if:
+The check reads the built files in `dist/assets` (and `dist/sw.js`) and fails if:
 
 - any tracked chunk crosses its raw or gzip budget
 - a tracked chunk is missing its `.br` or `.gz` sibling
-- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*` or `CommandPalette-*` chunk
+- `dist/index.html` references a `drag-drop-*`, `SettingsDialog-*`, `EditableBoard-*`, `StatsPage-*`, `CommandPalette-*` or `pwa-*` chunk
 
 ## History
 
+- The installable app keeps its service worker setup (registration and the stale-chunk reload) out
+  of the entry: `main.tsx` imports it after the page's load event, as a `pwa-*` chunk of about
+  0.5 kB gzip. The entry only gained that import and the event stream's reconnect refresh, about
+  0.1 kB gzip. The worker itself is the separate `sw.js` with its own budget.
 - The command palette loads on demand in `CommandPalette-*` (about 3 kB gzip), prefetched a couple
   of seconds after load and on hover or focus of the search field, so the first keystroke opens it
   right away. Removing the inline search filter roughly offset the shortcut handling in the entry.
