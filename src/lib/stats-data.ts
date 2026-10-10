@@ -109,3 +109,11 @@ export function thresholdTone(
   if (value >= warning) return "warning";
   return "normal";
 }
+
+/** Canvas can't use color-mix(), so alpha goes into the oklch() color itself. */
+export function withAlpha(color: string, alpha: number): string {
+  if (color.startsWith("oklch(") && !color.includes("/")) {
+    return `${color.slice(0, -1)} / ${alpha})`;
+  }
+  return color;
+}

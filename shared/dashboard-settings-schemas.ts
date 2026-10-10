@@ -48,6 +48,7 @@ export const dashboardSettingsPatchSchema = z
         statsPosition: z.enum(["top", "bottom"]).optional(),
         showServices: z.boolean().optional(),
         showStats: z.boolean().optional(),
+        showStatsPage: z.boolean().optional(),
       })
       .strict()
       .optional(),
@@ -70,6 +71,7 @@ export const dashboardSettingsSchema = z.object({
     statsPosition: z.enum(["top", "bottom"]),
     showServices: z.boolean(),
     showStats: z.boolean(),
+    showStatsPage: z.boolean(),
   }),
 });
 

@@ -1,5 +1,5 @@
 import { requestJson } from "@/lib/api/client";
-import { hostSnapshotSchema } from "@/lib/api/schemas";
+import { hostSnapshotSchema } from "@/lib/api/metric-schemas";
 import { eventStream } from "@/lib/live/event-stream";
 import type { HostSnapshot } from "@shared/types";
 

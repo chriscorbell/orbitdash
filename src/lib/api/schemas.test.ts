@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as metricMini from "@/lib/api/metric-schemas";
 import * as mini from "@/lib/api/schemas";
 import * as full from "@shared/schemas";
 import { dashboardSettingsResponseSchema as fullSettings } from "@shared/dashboard-settings-schemas";
@@ -99,6 +100,7 @@ const settings = {
     statsPosition: "bottom",
     showServices: true,
     showStats: false,
+    showStatsPage: true,
   },
 };
 
@@ -149,7 +151,7 @@ const pairs = [
   },
   {
     name: "host snapshot",
-    mini: mini.hostSnapshotSchema,
+    mini: metricMini.hostSnapshotSchema,
     full: fullHost.hostSnapshotSchema,
     valid: hostSnapshot,
     invalid: [
@@ -171,7 +173,7 @@ const pairs = [
   },
   {
     name: "metric history",
-    mini: mini.metricHistorySchema,
+    mini: metricMini.metricHistorySchema,
     full: fullHost.metricHistorySchema,
     valid: metricHistory,
     invalid: [
