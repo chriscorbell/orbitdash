@@ -1,5 +1,8 @@
-export const GRID_COLUMN_OPTIONS = [3, 4, 5] as const;
-export type GridColumns = (typeof GRID_COLUMN_OPTIONS)[number];
+export const BOARD_MODE_OPTIONS = ["columns", "rows"] as const;
+export type BoardMode = (typeof BOARD_MODE_OPTIONS)[number];
+
+export const CARD_DENSITY_OPTIONS = ["compact", "comfortable", "tiles"] as const;
+export type CardDensity = (typeof CARD_DENSITY_OPTIONS)[number];
 
 export const THEME_OPTIONS = ["dark", "light", "system"] as const;
 export type ThemePreference = (typeof THEME_OPTIONS)[number];
@@ -11,7 +14,9 @@ export const ACCENT_OPTIONS = ["ice", "mint", "amber", "rose", "violet", "graphi
 export type AccentPreset = (typeof ACCENT_OPTIONS)[number];
 
 export interface DashboardLayoutSettings {
-  gridColumns: GridColumns;
+  /** Categories side by side as columns, or stacked as rows of cards. */
+  mode: BoardMode;
+  density: CardDensity;
   statsPosition: StatsPosition;
   showServices: boolean;
   showStats: boolean;
@@ -37,7 +42,8 @@ export const DEFAULT_DASHBOARD_SETTINGS: DashboardSettings = {
     theme: "dark",
   },
   layout: {
-    gridColumns: 4,
+    mode: "columns",
+    density: "comfortable",
     statsPosition: "top",
     showServices: true,
     showStats: true,
@@ -61,7 +67,8 @@ const FIELD_VALIDATORS: {
     theme: oneOf(THEME_OPTIONS),
   },
   layout: {
-    gridColumns: oneOf(GRID_COLUMN_OPTIONS),
+    mode: oneOf(BOARD_MODE_OPTIONS),
+    density: oneOf(CARD_DENSITY_OPTIONS),
     statsPosition: oneOf(STATS_POSITION_OPTIONS),
     showServices: isBoolean,
     showStats: isBoolean,

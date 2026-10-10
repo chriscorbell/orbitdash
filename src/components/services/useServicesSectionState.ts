@@ -9,7 +9,6 @@ const UNCATEGORIZED_KEY = "uncategorized";
 
 interface UseServicesSectionStateOptions {
   categoryOrder: UseCategoryOrderResult;
-  columnCount: 3 | 4 | 5;
   error: string | null;
   loading: boolean;
   onDelete: (id: string) => Promise<void>;
@@ -22,7 +21,6 @@ interface UseServicesSectionStateOptions {
 
 export function useServicesSectionState({
   categoryOrder,
-  columnCount,
   error,
   loading,
   onDelete,
@@ -145,12 +143,6 @@ export function useServicesSectionState({
     categoryOrderError,
     editingService,
     filteredServices,
-    gridClassName:
-      columnCount === 5
-        ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
-        : columnCount === 3
-          ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-          : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
     groupedServices,
     handleDelete,
     handleDuplicate,

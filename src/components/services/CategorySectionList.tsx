@@ -1,10 +1,35 @@
-import { memo, useId } from "react";
+import { memo, useId, useMemo } from "react";
 import { IconButton } from "@/components/common/IconButton";
 import { ServiceCard } from "@/components/ServiceCard";
 import { useCollapsedCategories } from "@/components/services/useCollapsedCategories";
+import { useElementWidth } from "@/hooks/useElementWidth";
+import {
+  COLUMN_MIN_WIDTH,
+  columnCountForWidth,
+  distributeIntoColumns,
+  estimateCategoryHeight,
+} from "@/lib/board-layout";
 import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
+import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 import type { Service } from "@shared/types";
 import { ChevronDown, Pencil } from "lucide-react";
+
+/** Cards fill each row of a category in the rows layout (and when nothing is categorized). */
+const ROW_GRID: Record<CardDensity, string> = {
+  compact: "grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2",
+  comfortable: "grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3",
+  tiles: "grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-3",
+};
+
+/** Cards stack inside a category column in the columns layout. */
+const COLUMN_STACK: Record<CardDensity, string> = {
+  compact: "flex flex-col gap-1.5",
+  comfortable: "flex flex-col gap-2",
+  tiles: "grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2",
+};
+
+const COLUMN_GAP = 24;
+const MAX_COLUMNS = 6;
 
 export interface ServiceGroup {
   /** Category id, or "uncategorized" for services without one. */
@@ -15,8 +40,9 @@ export interface ServiceGroup {
 
 interface CategorySectionListProps {
   grouped: readonly ServiceGroup[];
-  gridClassName: string;
+  density: CardDensity;
   hasNamedCategories: boolean;
+  mode: BoardMode;
   services: Service[];
   onDelete: (service: Service) => void;
   onDuplicate: (service: Service) => void;
@@ -28,6 +54,7 @@ interface CategorySectionProps {
   category: string;
   categoryKey: string;
   collapsed: boolean;
+  density: CardDensity;
   gridClassName: string;
   services: Service[];
   onDelete: (service: Service) => void;
@@ -41,6 +68,7 @@ const CategorySection = memo(function CategorySection({
   category,
   categoryKey,
   collapsed,
+  density,
   gridClassName,
   services,
   onDelete,
@@ -68,6 +96,9 @@ const CategorySection = memo(function CategorySection({
               className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? "-rotate-90" : ""}`}
             />
             <span className="truncate">{category}</span>
+            <span className="text-xs font-normal tabular-nums text-muted-foreground/60">
+              {services.length}
+            </span>
           </button>
         </h3>
         {category !== UNCATEGORIZED_CATEGORY && (
@@ -88,6 +119,7 @@ const CategorySection = memo(function CategorySection({
           <ServiceCard
             key={service.id}
             service={service}
+            density={density}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
             onEdit={onEdit}
@@ -100,21 +132,40 @@ const CategorySection = memo(function CategorySection({
 
 function CategorizedSectionList({
   grouped,
-  gridClassName,
+  density,
+  mode,
   onDelete,
   onDuplicate,
   onEdit,
   onRenameCategory,
 }: Omit<CategorySectionListProps, "hasNamedCategories" | "services">) {
   const { collapsed, toggle } = useCollapsedCategories(grouped);
+  const { ref, width } = useElementWidth<HTMLDivElement>();
+  const columnCount = columnCountForWidth(
+    width,
+    COLUMN_MIN_WIDTH[density],
+    COLUMN_GAP,
+    MAX_COLUMNS
+  );
 
-  return grouped.map((group) => (
+  const columns = useMemo(
+    () =>
+      mode === "columns"
+        ? distributeIntoColumns(grouped, columnCount, (group) =>
+            estimateCategoryHeight(group.services.length, density, collapsed.includes(group.key))
+          )
+        : [grouped],
+    [collapsed, columnCount, density, grouped, mode]
+  );
+
+  const renderSection = (group: ServiceGroup) => (
     <CategorySection
       key={group.key}
       category={group.name}
       categoryKey={group.key}
       collapsed={collapsed.includes(group.key)}
-      gridClassName={gridClassName}
+      density={density}
+      gridClassName={mode === "columns" ? COLUMN_STACK[density] : ROW_GRID[density]}
       services={group.services}
       onDelete={onDelete}
       onDuplicate={onDuplicate}
@@ -122,13 +173,28 @@ function CategorizedSectionList({
       onRenameCategory={onRenameCategory}
       onToggle={toggle}
     />
-  ));
+  );
+
+  if (mode === "rows") {
+    return <div className="space-y-6">{grouped.map(renderSection)}</div>;
+  }
+
+  return (
+    <div ref={ref} data-columns={columns.length} className="flex items-start gap-6">
+      {columns.map((column, index) => (
+        <div key={index} className="flex min-w-0 flex-1 flex-col gap-6">
+          {column.map(renderSection)}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function CategorySectionList({
   grouped,
-  gridClassName,
+  density,
   hasNamedCategories,
+  mode,
   services,
   onDelete,
   onDuplicate,
@@ -139,7 +205,8 @@ export function CategorySectionList({
     return (
       <CategorizedSectionList
         grouped={grouped}
-        gridClassName={gridClassName}
+        density={density}
+        mode={mode}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
         onEdit={onEdit}
@@ -149,11 +216,12 @@ export function CategorySectionList({
   }
 
   return (
-    <div className={gridClassName}>
+    <div className={ROW_GRID[density]}>
       {services.map((service) => (
         <ServiceCard
           key={service.id}
           service={service}
+          density={density}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
           onEdit={onEdit}

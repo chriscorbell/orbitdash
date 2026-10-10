@@ -40,4 +40,22 @@ describe("ServiceCard", () => {
     expect(description.className).toContain("truncate");
     expect(description.className).not.toContain("line-clamp-1");
   });
+
+  it("shows the name under a large icon in the tile density", () => {
+    render(
+      <ServiceCard
+        service={baseService}
+        density="tiles"
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Crafty")).toBeTruthy();
+    expect(screen.queryByText(baseService.description as string)).toBeNull();
+    expect(screen.getByRole("link").getAttribute("title")).toBe(
+      `Crafty\n${baseService.description}`
+    );
+  });
 });

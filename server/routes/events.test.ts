@@ -104,7 +104,7 @@ describe("events stream", () => {
     const settings = await app.request("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ layout: { gridColumns: 5 } }),
+      body: JSON.stringify({ layout: { density: "tiles" } }),
     });
     expect(settings.status).toBe(200);
 

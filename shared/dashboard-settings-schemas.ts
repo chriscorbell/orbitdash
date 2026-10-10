@@ -2,7 +2,8 @@ import { z } from "zod";
 
 /** Request and response validation for settings; the zod-free logic lives in dashboard-settings. */
 
-const gridColumnsSchema = z.union([z.literal(3), z.literal(4), z.literal(5)]);
+const modeSchema = z.enum(["columns", "rows"]);
+const densitySchema = z.enum(["compact", "comfortable", "tiles"]);
 const themeSchema = z.enum(["dark", "light", "system"]);
 const accentSchema = z.enum(["ice", "mint", "amber", "rose", "violet", "graphite"]);
 
@@ -15,7 +16,8 @@ export const dashboardSettingsPatchSchema = z
       .optional(),
     layout: z
       .object({
-        gridColumns: gridColumnsSchema.optional(),
+        mode: modeSchema.optional(),
+        density: densitySchema.optional(),
         statsPosition: z.enum(["top", "bottom"]).optional(),
         showServices: z.boolean().optional(),
         showStats: z.boolean().optional(),
@@ -28,7 +30,8 @@ export const dashboardSettingsPatchSchema = z
 export const dashboardSettingsSchema = z.object({
   appearance: z.object({ accent: accentSchema, theme: themeSchema }),
   layout: z.object({
-    gridColumns: gridColumnsSchema,
+    mode: modeSchema,
+    density: densitySchema,
     statsPosition: z.enum(["top", "bottom"]),
     showServices: z.boolean(),
     showStats: z.boolean(),
