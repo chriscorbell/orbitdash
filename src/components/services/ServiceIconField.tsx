@@ -1,8 +1,9 @@
-import type { ChangeEventHandler, RefObject } from "react";
+import { useState, type ChangeEventHandler, type RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X } from "lucide-react";
+import { IconLibraryPanel, IconSuggestions } from "@/components/services/IconLibraryPicker";
+import { LibraryBig, Upload, X } from "lucide-react";
 
 // Matches the formats the server detects; .ico is listed by extension because browsers disagree
 // on its MIME type.
@@ -27,6 +28,8 @@ interface ServiceIconFieldProps {
   onIconChange: ChangeEventHandler<HTMLInputElement>;
   onIconUrlChange: (value: string) => void;
   onRemoveIcon: () => void;
+  /** The service's name, used to suggest library icons. */
+  serviceName?: string;
 }
 
 export function ServiceIconField({
@@ -39,7 +42,14 @@ export function ServiceIconField({
   onIconChange,
   onIconUrlChange,
   onRemoveIcon,
+  serviceName = "",
 }: ServiceIconFieldProps) {
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const pickFromLibrary = (url: string) => {
+    onIconUrlChange(url);
+    setLibraryOpen(false);
+  };
+
   return (
     <div className="space-y-2">
       <Label className="font-semibold">Icon</Label>
@@ -70,6 +80,16 @@ export function ServiceIconField({
         >
           <Upload className="mr-1.5 h-3.5 w-3.5" />
           {iconPreview ? "Change" : "Upload"}
+        </Button>
+        <Button
+          type="button"
+          variant={libraryOpen ? "secondary" : "outline"}
+          size="sm"
+          aria-expanded={libraryOpen}
+          onClick={() => setLibraryOpen((open) => !open)}
+        >
+          <LibraryBig className="mr-1.5 h-3.5 w-3.5" />
+          Library
         </Button>
         <Label htmlFor={fileInputId} className="sr-only">
           Upload icon file
@@ -113,19 +133,24 @@ export function ServiceIconField({
           </a>
         </p>
       )}
+      {libraryOpen ? (
+        <IconLibraryPanel
+          initialQuery={serviceName}
+          selectedUrl={iconUrl.trim()}
+          onSelect={pickFromLibrary}
+        />
+      ) : (
+        !iconPreview &&
+        serviceName.trim().length >= 2 && (
+          <IconSuggestions
+            name={serviceName}
+            selectedUrl={iconUrl.trim()}
+            onSelect={onIconUrlChange}
+          />
+        )
+      )}
       <p className="text-xs text-muted-foreground">
-        Upload or enter a URL to a PNG, SVG, JPG, GIF, WebP or ICO icon.
-        <br />
-        Browse{" "}
-        <a
-          href="https://dashboardicons.com/"
-          target="_blank"
-          rel="noreferrer"
-          className="underline underline-offset-2 hover:text-foreground"
-        >
-          dashboardicons.com
-        </a>{" "}
-        to find icons.
+        Pick one from the library, upload a PNG, SVG, JPG, GIF, WebP or ICO, or paste a link to one.
       </p>
     </div>
   );

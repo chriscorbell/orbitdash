@@ -26,5 +26,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "shared"]
+  "include": ["src", "shared"],
+  // The service worker has worker globals instead of the DOM; tsconfig.sw.json checks it.
+  "exclude": ["src/sw/service-worker.ts"]
 }

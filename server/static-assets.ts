@@ -188,7 +188,9 @@ function respondWithAsset(c: Context, asset: StaticAsset): Response {
 /**
  * Serves the built frontend from `distDir`: precompressed variants chosen by
  * Accept-Encoding, long-lived caching for hashed assets, ETag revalidation for
- * everything else, and index.html (held in memory) as the SPA fallback.
+ * everything else (index.html, the service worker /sw.js and the web app
+ * manifest must always revalidate, or browsers keep running an old build), and
+ * index.html (held in memory) as the SPA fallback.
  *
  * The directory is scanned once, so only files present at startup are served.
  */
@@ -214,9 +216,10 @@ export function createStaticAssetHandler(distDir: string): Handler {
       return respondWithAsset(c, asset);
     }
 
-    // A missing chunk must not come back as HTML: the browser would report a
-    // MIME type error instead of a failed request.
-    if (requestPath.startsWith("/assets/") || !indexAsset) {
+    // A missing file must not come back as HTML: the browser would report a MIME
+    // type error for a chunk, or fail to update the service worker, instead of
+    // seeing a failed request. Only paths without an extension are app routes.
+    if (requestPath.startsWith("/assets/") || path.extname(requestPath) !== "" || !indexAsset) {
       return c.text("Not found", 404);
     }
 

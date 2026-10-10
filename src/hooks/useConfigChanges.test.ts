@@ -70,6 +70,32 @@ describe("useConfigChanges", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
+  it("refreshes once when the connection comes back after dropping", () => {
+    const fake = createFakeStream();
+    const onChange = vi.fn();
+    renderHook(() => useConfigChanges(["layout"], onChange, fake.stream));
+
+    fake.connection("error");
+    fake.connection("error");
+    expect(onChange).not.toHaveBeenCalled();
+
+    fake.connection("open");
+    fake.connection("open");
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't refresh twice when the tab resumes after a dropped connection", () => {
+    const fake = createFakeStream();
+    const onChange = vi.fn();
+    renderHook(() => useConfigChanges(["layout"], onChange, fake.stream));
+
+    fake.connection("error");
+    fake.connection("resumed");
+    fake.connection("open");
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it("always calls the latest callback and unsubscribes on unmount", () => {
     const fake = createFakeStream();
     const first = vi.fn();

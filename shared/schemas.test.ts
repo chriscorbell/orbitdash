@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   categoriesResponseSchema,
   categoryOrderResponseSchema,
+  iconLibraryResponseSchema,
   categorySchema,
   importSummarySchema,
   snapshotsResponseSchema,
@@ -413,5 +414,26 @@ describe("service ordering schemas", () => {
       category_id: null,
       ids: ["a"],
     });
+  });
+});
+
+describe("iconLibraryResponseSchema", () => {
+  it("accepts library results and rejects unknown sources", () => {
+    const entry = {
+      id: "selfhst:plex",
+      source: "selfhst",
+      slug: "plex",
+      name: "Plex",
+      url: "https://x/plex.svg",
+    };
+    expect(
+      iconLibraryResponseSchema.parse({ entries: [entry], updatedAt: 1 }).entries
+    ).toHaveLength(1);
+    expect(
+      iconLibraryResponseSchema.safeParse({
+        entries: [{ ...entry, source: "other" }],
+        updatedAt: 1,
+      }).success
+    ).toBe(false);
   });
 });
