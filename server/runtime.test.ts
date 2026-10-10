@@ -9,6 +9,7 @@ import { historySnapshot } from "./history/test-fixtures";
 import { getScheduledJobNames } from "./jobs";
 import { isCollectionRunning } from "./metrics";
 import { initializeServer, shutdown } from "./runtime";
+import { statusMonitor } from "./status/monitor";
 import { cleanupTestDatabase, createTestDataDir } from "./test-utils";
 
 let testDataDir: string | null = null;
@@ -163,6 +164,51 @@ describe("runtime metric history", () => {
     expect(errorLog.mock.calls.map(([line]) => JSON.parse(String(line)))).toContainEqual(
       expect.objectContaining({ event: "metric_history.flush_failed", level: "error" })
     );
+    errorLog.mockRestore();
+  });
+});
+
+describe("runtime status checks", () => {
+  const quietServer = {
+    cleanupIcons: false,
+    logStartup: false,
+    registerSignalHandlers: false,
+    startMetrics: false,
+  };
+
+  it("starts the monitor with the background jobs and stops it on shutdown", () => {
+    testDataDir = createTestDataDir("orbitdash-runtime-status-");
+    initializeServer({ ...quietServer, dataDir: testDataDir });
+
+    expect(statusMonitor.isRunning()).toBe(true);
+    expect(getScheduledJobNames()).toEqual(
+      expect.arrayContaining(["status-checks", "prune-status-history"])
+    );
+
+    shutdown();
+    expect(statusMonitor.isRunning()).toBe(false);
+  });
+
+  it("leaves the monitor off without background jobs", () => {
+    testDataDir = createTestDataDir("orbitdash-runtime-status-off-");
+    initializeServer({ ...quietServer, dataDir: testDataDir, startJobs: false });
+    expect(statusMonitor.isRunning()).toBe(false);
+  });
+
+  it("keeps starting when the monitor can't start", () => {
+    testDataDir = createTestDataDir("orbitdash-runtime-status-fail-");
+    const start = spyOn(statusMonitor, "start").mockImplementation(() => {
+      throw new Error("database is locked");
+    });
+    const errorLog = spyOn(console, "error").mockImplementation(() => {});
+
+    initializeServer({ ...quietServer, dataDir: testDataDir });
+
+    expect(isDbInitialized()).toBe(true);
+    expect(errorLog.mock.calls.map(([line]) => JSON.parse(String(line)))).toContainEqual(
+      expect.objectContaining({ event: "status.start_failed", message: "database is locked" })
+    );
+    start.mockRestore();
     errorLog.mockRestore();
   });
 });

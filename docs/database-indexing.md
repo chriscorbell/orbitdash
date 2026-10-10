@@ -18,6 +18,15 @@ live in an in-memory buffer inside `server/metrics.ts`. Rolled-up history is sto
   - range read: `SELECT ... WHERE ts >= ? AND ts <= ? ORDER BY ts ASC`
   - per-minute write: `INSERT ... ON CONFLICT(ts) DO UPDATE`, once a minute in one transaction
   - prune: `DELETE ... WHERE ts < ?`, hourly
+- Status checks
+  - checks to run: `SELECT ... FROM services WHERE check_enabled = 1`, at startup and after config
+    changes
+  - each check: `INSERT OR IGNORE INTO status_results`, an upsert into `status_hourly` and one into
+    `service_status`, in one transaction
+  - history: `SELECT ... WHERE service_id = ? AND ts >= ? AND ts <= ? ORDER BY ts ASC` on either
+    history table
+  - prune: `DELETE FROM status_results WHERE ts < ?` and the same for `status_hourly`, plus a sweep
+    for rows whose service is gone, hourly
 
 ## Existing Index Coverage
 
@@ -27,6 +36,14 @@ live in an in-memory buffer inside `server/metrics.ts`. Rolled-up history is sto
 - `services_category_name_idx` supports the dashboard's list query ordered by category and name.
 - In both history tables `ts` is an `INTEGER PRIMARY KEY`, which makes it the rowid. Range reads,
   upserts and prunes all walk the table b-tree directly, with no separate index to maintain.
+- `status_results` and `status_hourly` are `WITHOUT ROWID` tables keyed by `(service_id, ts)`, so a
+  service's history is one contiguous range of the primary key. `status_results_ts_idx` lets the
+  hourly prune delete old results across every service without scanning the table; at a check
+  every 15 seconds for 50 services the table holds close to 300,000 rows. `status_hourly` stays
+  small (one row per service per hour), so its prune scans. `service_status` has one row per
+  service and needs only its primary key.
+- The `check_enabled = 1` filter has no index: it runs only at startup and after config changes,
+  over a table of tens of rows.
 
 ## Why There Are No Extra Indexes Yet
 

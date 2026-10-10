@@ -7,6 +7,7 @@ import eventsRouter from "./routes/events";
 import metricsRouter from "./routes/metrics";
 import iconLibraryRouter from "./routes/icon-library";
 import settingsRouter from "./routes/settings";
+import statusRouter from "./routes/status";
 import wallpapersRouter from "./routes/wallpapers";
 import servicesRouter from "./routes/services";
 import { jsonError, jsonNotFound } from "./api-response";
@@ -131,6 +132,7 @@ app.route("/api/icon-library", iconLibraryRouter);
 app.route("/api/metrics", metricsRouter);
 app.route("/api/settings", settingsRouter);
 app.route("/api/services", servicesRouter);
+app.route("/api/status", statusRouter);
 app.route("/api/wallpapers", wallpapersRouter);
 
 app.get("/api/health", (c) => {

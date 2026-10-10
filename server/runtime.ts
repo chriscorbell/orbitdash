@@ -9,6 +9,7 @@ import { metricAlerts } from "./alerts/service";
 import { purgeUnusedWallpapers } from "./services/wallpaper-storage";
 import { purgeTrash } from "./services/service-trash";
 import { cleanupOrphanIcons } from "./services/icon-storage";
+import { statusMonitor } from "./status/monitor";
 
 export interface InitializeServerOptions {
   cleanupIcons?: boolean;
@@ -67,6 +68,23 @@ function startBackgroundJobs() {
     initialDelayMs: 2 * MINUTE_MS,
     intervalMs: HOUR_MS,
   });
+  // Status checks: each tick starts the checks that are due (see server/status/scheduler.ts).
+  // Like icon cleanup, a failure here must never stop the server from starting.
+  try {
+    statusMonitor.start();
+  } catch (error) {
+    writeLog("error", "status.start_failed", {
+      message: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+  scheduleJob("status-checks", () => statusMonitor.tick(), {
+    initialDelayMs: 1_000,
+    intervalMs: 1_000,
+  });
+  scheduleJob("prune-status-history", () => void statusMonitor.prune(Date.now()), {
+    initialDelayMs: 3 * MINUTE_MS,
+    intervalMs: HOUR_MS,
+  });
 }
 
 // Writes the minute in progress so a restart doesn't drop it; the next process merges into it.
@@ -86,6 +104,8 @@ function flushMetricHistory() {
 
 export function shutdown() {
   cancelAllJobs();
+  // Before the database closes: running checks are cancelled and their results dropped.
+  statusMonitor.stop();
   stopCollection();
   flushMetricHistory();
   closeDb();

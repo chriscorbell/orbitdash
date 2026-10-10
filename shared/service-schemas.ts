@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHECK_INTERVAL_MAX_S, CHECK_INTERVAL_MIN_S, STATUS_CHECK_METHODS } from "./status";
 import { normalizeIconUrl, normalizeServiceUrl } from "./urls";
 
 function trimString(value: unknown): unknown {
@@ -104,6 +105,30 @@ const updateIconUrlSchema = z
     return normalizeIconUrl(value)!;
   });
 
+const CHECK_INTERVAL_MESSAGE = `check interval must be a whole number of seconds from ${CHECK_INTERVAL_MIN_S} to ${CHECK_INTERVAL_MAX_S}`;
+
+/**
+ * Status check settings, all optional: service-operations fills in the defaults (checks off) or
+ * the stored values, then validates the target against the method it ends up with.
+ */
+const checkFields = {
+  check_enabled: z.boolean({ error: "check_enabled must be true or false" }).optional(),
+  check_method: z
+    .enum(STATUS_CHECK_METHODS, { error: "check method must be http or tcp" })
+    .optional(),
+  check_target: z.preprocess(
+    trimNullableString,
+    z.string({ error: "check target must be a string" }).nullable().optional()
+  ),
+  check_interval: z
+    .number({ error: CHECK_INTERVAL_MESSAGE })
+    .int(CHECK_INTERVAL_MESSAGE)
+    .min(CHECK_INTERVAL_MIN_S, CHECK_INTERVAL_MESSAGE)
+    .max(CHECK_INTERVAL_MAX_S, CHECK_INTERVAL_MESSAGE)
+    .optional(),
+  check_ignore_tls: z.boolean({ error: "check_ignore_tls must be true or false" }).optional(),
+};
+
 export const serviceCreateSchema = z.object({
   name: requiredNameSchema,
   url: requiredServiceUrlSchema,
@@ -111,6 +136,7 @@ export const serviceCreateSchema = z.object({
   icon_url: createIconUrlSchema,
   category: createTextFieldSchema,
   open_in_new_tab: z.boolean().optional().default(true),
+  ...checkFields,
 });
 
 export const serviceUpdateSchema = z.object({
@@ -120,6 +146,7 @@ export const serviceUpdateSchema = z.object({
   icon_url: updateIconUrlSchema,
   category: updateTextFieldSchema,
   open_in_new_tab: z.boolean().optional(),
+  ...checkFields,
 });
 
 export function getValidationMessage(error: z.ZodError): string {

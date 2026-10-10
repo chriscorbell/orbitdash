@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ServiceCategoryField } from "@/components/services/ServiceCategoryField";
 import { ServiceDialogActions } from "@/components/services/ServiceDialogActions";
 import { ServiceIconField } from "@/components/services/ServiceIconField";
+import { ServiceStatusCheckField } from "@/components/services/ServiceStatusCheckField";
 import {
   isServiceDialogSubmittable,
   prepareServicePayload,
@@ -53,6 +54,7 @@ function ServiceDialogBody({
     handleIconChange,
     handleIconUrlChange,
     handleRemoveIcon,
+    setCheck,
     setDescription,
     setName,
     setNewCategory,
@@ -67,6 +69,11 @@ function ServiceDialogBody({
   });
 
   const {
+    checkEnabled,
+    checkIgnoreTls,
+    checkInterval,
+    checkMethod,
+    checkTarget,
     description,
     iconPreview,
     iconUrl,
@@ -116,7 +123,8 @@ function ServiceDialogBody({
   };
 
   return (
-    <DialogContent className="sm:max-w-md">
+    // Scrolls like the settings dialog once the status check section makes it taller than the screen.
+    <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
       <DialogHeader>
         <DialogTitle>{isEdit ? "Edit Service" : "Add Service"}</DialogTitle>
         <DialogDescription>
@@ -211,6 +219,13 @@ function ServiceDialogBody({
           onIconUrlChange={handleIconUrlChange}
           onRemoveIcon={handleRemoveIcon}
           serviceName={name}
+        />
+
+        <ServiceStatusCheckField
+          fieldIds={fieldIds}
+          linkUrl={url}
+          onChange={setCheck}
+          value={{ checkEnabled, checkIgnoreTls, checkInterval, checkMethod, checkTarget }}
         />
 
         {errorMessage && <p className="text-sm font-medium text-destructive">{errorMessage}</p>}
