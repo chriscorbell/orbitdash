@@ -144,6 +144,17 @@ describe("dashboard settings routes", () => {
         showStatsPage: true,
       },
       search: { engine: "duckduckgo", customUrl: "" },
+      widgets: {
+        placement: "row",
+        clock: false,
+        greeting: false,
+        clockFormat: "auto",
+        weather: false,
+        weatherLocation: null,
+        weatherUnits: "metric",
+        agenda: false,
+        agendaDays: 7,
+      },
     };
     expect(body).toEqual({ device: null, effective: defaults, settings: defaults, stored: false });
   });
@@ -192,6 +203,36 @@ describe("dashboard settings routes", () => {
     ]) {
       expect((await put("/api/settings", { appearance: invalid })).status).toBe(400);
     }
+  });
+
+  it("saves widgets and checks the weather location", async () => {
+    const widgets = {
+      placement: "header",
+      clock: true,
+      greeting: true,
+      clockFormat: "24h",
+      weather: true,
+      weatherLocation: { name: "Portland, Oregon", latitude: 45.52, longitude: -122.68 },
+      weatherUnits: "imperial",
+      agenda: true,
+      agendaDays: 3,
+    } as const;
+    const response = await put("/api/settings", { widgets });
+    expect(((await response.json()) as View).settings.widgets).toEqual(widgets);
+
+    for (const invalid of [
+      { weatherLocation: { name: "x", latitude: 91, longitude: 0 } },
+      { weatherLocation: { name: "", latitude: 1, longitude: 0 } },
+      { weatherLocation: { name: "x", latitude: 1, longitude: 0, zoom: 3 } },
+      { agendaDays: 5 },
+      { placement: "footer" },
+    ]) {
+      expect((await put("/api/settings", { widgets: invalid })).status).toBe(400);
+    }
+    expect(
+      ((await (await put("/api/settings", { widgets: { weatherLocation: null } })).json()) as View)
+        .settings.widgets.weatherLocation
+    ).toBeNull();
   });
 
   it("patches the shared settings", async () => {

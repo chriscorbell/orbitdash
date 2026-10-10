@@ -49,6 +49,7 @@ version before creating the matching tag.
 - Live CPU, memory and disk usage in a compact strip with sparklines
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
+- Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
@@ -403,6 +404,26 @@ spread out so they don't all fire together.
 Results are kept for 24 hours and hourly totals for 30 days. `GET /api/status` returns the current
 status of every checked service, `GET /api/events?topics=status` streams each result, and
 `GET /api/status/:id/history?range=24h|30d` returns the uptime history.
+
+## Widgets
+
+Settings → Widgets turns on any of three widgets, shown as a row above the board or as small
+pills in the header:
+
+- **Clock**: the time and date in large type, with an optional greeting. The time format (auto,
+  12-hour or 24-hour) also applies to the header clock.
+- **Weather**: current conditions and a five-day forecast from
+  [Open-Meteo](https://open-meteo.com/), which needs no account or API key. Search for a place by
+  name or postal code; °C or °F. The server fetches the forecast and caches it for ten minutes.
+- **Agenda**: upcoming events from one or more iCal links (`https://` or `webcal://`, for example
+  a Google, iCloud, Fastmail or Nextcloud calendar's secret address), for today or the next 3, 7
+  or 14 days. Recurring events, moved and cancelled instances, and all-day events are handled.
+
+Calendar links are often secret, so they stay on the server: the browser only ever sees each
+calendar's name and host, plus event titles, times and locations. The server checks a link when it
+is added, refreshes each calendar every 15 minutes, and reports a calendar that stops loading
+without hiding the others. With [authentication](#authentication) on, guests can see the widgets
+but only a signed-in user can add or remove calendars. Calendar links are included in backups.
 
 ## Health Checks
 

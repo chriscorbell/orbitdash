@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Activity,
   Check,
@@ -19,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { handleLinkClick } from "@/lib/router";
 import { cn } from "@/lib/utils";
+import type { ClockFormat } from "@shared/dashboard-settings";
 
 export type AppPage = "services" | "stats";
 
@@ -42,6 +44,9 @@ interface AppHeaderProps {
   onOpenPalette: () => void;
   /** Starts loading the palette before it is needed. */
   onPreloadPalette?: () => void;
+  clockFormat?: ClockFormat;
+  /** Compact widgets shown next to the host status. */
+  widgets?: ReactNode;
   /** Shown to guests when there is a password to sign in with. */
   onSignIn?: () => void;
 }
@@ -68,6 +73,8 @@ export function AppHeader({
   onOpenPalette,
   onOpenSettings,
   onPreloadPalette,
+  clockFormat,
+  widgets,
   onSignIn,
 }: AppHeaderProps) {
   return (
@@ -154,7 +161,7 @@ export function AppHeader({
               </kbd>
             </button>
 
-            <HeaderStatus />
+            <HeaderStatus clockFormat={clockFormat}>{widgets}</HeaderStatus>
 
             {!canEdit && onSignIn && (
               <Button
