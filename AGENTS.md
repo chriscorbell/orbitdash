@@ -105,16 +105,9 @@ Use this file as a practical handoff for future agents working in this repositor
 
 ## Current Quality Baseline
 
-- The codebase was recently brought to a 10/10 internal quality score.
-- Recent completed work included:
-  - shared schemas for request/response validation
-  - frontend hook/component/e2e test coverage
-  - runtime/db migration improvements
-  - icon storage and service-layer extraction
-  - centralized API error responses
-  - bundle budget enforcement
-  - structured logging and graceful shutdown testing
-  - Bun-native Dependabot configuration
+- Re-scored 10/10 on `docs/quality-rubric.md` at 1.0.0 (October 2026).
+- 1.0 added alerts, status checks, notifications, optional auth, Docker with discovery, integrations, widgets, importers, Prometheus and the settings page. Each has a section in `docs/architecture.md`.
+- Playwright covers the main journeys: the board and edit mode, palette, Stats page, status checks, live sync between browsers, links and tags, bulk edits, import, widgets, notifications, an integration test, and sign-in. Spec files run in parallel against one backend, so a test that changes the board or dashboard-wide settings belongs in `e2e/app.smoke.spec.ts`, which runs in order.
 
 ## Suggested Agent Workflow
 

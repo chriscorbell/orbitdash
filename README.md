@@ -11,81 +11,61 @@
 <br/>
 
 <p align="center">
-  <b>orbitdash</b> is <i>yet another</i> modern server dashboard, <br>inspired by <a href="https://github.com/MauriceNino/dashdot" target="_blank">dashdot</a>, <a href="https://github.com/bastienwirtz/homer" target="_blank">homer</a> and <a href="https://github.com/ajnart/homarr" target="_blank">homarr</a>.
+  <b>orbitdash</b> is a dashboard for your home server: your services, live system stats,<br>
+  and what your apps and containers are up to, on one fast page.
 </p>
 
 <p align="center">
-  It is intended for use on home/private servers.
+  Inspired by <a href="https://github.com/MauriceNino/dashdot" target="_blank">dashdot</a>, <a href="https://github.com/bastienwirtz/homer" target="_blank">homer</a> and <a href="https://github.com/ajnart/homarr" target="_blank">homarr</a>. Built with TypeScript, React, Tailwind CSS, Vite, Bun, Hono and SQLite.
 </p>
 
 <p align="center">
-  Built with TypeScript, React, TailwindCSS, shadcn/ui, Vite, Bun, Hono and SQLite.
+  <a href="https://github.com/chriscorbell/orbitdash/pkgs/container/orbitdash" target="_blank">Container image (GHCR)</a>
+  ·
+  <a href="https://github.com/chriscorbell/orbitdash/releases" target="_blank">Releases</a>
 </p>
-
-<p align="center">
-  <a href="https://github.com/chriscorbell/orbitdash/pkgs/container/orbitdash" target="_blank">Container Image (GHCR)</a>
-</p>
-
-Container tags follow three channels:
-
-- `latest` and `main` are rolling tags updated from every validated push to `main`, except
-  documentation-only changes.
-- `sha-<commit>` identifies the build produced from one Git commit.
-- `vX.Y.Z` identifies a stable release whose tag matches the version in `package.json`.
-
-For an immutable deployment or rollback, pin the manifest digest as
-`ghcr.io/chriscorbell/orbitdash@sha256:<digest>`; registry tags can be republished.
-
-`package.json` is the single source for stable release versions. Its initial `0.0.0` value means
-that no stable release has been cut yet; the first release PR replaces it with the chosen semantic
-version before creating the matching tag.
 
 ## Preview
 
-<img src=".github/images/preview.png" alt="Screenshot of the app" />
+<img src=".github/images/preview.png" alt="orbitdash with a row of widgets, live stats and service cards in columns" />
 
 ## Features
 
-- Live CPU, memory and disk usage in a compact strip with sparklines
-- A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
-- Threshold alerts for CPU, memory, any disk and CPU temperature, with a duration before they fire, shown on the dashboard and the Stats page
-- Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal links) widgets, as a row above the board or pills in the header
-- Docker containers with state, health, CPU, memory and published ports, live from Docker's event stream
-- Running containers that aren't on the dashboard yet are suggested, from their labels or published ports
-- An optional Prometheus `/metrics` endpoint with host, status check and container metrics
-- Integrations that put live figures on a service's card: AdGuard Home, Jellyfin, Pi-hole, Plex, Proxmox VE, qBittorrent, Radarr, Sonarr, or a linked Docker container
-- Simple service links with icons and categories; dark icons get a light plate automatically
-- An internal and an external URL per service: cards open the one that fits the address you
-  reached the dashboard at, plus up to 5 extra named links (Admin, Logs) in a menu on the card
-- Tags on services, found by the command palette
-- Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
-- Notifications for outages and metric alerts on ntfy, Gotify, Discord or any webhook, with a delay that ignores blips, quiet hours that end with a summary, and a test button per channel
-- Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
-- Paste a link when adding a service and its name and icon fill in from the page; a Test button checks it before saving
-- A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
-- UI-native service management (no config file needed)
-- Categories as balanced columns or stacked rows, with compact, card or tile styles
-- Edit mode: drag cards and categories, rename categories in place, add services to a category,
-  and select several cards to move, delete (with undo) or change their status checks together
-- A wallpaper with blur and dim, your own dashboard name, an accent-colored favicon, and custom CSS
-- Settings follow you across browsers, with optional per-device overrides (e.g. a wall tablet)
-- Collapse category sections with saved per-browser state
-- Import services from Homepage, Dashy, Homer, Homarr or browser bookmarks, with a preview to pick from
-- Export and import everything as one file, with automatic nightly and pre-upgrade snapshots
-- Deleting a service can be undone for 30 minutes
-- Optional sign-in with a password or your sign-in proxy (Authelia, Authentik, Tailscale Serve),
-  with an optional read-only view for guests
-- Installable as an app on phones and desktops, and opens with your last known services while the
-  server is unreachable (needs https, see below)
+**Services**
 
-## Platform Support
+- Service links with icons from the dashboard-icons and selfh.st libraries, categories, and no config file: everything is managed in the UI
+- Paste a link and the name and icon fill in from the page; a Test button checks it before saving
+- An internal and an external URL per service (cards open the one that fits where you are), up to 5 extra named links, and tags
+- Categories as balanced columns or stacked rows, in compact, card or tile styles
+- Edit mode: drag cards and categories, rename in place, and select several cards to move, delete (with undo) or change together
+- A command palette (⌘K, `/`, or just start typing) for services, actions and web search
+- Import from Homepage, Dashy, Homer, Homarr or browser bookmarks, and seed a fresh install from a file
 
-- x86_64
-- aarch64
+**Monitoring**
 
-## Installation Options
+- Live CPU, memory and disk in a compact strip, and a Stats page with per-core load, memory, network, disk activity, storage and temperatures, live or over the last hour, day, week or month
+- Status checks (HTTP or TCP) with a status dot, response time and a 24-hour uptime bar on each card
+- Threshold alerts for CPU, memory, disks and temperature
+- Notifications for outages and alerts on ntfy, Gotify, Discord or any webhook, with quiet hours
+- Docker containers with state, health and resources, and suggestions for running containers that aren't on the dashboard yet
+- An optional Prometheus `/metrics` endpoint
 
-#### Docker Run
+**Integrations and widgets**
+
+- Live figures on service cards from AdGuard Home, Jellyfin, Pi-hole, Plex, Proxmox VE, qBittorrent, Radarr, Sonarr, or a linked Docker container
+- Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal) widgets
+
+**Yours**
+
+- Dark and light themes, accent colors, a wallpaper with blur and dim, your own dashboard name and custom CSS
+- Settings shared across browsers, with per-device overrides for a wall tablet or a phone
+- Optional sign-in with a password or your sign-in proxy (Authelia, Authentik, Tailscale Serve), with a read-only view for guests
+- Backups as one file plus automatic nightly snapshots; deleting a service can be undone for 30 minutes
+- Installable as an app on phones and desktops, and readable offline (over https)
+
+Runs on x86_64 and aarch64.
+
+## Quick Start
 
 ```bash
 docker run -d \
@@ -96,7 +76,14 @@ docker run -d \
   ghcr.io/chriscorbell/orbitdash:latest
 ```
 
-#### Docker Compose
+Then open `http://<server-ip>:7770` and add your first service. Change `7770` to serve it on
+another port.
+
+### Docker Compose with everything
+
+This adds the host's own mounts, network and OS name to the Stats page, Docker containers through
+a read-only socket proxy, and a password sign-in. Each part is optional; the sections below explain
+them.
 
 ```yaml
 services:
@@ -106,13 +93,52 @@ services:
     restart: unless-stopped
     ports:
       - "7770:3000"
+    environment:
+      - ORBITDASH_HOST_ROOT=/mnt/host
+      - ORBITDASH_DOCKER_HOST=tcp://dockerproxy:2375
+      - ORBITDASH_AUTH=password
+      - ORBITDASH_PASSWORD_HASH=$$argon2id$$v=19$$... # see Password below
     volumes:
       - ./orbitdash-data:/data
+      - /:/mnt/host:ro,rslave
+    depends_on:
+      - dockerproxy
+
+  dockerproxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1
+      - EVENTS=1
+      - POST=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
 
-After deployment, the dashboard is accessible at `http://<IP-ADDRESS>:7770`.
+### Configuration
 
-Change `7770` in the docker run/compose examples above if you want to serve the dashboard on a different port.
+Everything else is set in the UI. These environment variables cover what can't be:
+
+| Variable                                             | Default           | What it does                                                                                         |
+| ---------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `PORT`                                               | `3000`            | Port inside the container (`3001` outside Docker)                                                    |
+| `ORBITDASH_DATA_DIR`                                 | `/data`           | Where the database, icons, backups and `secret.key` live                                             |
+| `ORBITDASH_HOST_ROOT`                                | unset             | A read-only mount of the host's `/`, for the host's own stats ([more](#seeing-the-host-from-docker)) |
+| `ORBITDASH_DISK_PATH`                                | `/`               | The filesystem the strip's disk tile follows                                                         |
+| `ORBITDASH_HOSTNAME`                                 | host name         | The name shown in the header                                                                         |
+| `ORBITDASH_DOCKER_HOST`                              | socket if found   | `tcp://host:port`, `unix:///path`, or `off` ([more](#docker-containers))                             |
+| `ORBITDASH_AUTH` and related                         | `none`            | `password` or `proxy` sign-in ([more](#authentication))                                              |
+| `ORBITDASH_PROMETHEUS`, `ORBITDASH_PROMETHEUS_TOKEN` | off               | The `/metrics` endpoint ([more](#prometheus))                                                        |
+| `ORBITDASH_SEED_FILE`                                | `/data/seed.yaml` | Services to add on a fresh install ([more](#seeding-a-fresh-install))                                |
+| `ORBITDASH_BACKUP_KEEP`                              | `7`               | How many nightly snapshots to keep                                                                   |
+| `LOG_LEVEL`                                          | `info`            | `debug`, `info`, `warn` or `error`                                                                   |
+
+### Image tags
+
+- `latest` and `main` follow every validated push to `main`.
+- `vX.Y.Z` is a stable release; `sha-<commit>` is the build of one commit.
+- For an immutable deployment or rollback, pin the digest:
+  `ghcr.io/chriscorbell/orbitdash@sha256:<digest>`.
 
 ## Install As An App
 

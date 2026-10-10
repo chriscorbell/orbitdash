@@ -10,6 +10,21 @@ function editableCard(page: Page, name: string) {
   return page.locator("main").getByRole("button", { name: new RegExp(`^${name}\\.`) });
 }
 
+// Names no icon library has, so the preview never downloads an icon.
+const HOMEPAGE_SERVICES = `
+- Reading:
+    - Orbit Wiki:
+        href: http://127.0.0.1:9/wiki
+        description: Team notes
+    - Orbit Tracker:
+        href: http://127.0.0.1:9/tracker
+`;
+
+/** The header tab back to the board. */
+function goToServices(page: Page) {
+  return page.getByRole("navigation", { name: "Pages" }).getByRole("link", { name: "Services" });
+}
+
 /** Drags with several pointer moves, the way a person does, so dnd-kit sees the drag start. */
 async function dragTo(page: Page, source: Locator, target: Locator) {
   const from = (await source.boundingBox())!;
@@ -292,4 +307,56 @@ test("selected cards move, change checks and delete together, with one undo", as
     services.map((service) => [service.name, service.check_interval])
   );
   expect(intervals).toMatchObject({ "Bulk One": 300, "Bulk Two": 300, "Bulk Three": 60 });
+});
+
+test("services import from another dashboard's file in Settings, Data", async ({ page }) => {
+  await page.goto("/settings/data");
+  await page.getByLabel("Dashboard file to import").setInputFiles({
+    name: "services.yaml",
+    mimeType: "text/yaml",
+    buffer: Buffer.from(HOMEPAGE_SERVICES),
+  });
+
+  const dialog = page.getByRole("dialog", { name: "Import from Homepage" });
+  await expect(dialog.getByText("2 services in 1 group.")).toBeVisible();
+  // One service stays behind, and the group lands in a category of another name.
+  await dialog.getByRole("checkbox", { name: /^Orbit Tracker/ }).click();
+  await dialog.getByRole("combobox", { name: "Category for Reading" }).fill("Docs");
+  await dialog.getByRole("button", { name: "Import 1 service" }).click();
+
+  const finished = page.getByRole("dialog", { name: "Added 1 service" });
+  await expect(finished).toBeVisible();
+  await finished.getByRole("button", { name: "Done" }).click();
+  await expect(finished).toBeHidden();
+
+  await goToServices(page).click();
+  const board = page.locator("main");
+  await expect(board.getByRole("button", { name: "Collapse Docs category" })).toBeVisible();
+  await expect(board.getByRole("link", { name: /^Orbit Wiki/ })).toBeVisible();
+  await expect(board.getByRole("link", { name: /^Orbit Tracker/ })).toHaveCount(0);
+});
+
+test("the clock widget turns on and keeps its format from Settings, Widgets", async ({ page }) => {
+  await page.goto("/settings/widgets");
+  const settings = page.getByRole("main");
+  await settings.getByRole("switch", { name: "Clock", exact: true }).click();
+  await settings.getByRole("switch", { name: "Greeting", exact: true }).click();
+  await settings
+    .getByRole("radiogroup", { name: "Time format" })
+    .getByRole("radio", { name: "24-hour" })
+    .click();
+
+  await goToServices(page).click();
+  const clock = page.getByRole("region", { name: "Widgets" }).getByRole("group", { name: "Clock" });
+  await expect(clock.getByText(/^Good (morning|afternoon|evening|night)$/)).toBeVisible();
+  await expect(clock.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
+
+  // Saved for the dashboard, not just this page.
+  await page.reload();
+  await expect(clock.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
+
+  await page.goto("/settings/widgets");
+  await settings.getByRole("switch", { name: "Clock", exact: true }).click();
+  await goToServices(page).click();
+  await expect(page.getByRole("region", { name: "Widgets" })).toHaveCount(0);
 });
