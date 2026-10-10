@@ -35,6 +35,15 @@ is treated like this:
   hours of minutes and 90 days of quarter hours). Restoring a snapshot brings back the history up
   to when it was taken, followed by a gap.
 
+Status checks are split the same way:
+
+- **Export** includes each service's check settings (on or off, method, target, interval,
+  certificate handling). Backups from before status checks import with checks off.
+- **Check history** (results, hourly totals, current statuses) is left out of exports and kept
+  across imports. A service imported with the same id keeps its history; history of services that
+  no longer exist is removed by the hourly prune.
+- **Snapshots** include check history like any other table.
+
 ### Restore From A Snapshot
 
 Snapshots are complete data directories without the WAL files, so restoring one is a copy:

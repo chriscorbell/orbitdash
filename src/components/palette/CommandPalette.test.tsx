@@ -22,6 +22,11 @@ function service(name: string, extra: Partial<Service> = {}): Service {
     open_in_new_tab: false,
     created_at: 1,
     updated_at: 1,
+    check_enabled: false,
+    check_method: "http",
+    check_target: null,
+    check_interval: 60,
+    check_ignore_tls: false,
     ...extra,
   };
 }

@@ -4,24 +4,22 @@ import { CheckIcon, MinusIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+/** Checked and mixed share one look; the indicator shows a check or a dash. */
 function Checkbox({ className, ...props }: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+  const mixed = props.checked === "indeterminate";
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
+      // Mixed takes the checked styles too (see the data-checked variant in index.css).
+      data-checked={mixed ? "" : undefined}
       className={cn(
-        "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=checked]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground data-[state=indeterminate]:border-primary dark:data-[state=checked]:bg-primary dark:data-[state=indeterminate]:bg-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 rounded-[4px] border transition-colors outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50",
-        // A bigger target where fingers do the pointing.
-        "pointer-coarse:size-5",
+        "peer inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground pointer-coarse:size-5",
         className
       )}
       {...props}
     >
-      <CheckboxPrimitive.Indicator
-        data-slot="checkbox-indicator"
-        className="group flex items-center justify-center text-current data-[state=checked]:animate-in data-[state=checked]:zoom-in-75 data-[state=checked]:duration-100"
-      >
-        <CheckIcon className="size-3 group-data-[state=indeterminate]:hidden pointer-coarse:size-3.5" />
-        <MinusIcon className="hidden size-3 group-data-[state=indeterminate]:block pointer-coarse:size-3.5" />
+      <CheckboxPrimitive.Indicator data-slot="checkbox-indicator">
+        {mixed ? <MinusIcon className="h-3 w-3" /> : <CheckIcon className="h-3 w-3" />}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

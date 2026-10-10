@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { configScopeForMutation, EVENT_TOPICS, parseEventTopics } from "./events";
+import {
+  configScopeForMutation,
+  EVENT_TOPICS,
+  parseEventTopics,
+  TOPIC_BY_EVENT_TYPE,
+} from "./events";
 
 describe("parseEventTopics", () => {
   it("returns every topic when none or only unknown ones are requested", () => {
@@ -14,6 +19,12 @@ describe("parseEventTopics", () => {
     expect(parseEventTopics(" config , metrics,config,nope")).toEqual(["config", "metrics"]);
     expect(parseEventTopics("host,metrics")).toEqual(["host", "metrics"]);
     expect(parseEventTopics("alerts")).toEqual(["alerts"]);
+    expect(parseEventTopics("status")).toEqual(["status"]);
+  });
+
+  it("includes the status topic among all topics", () => {
+    expect(EVENT_TOPICS).toContain("status");
+    expect(TOPIC_BY_EVENT_TYPE.status).toBe("status");
   });
 });
 

@@ -78,6 +78,13 @@ const budgets = [
     maxRawKb: 48,
     maxGzipKb: 16,
   },
+  {
+    label: "service status",
+    prefix: "ServiceStatus-",
+    extension: ".js",
+    maxRawKb: 10,
+    maxGzipKb: 4,
+  },
   // Not part of the page; the browser fetches it on its own and checks it for updates.
   { label: "service worker", file: "sw.js", maxRawKb: 8, maxGzipKb: 3 },
 ];
@@ -91,6 +98,8 @@ const lazyOnlyPrefixes = [
   "StatsPage-",
   "CommandPalette-",
   "ImportDialog-",
+  // Status dots and details, loaded by the first card with checks on.
+  "ServiceStatus-",
   // Service worker setup, loaded after the page has.
   "pwa-",
 ];

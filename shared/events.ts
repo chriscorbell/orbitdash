@@ -1,10 +1,11 @@
-import type { HostSnapshot, MetricAlert, MetricSample } from "./types";
+import type { HostSnapshot, MetricAlert, MetricSample, ServiceStatus } from "./types";
 
 /**
  * Topics a client can subscribe to on GET /api/events?topics=... `metrics` carries the small
- * per-tick sample; `host` carries the full HostSnapshot from the same tick, for views that need it.
+ * per-tick sample; `host` carries the full HostSnapshot from the same tick, for views that need it;
+ * `status` carries a service's status after each check.
  */
-export const EVENT_TOPICS = ["metrics", "config", "host", "alerts"] as const;
+export const EVENT_TOPICS = ["metrics", "config", "host", "alerts", "status"] as const;
 export type EventTopic = (typeof EVENT_TOPICS)[number];
 
 /** What a config change touched, so clients refetch only what they need. */
@@ -33,13 +34,21 @@ export interface ConfigChangedEvent {
   type: "config.changed";
 }
 
-export type ServerEvent = AlertEvent | ConfigChangedEvent | HostEvent | MetricsEvent;
+/** A service's status after a check, or null once its check is turned off or it is deleted. */
+export interface StatusEvent {
+  id: string;
+  status: ServiceStatus | null;
+  type: "status";
+}
+
+export type ServerEvent = AlertEvent | ConfigChangedEvent | HostEvent | MetricsEvent | StatusEvent;
 
 export const TOPIC_BY_EVENT_TYPE: Record<ServerEvent["type"], EventTopic> = {
   alert: "alerts",
   "config.changed": "config",
   host: "host",
   metrics: "metrics",
+  status: "status",
 };
 
 /** Header clients send with mutations so the resulting event names its origin. */

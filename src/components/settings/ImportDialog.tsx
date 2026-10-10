@@ -67,7 +67,7 @@ export function ImportDialog({ categories, preview, onClose }: ImportDialogProps
 
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
-      <DialogContent className="max-h-[85dvh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 p-0 sm:max-w-xl">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-lg">
         {result ? (
           <ImportFinished result={result} onClose={onClose} />
         ) : (
@@ -81,14 +81,14 @@ export function ImportDialog({ categories, preview, onClose }: ImportDialogProps
               </DialogDescription>
             </DialogHeader>
 
-            <div className="overflow-y-auto overscroll-contain border-y px-6 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-b p-6 py-4">
               {preview.warnings.length > 0 && <ImportWarnings warnings={preview.warnings} />}
               <datalist id="import-category-suggestions">
                 {categories.map((name) => (
                   <option key={name} value={name} />
                 ))}
               </datalist>
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {preview.groups.map((_, groupIndex) => (
                   <ImportGroup
                     key={groupIndex}
@@ -111,7 +111,7 @@ export function ImportDialog({ categories, preview, onClose }: ImportDialogProps
                   {error}
                 </p>
               )}
-              <div className="flex gap-2 max-sm:flex-col-reverse max-sm:[&>*]:w-full">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
                 <Button type="button" variant="ghost" disabled={busy} onClick={onClose}>
                   Cancel
                 </Button>
@@ -142,12 +142,12 @@ export function ImportDialog({ categories, preview, onClose }: ImportDialogProps
 
 function ImportWarnings({ warnings }: { warnings: readonly string[] }) {
   return (
-    <details className="group mb-5 rounded-lg bg-muted/50 text-sm">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-muted-foreground select-none [&::-webkit-details-marker]:hidden">
+    <details className="mb-4 rounded-lg bg-muted/50 text-sm">
+      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-muted-foreground select-none">
         <CircleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
         {plural(warnings.length, "note")} about this file
       </summary>
-      <ul className="space-y-1 px-3 pb-3 pl-9 text-muted-foreground">
+      <ul className="space-y-1 px-3 pb-3 text-muted-foreground">
         {warnings.map((warning) => (
           <li key={warning}>{warning}</li>
         ))}
@@ -204,8 +204,8 @@ function ImportGroup({ disabled, groupIndex, preview, selection, onChange }: Imp
               <label
                 htmlFor={checkboxId}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-lg px-0 py-1.5 transition-opacity",
-                  !checked && "opacity-60"
+                  "flex cursor-pointer items-center gap-3 rounded-lg py-1.5 transition-opacity",
+                  !checked && "opacity-50"
                 )}
               >
                 <Checkbox
@@ -214,7 +214,7 @@ function ImportGroup({ disabled, groupIndex, preview, selection, onChange }: Imp
                   disabled={disabled}
                   onCheckedChange={() => onChange(toggleService(selection, key))}
                 />
-                <ServiceIcon className="h-7 w-7" name="" src={service.iconUrl} />
+                <ServiceIcon className="h-8 w-8" name="" src={service.iconUrl} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{service.name}</span>
                   <span className="text-muted-foreground block truncate text-xs">
@@ -248,7 +248,7 @@ function ImportFinished({ result, onClose }: { result: ImportResult; onClose: ()
         )}
       </DialogHeader>
       {problems && (
-        <div className="animate-in fade-in-0 space-y-3 overflow-y-auto border-y px-6 py-4 text-sm duration-300">
+        <div className="animate-in fade-in-0 space-y-3 overflow-y-auto border-t border-b p-6 py-4 text-sm duration-300">
           {result.iconFailures > 0 && (
             <p className="text-muted-foreground">
               {plural(result.iconFailures, "icon")} couldn't be downloaded. Those services were

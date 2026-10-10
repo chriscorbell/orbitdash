@@ -26,6 +26,11 @@ function service(id: string, categoryId: string | null, position: number, name =
     open_in_new_tab: true,
     created_at: 1,
     updated_at: 1,
+    check_enabled: false,
+    check_method: "http",
+    check_target: null,
+    check_interval: 60,
+    check_ignore_tls: false,
   };
 }
 
