@@ -102,6 +102,7 @@ const settings = {
     showStats: false,
     showStatsPage: true,
   },
+  search: { engine: "custom", customUrl: "https://searx.example.com/?q=%s" },
 };
 
 /** Each pair must agree: the browser's zod/mini schema and the shared full-zod schema. */

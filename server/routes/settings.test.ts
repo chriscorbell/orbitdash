@@ -143,6 +143,7 @@ describe("dashboard settings routes", () => {
         showStats: true,
         showStatsPage: true,
       },
+      search: { engine: "duckduckgo", customUrl: "" },
     };
     expect(body).toEqual({ device: null, effective: defaults, settings: defaults, stored: false });
   });
@@ -156,6 +157,19 @@ describe("dashboard settings routes", () => {
       theme: "light",
     });
     expect((await put("/api/settings", { appearance: { accent: "teal" } })).status).toBe(400);
+  });
+
+  it("saves a web search engine and checks custom search URLs", async () => {
+    const search = {
+      engine: "custom",
+      customUrl: "https://searx.example.com/search?q=%s",
+    } as const;
+    const response = await put("/api/settings", { search });
+    expect(((await response.json()) as View).settings.search).toEqual(search);
+    expect(
+      (await put("/api/settings", { search: { customUrl: "https://example.com" } })).status
+    ).toBe(400);
+    expect((await put("/api/settings", { search: { engine: "altavista" } })).status).toBe(400);
   });
 
   it("saves a title, a wallpaper with blur and dim, and custom CSS within their limits", async () => {

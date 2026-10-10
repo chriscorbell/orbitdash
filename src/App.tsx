@@ -1,8 +1,14 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { AppHeader } from "@/components/header/AppHeader";
 import { ServicesSection } from "@/components/ServicesSection";
-import { loadSettingsDialog, loadStatsPage } from "@/components/settings/settings-preload";
+import type { PaletteActionWithIcon } from "@/components/palette/CommandPalette";
+import {
+  loadCommandPalette,
+  loadSettingsDialog,
+  loadStatsPage,
+  preloadCommandPalette,
+} from "@/components/settings/settings-preload";
 import { StatsStrip } from "@/components/stats/StatsStrip";
 import { Wallpaper } from "@/components/Wallpaper";
 import { Button } from "@/components/ui/button";
@@ -10,15 +16,30 @@ import { Toaster } from "@/components/ui/toaster";
 import { useCategories } from "@/hooks/useCategories";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLiveQueries } from "@/hooks/useLiveQueries";
+import { usePaletteShortcuts } from "@/hooks/usePaletteShortcuts";
 import { useServices } from "@/hooks/useServices";
 import { uniqueCategoryName } from "@/lib/board-groups";
 import { useAppliedAppearance } from "@/lib/theme";
-import { usePathname } from "@/lib/router";
+import { navigate, usePathname } from "@/lib/router";
 import { toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { DashboardAppearanceSettings } from "@shared/dashboard-settings";
+import {
+  Activity,
+  LayoutGrid,
+  Monitor,
+  Moon,
+  PencilRuler,
+  Plus,
+  Settings,
+  Sun,
+} from "lucide-react";
 
 const StatsPage = lazy(() => loadStatsPage().then((module) => ({ default: module.StatsPage })));
+
+const CommandPalette = lazy(() =>
+  loadCommandPalette().then((module) => ({ default: module.CommandPalette }))
+);
 
 const SettingsDialog = lazy(() =>
   loadSettingsDialog().then((module) => ({ default: module.SettingsDialog }))
@@ -46,6 +67,7 @@ function App() {
     setScope: setSettingsScope,
     updateAppearance,
     updateLayout,
+    updateSearch,
   } = useDashboardSettings();
   // Settings can preview appearance (wallpaper sliders) live before saving it.
   const [appearancePreview, setAppearancePreview] =
@@ -59,7 +81,9 @@ function App() {
   const pathname = usePathname();
   const page = showStatsPage && pathname === "/stats" ? "stats" : "services";
 
-  const [search, setSearch] = useState("");
+  // Mounted on first use and kept; the query is what was typed before it opened.
+  const [palette, setPalette] = useState({ mounted: false, open: false, query: "" });
+  const openPalette = (query = "") => setPalette({ mounted: true, open: true, query });
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -73,8 +97,8 @@ function App() {
   };
 
   const startEditing = () => {
-    setSearch("");
     setSettingsOpen(false);
+    navigate("/");
     setEditing(true);
   };
 
@@ -90,6 +114,79 @@ function App() {
     );
   };
 
+  usePaletteShortcuts(openPalette, { typeToSearch: !editing });
+
+  // The palette is small; load it once the page is idle so the first keystroke opens it at once.
+  useEffect(() => {
+    const timer = setTimeout(preloadCommandPalette, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const paletteActions: PaletteActionWithIcon[] = [
+    {
+      id: "add-service",
+      label: "Add service",
+      keywords: "new create link app",
+      icon: Plus,
+      run: () => {
+        navigate("/");
+        setAddOpen(true);
+      },
+    },
+    ...(showServices
+      ? [
+          {
+            id: "edit-layout",
+            label: "Edit layout",
+            keywords: "arrange reorder drag categories move",
+            icon: PencilRuler,
+            run: startEditing,
+          },
+        ]
+      : []),
+    ...(showStatsPage
+      ? [
+          page === "stats"
+            ? {
+                id: "go-services",
+                label: "Go to Services",
+                keywords: "home dashboard links",
+                icon: LayoutGrid,
+                run: () => navigate("/"),
+              }
+            : {
+                id: "go-stats",
+                label: "Go to Stats",
+                keywords: "metrics charts cpu memory disk network",
+                icon: Activity,
+                run: () => navigate("/stats"),
+              },
+        ]
+      : []),
+    {
+      id: "open-settings",
+      label: "Open settings",
+      keywords: "preferences options configure",
+      icon: Settings,
+      run: openSettings,
+    },
+    ...(
+      [
+        ["dark", "Use dark theme", Moon],
+        ["light", "Use light theme", Sun],
+        ["system", "Use system theme", Monitor],
+      ] as const
+    )
+      .filter(([theme]) => theme !== appearance.theme)
+      .map(([theme, label, icon]) => ({
+        id: `theme-${theme}`,
+        label,
+        keywords: "appearance mode color",
+        icon,
+        run: () => updateAppearance({ theme }),
+      })),
+  ];
+
   const stats = showStats ? <StatsStrip /> : null;
 
   return (
@@ -104,14 +201,14 @@ function App() {
         page={page}
         showStatsPage={showStatsPage}
         editing={editing}
-        search={search}
         canEditLayout={showServices}
         onAddService={() => setAddOpen(true)}
         onDoneEditing={stopEditing}
         onEditLayout={startEditing}
         onNewCategory={addCategory}
         onOpenSettings={openSettings}
-        onSearchChange={setSearch}
+        onOpenPalette={() => openPalette()}
+        onPreloadPalette={preloadCommandPalette}
       />
       {page === "stats" ? (
         <main key="stats" className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
@@ -142,13 +239,11 @@ function App() {
               error={servicesError}
               density={density}
               mode={mode}
-              search={search}
               editing={editing}
               renamingKey={renamingKey}
               addOpen={addOpen}
               onAddOpenChange={setAddOpen}
               onRenamingKeyChange={setRenamingKey}
-              onSearchChange={setSearch}
               onRetry={reload}
               onCreate={create}
               onUpdate={update}
@@ -187,6 +282,8 @@ function App() {
             onAppearancePreview={setAppearancePreview}
             onDensityChange={(value) => updateLayout({ density: value })}
             onEditLayout={startEditing}
+            search={settings.search}
+            onSearchChange={updateSearch}
             onModeChange={(value) => updateLayout({ mode: value })}
             onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
             onSettingsScopeChange={setSettingsScope}
@@ -194,6 +291,18 @@ function App() {
             onShowStatsSectionChange={(visible) => updateLayout({ showStats: visible })}
             showStatsPage={showStatsPage}
             onShowStatsPageChange={(visible) => updateLayout({ showStatsPage: visible })}
+          />
+        </Suspense>
+      )}
+      {palette.mounted && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            open={palette.open}
+            initialQuery={palette.query}
+            services={services}
+            actions={paletteActions}
+            search={settings.search}
+            onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}
           />
         </Suspense>
       )}

@@ -9,7 +9,6 @@ interface UseServicesSectionStateOptions {
   editing: boolean;
   error: string | null;
   loading: boolean;
-  search: string;
   services: Service[];
   onAddOpenChange: (open: boolean) => void;
   onDelete: (id: string) => Promise<void>;
@@ -18,21 +17,11 @@ interface UseServicesSectionStateOptions {
   onRestore: (id: string) => Promise<Service>;
 }
 
-function matchesSearch(service: Service, query: string) {
-  return (
-    service.name.toLowerCase().includes(query) ||
-    service.description?.toLowerCase().includes(query) ||
-    service.category?.toLowerCase().includes(query) ||
-    service.url.toLowerCase().includes(query)
-  );
-}
-
 export function useServicesSectionState({
   categories,
   editing,
   error,
   loading,
-  search,
   services,
   onAddOpenChange,
   onDelete,
@@ -44,15 +33,10 @@ export function useServicesSectionState({
   const [addCategory, setAddCategory] = useState<string | null>(null);
   const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<BoardGroup | null>(null);
 
-  const filteredServices = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return query ? services.filter((service) => matchesSearch(service, query)) : services;
-  }, [search, services]);
-
   // Edit mode shows empty categories too, as places to drop cards and add new ones.
   const groups = useMemo(
-    () => buildBoardGroups(categories.categories, filteredServices, { includeEmpty: editing }),
-    [categories.categories, editing, filteredServices]
+    () => buildBoardGroups(categories.categories, services, { includeEmpty: editing }),
+    [categories.categories, editing, services]
   );
 
   const categoryOptions = useMemo(
@@ -171,7 +155,6 @@ export function useServicesSectionState({
     deleteCategory,
     deleteCategoryTarget,
     editingService,
-    filteredServices,
     groups,
     handleAddToGroup,
     handleDelete,

@@ -15,6 +15,8 @@ import {
   parseDashboardSettings,
   parseDashboardSettingsPatch,
   referencedWallpapers,
+  buildSearchUrl,
+  isSearchUrlTemplate,
 } from "./dashboard-settings";
 
 describe("parseDashboardSettings", () => {
@@ -208,5 +210,39 @@ describe("appearance extras", () => {
         "broken",
       ])
     ).toEqual(new Set(["wallpaper-aaaaaaaaaaaaaaaa.png", "wallpaper-bbbbbbbbbbbbbbbb.jpg"]));
+  });
+});
+
+describe("web search", () => {
+  it("accepts empty or http(s) templates with a placeholder", () => {
+    expect(isSearchUrlTemplate("")).toBe(true);
+    expect(isSearchUrlTemplate("https://searx.example.com/search?q=%s")).toBe(true);
+    expect(isSearchUrlTemplate("http://10.0.0.5:8080/?q=%s")).toBe(true);
+    expect(isSearchUrlTemplate("https://example.com/search")).toBe(false);
+    expect(isSearchUrlTemplate("javascript:alert(%s)")).toBe(false);
+    expect(isSearchUrlTemplate("not a url %s")).toBe(false);
+    expect(isSearchUrlTemplate(`https://example.com/?q=%s&pad=${"x".repeat(500)}`)).toBe(false);
+    expect(isSearchUrlTemplate(42)).toBe(false);
+  });
+
+  it("builds search URLs for each engine and encodes the query", () => {
+    expect(buildSearchUrl({ engine: "duckduckgo", customUrl: "" }, " cat & dog ")).toBe(
+      "https://duckduckgo.com/?q=cat%20%26%20dog"
+    );
+    expect(buildSearchUrl({ engine: "google", customUrl: "" }, "x")).toBe(
+      "https://www.google.com/search?q=x"
+    );
+    expect(
+      buildSearchUrl({ engine: "custom", customUrl: "https://searx.lan/search?q=%s" }, "x")
+    ).toBe("https://searx.lan/search?q=x");
+    expect(buildSearchUrl({ engine: "custom", customUrl: "" }, "x")).toBe(
+      "https://duckduckgo.com/?q=x"
+    );
+  });
+
+  it("reads stored search settings leniently", () => {
+    expect(
+      parseDashboardSettings({ search: { engine: "altavista", customUrl: "ftp://x/%s" } }).search
+    ).toEqual(DEFAULT_DASHBOARD_SETTINGS.search);
   });
 });

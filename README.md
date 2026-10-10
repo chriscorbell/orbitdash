@@ -50,7 +50,7 @@ version before creating the matching tag.
 - A Stats page: per-core load, memory, network, disk activity, storage per mount and temperatures, live or over the last hour, day, week or month
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Upload your own PNG/SVG icons, or alternatively enter a direct URL to a PNG or SVG icon
-- Inline search and filtering
+- A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
 - UI-native service management (no config file needed)
 - Categories as balanced columns or stacked rows, with compact, card or tile styles
 - Edit mode: drag cards and categories, rename categories in place, add services to a category
