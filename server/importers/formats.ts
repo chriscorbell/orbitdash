@@ -198,6 +198,15 @@ const decodeEntities = (value: string) =>
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, "&");
 
+/** The text of an HTML fragment: tags and any stray angle brackets removed, entities decoded. */
+const fragmentText = (html: string) =>
+  decodeEntities(
+    html
+      .replace(/<[^>]*>/g, "")
+      .replace(/[<>]/g, "")
+      .trim()
+  );
+
 /** Browser bookmarks (Netscape HTML): folders become categories, named after their path. */
 export function parseBookmarks(html: string): ParsedImport {
   const warnings: string[] = [];
@@ -209,7 +218,7 @@ export function parseBookmarks(html: string): ParsedImport {
   for (let match = token.exec(html); match; match = token.exec(html)) {
     const tag = match[0].slice(0, 3).toLowerCase();
     if (match[1] !== undefined) {
-      pendingFolder = decodeEntities(match[1].replace(/<[^>]+>/g, "").trim());
+      pendingFolder = fragmentText(match[1]);
     } else if (tag.startsWith("<dl")) {
       if (pendingFolder !== null) folders.push(pendingFolder);
       else folders.push("");
@@ -218,7 +227,7 @@ export function parseBookmarks(html: string): ParsedImport {
       folders.pop();
     } else {
       const href = /href\s*=\s*"([^"]*)"/i.exec(match[2] ?? "")?.[1];
-      const name = decodeEntities((match[3] ?? "").replace(/<[^>]+>/g, "").trim());
+      const name = fragmentText(match[3] ?? "");
       const parsed = service(name, href && decodeEntities(href), null, null, warnings);
       if (!parsed) continue;
       const path = folders.filter(Boolean);

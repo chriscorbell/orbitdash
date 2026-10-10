@@ -325,6 +325,18 @@ describe("format parsers", () => {
     expect(parseDashy({ sections: [{ items: [{ url: "https://a.lan" }] }] }).groups).toEqual([]);
   });
 
+  it("keep only the text of bookmark names", () => {
+    const parsed = parseBookmarks(
+      '<DL><DT><H3><b>Lab</b> &lt;3</H3><DL><DT><A HREF="https://a.lan"><scr<script>ipt>A</A></DL></DL>'
+    );
+    expect(parsed.groups).toEqual([
+      {
+        name: "Lab <3",
+        services: [{ name: "iptA", url: "https://a.lan", description: null, icon: null }],
+      },
+    ]);
+  });
+
   it("put loose bookmarks in a Bookmarks category", () => {
     const parsed = parseBookmarks('<DL><DT><A HREF="https://a.lan">A</A></DL>');
     expect(parsed.groups).toEqual([
