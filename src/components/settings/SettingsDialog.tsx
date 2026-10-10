@@ -15,6 +15,7 @@ import { DashboardTitleField } from "@/components/settings/DashboardTitleField";
 import { WallpaperSettings } from "@/components/settings/WallpaperSettings";
 import { WebSearchSettings } from "@/components/settings/WebSearchSettings";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
+import { DashboardImportSettings } from "@/components/settings/DashboardImportSettings";
 import type { SettingsScope } from "@/hooks/useDashboardSettings";
 import type {
   BoardMode,
@@ -365,6 +366,7 @@ export function SettingsDialog({
 
           <section className="space-y-3">
             <SettingsSectionLabel>Data</SettingsSectionLabel>
+            <DashboardImportSettings />
             <BackupSettingsSection />
           </section>
         </div>
