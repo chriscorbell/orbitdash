@@ -1,4 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import { dockerMonitor } from "../docker/monitor";
+import type { ContainerInfo } from "@shared/types";
 import { getAdapter, ADAPTERS } from "./adapters";
 import { readIntegration } from "./poller";
 import type { IntegrationFetch } from "./http";
@@ -37,9 +39,10 @@ async function read(
 }
 
 describe("adapters", () => {
-  it("lists eight apps with an API address field first", () => {
+  it("lists nine apps, each with an API address field first except Docker", () => {
     expect(ADAPTERS.map((adapter) => adapter.id)).toEqual([
       "adguard",
+      "docker",
       "jellyfin",
       "pihole",
       "plex",
@@ -48,7 +51,9 @@ describe("adapters", () => {
       "radarr",
       "sonarr",
     ]);
-    for (const adapter of ADAPTERS) expect(adapter.fields[0].key).toBe("url");
+    for (const adapter of ADAPTERS.filter((entry) => entry.id !== "docker")) {
+      expect(adapter.fields[0].key).toBe("url");
+    }
     expect(getAdapter("nope")).toBeNull();
   });
 
@@ -304,5 +309,80 @@ describe("adapters", () => {
       }
     );
     expect(tls).toEqual({ rejectUnauthorized: false });
+  });
+});
+
+describe("docker adapter", () => {
+  const container = (extra: Partial<ContainerInfo>): ContainerInfo => ({
+    id: "1",
+    name: "jellyfin",
+    image: "jellyfin/jellyfin",
+    state: "running",
+    status: "Up",
+    health: null,
+    createdAt: 0,
+    ports: [],
+    composeProject: null,
+    cpuPercent: 2.5,
+    memoryBytes: 300 * 1024 * 1024,
+    memoryLimitBytes: null,
+    ...extra,
+  });
+
+  async function readContainer(containers: ContainerInfo[], name = "jellyfin", available = true) {
+    const spy = spyOn(dockerMonitor, "snapshot").mockReturnValue({
+      configured: true,
+      available,
+      error: available ? null : "Docker refused the connection",
+      containers,
+      updatedAt: 1,
+    });
+    const reading = await readIntegration(getAdapter("docker")!, {
+      url: "",
+      values: { container: name },
+    });
+    spy.mockRestore();
+    return reading;
+  }
+
+  it("shows a linked container's state, CPU and memory", async () => {
+    expect((await readContainer([container({})])).stats).toEqual([
+      { label: "Container", value: "Running", tone: "good" },
+      { label: "CPU", value: "2.5%" },
+      { label: "Memory", value: "300 MB" },
+    ]);
+    expect(
+      (await readContainer([container({ memoryBytes: 3 * 1024 ** 3, cpuPercent: null })])).stats
+    ).toEqual([
+      { label: "Container", value: "Running", tone: "good" },
+      { label: "Memory", value: "3.0 GB" },
+    ]);
+  });
+
+  it("calls out unhealthy, starting and stopped containers", async () => {
+    const value = async (extra: Partial<ContainerInfo>) =>
+      (await readContainer([container(extra)])).stats[0];
+    expect(await value({ health: "unhealthy" })).toEqual({
+      label: "Container",
+      value: "Unhealthy",
+      tone: "bad",
+    });
+    expect(await value({ health: "starting" })).toEqual({
+      label: "Container",
+      value: "Starting",
+      tone: "warning",
+    });
+    expect(await value({ state: "restarting" })).toEqual({
+      label: "Container",
+      value: "Restarting",
+      tone: "warning",
+    });
+    const stopped = await readContainer([container({ state: "exited" })]);
+    expect(stopped.stats).toEqual([{ label: "Container", value: "Stopped", tone: "bad" }]);
+  });
+
+  it("explains a missing container or Docker being away", async () => {
+    expect((await readContainer([container({})], "plex")).error).toBe("No container named plex");
+    expect((await readContainer([], "plex", false)).error).toBe("Docker refused the connection");
   });
 });

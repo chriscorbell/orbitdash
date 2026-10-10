@@ -183,6 +183,7 @@ export function ServicesSection({
               onSubmit={async (payload, iconFile) => {
                 const created = await onCreate(payload, iconFile);
                 toast({ title: `Added ${created.name}`, tone: "success" });
+                return created;
               }}
             />
           </Suspense>
@@ -204,8 +205,9 @@ export function ServicesSection({
                   return;
                 }
 
-                await onUpdate(editingService.id, payload, iconFile, removeIcon);
+                const updated = await onUpdate(editingService.id, payload, iconFile, removeIcon);
                 toast({ title: "Changes saved", tone: "success" });
+                return updated;
               }}
               onDelete={
                 editingService

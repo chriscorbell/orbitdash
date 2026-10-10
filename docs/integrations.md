@@ -4,6 +4,10 @@ An integration reads a few figures from an app's API and shows them on the app's
 such as Sonarr's queue or Pi-hole's blocked share. Adapters live in `server/integrations/adapters/`
 and only ever read.
 
+Pick an integration in the service dialog under **Integration**; the form shows only the fields
+that app needs and **Test** reads it once with the values as typed (saved secrets fill in what's
+left blank). Figures appear on cards in the Cards style.
+
 ## How it fits together
 
 - **Settings** are stored per service in the `settings` table under `integration.<serviceId>`.
@@ -18,6 +22,10 @@ and only ever read.
 /api/integrations/data` returns the latest for every service.
 - **Removal**: settings outlive the trash so undoing a delete keeps them, and go when the trash is
   purged.
+- **In the browser**, `src/components/integrations/IntegrationLayer.tsx` loads after the first paint,
+  fetches every reading and applies live ones; cards read them through `useIntegrationReading`
+  (a small external store, so a card never needs the query client). The dialog field is
+  `src/components/services/ServiceIntegrationField.tsx`.
 
 ## The adapter contract
 
@@ -53,13 +61,14 @@ export interface IntegrationAdapter {
 
 ## Included adapters
 
-| App          | Needs                                     | Shows                                          |
-| ------------ | ----------------------------------------- | ---------------------------------------------- |
-| AdGuard Home | Username and password                     | Queries, blocked, blocked share, lookup time   |
-| Jellyfin     | API key                                   | Playing now, movies, series, songs             |
-| Pi-hole      | Password or app password (v6), token (v5) | Queries, blocked, blocked share, clients       |
-| Plex         | Plex token                                | Playing now, movies, shows, libraries          |
-| Proxmox VE   | API token ID and secret                   | Guests running, nodes online, CPU, memory      |
-| qBittorrent  | Username and password                     | Download and upload speed, downloading, active |
-| Radarr       | API key                                   | Queue, missing, releases this week             |
-| Sonarr       | API key                                   | Queue, missing, episodes this week             |
+| App          | Needs                                          | Shows                                          |
+| ------------ | ---------------------------------------------- | ---------------------------------------------- |
+| AdGuard Home | Username and password                          | Queries, blocked, blocked share, lookup time   |
+| Docker       | Container name (offered when Docker is set up) | State and health, CPU, memory                  |
+| Jellyfin     | API key                                        | Playing now, movies, series, songs             |
+| Pi-hole      | Password or app password (v6), token (v5)      | Queries, blocked, blocked share, clients       |
+| Plex         | Plex token                                     | Playing now, movies, shows, libraries          |
+| Proxmox VE   | API token ID and secret                        | Guests running, nodes online, CPU, memory      |
+| qBittorrent  | Username and password                          | Download and upload speed, downloading, active |
+| Radarr       | API key                                        | Queue, missing, releases this week             |
+| Sonarr       | API key                                        | Queue, missing, episodes this week             |
