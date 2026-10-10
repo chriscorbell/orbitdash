@@ -12,7 +12,9 @@ matches, so group priority decides where shared packages land:
 
 1. `react-vendor`: React, React DOM, and the scheduler. It has the highest priority so that no
    other group pulls React in as a dependency.
-2. `validation`: Zod only. The app's own schemas ship in the entry, so this chunk's hash only
+2. `validation`: zod/mini and the Zod core it uses, for parsing API responses in the browser.
+   Full Zod never loads in the browser: forms validate with plain checks and the server validates
+   everything again. The app's own schemas ship in the entry, so this chunk's hash only
    changes when Zod does.
 3. `charts`: Chart.js and react-chartjs-2. Only the lazily loaded `MetricCharts` imports it.
 4. `drag-drop`: dnd-kit. Only the lazily loaded settings `CategoryOrderList` imports it.
@@ -33,12 +35,12 @@ happens.
 
 | Asset group          | Budget raw | Budget gzip | Current baseline                             |
 | -------------------- | ---------: | ----------: | -------------------------------------------- |
-| `index-*.js`         |      60 kB |       18 kB | about 51 kB raw / 15.2 kB gzip / 13.5 kB br  |
+| `index-*.js`         |      66 kB |       20 kB | about 61 kB raw / 18.4 kB gzip / 16.4 kB br  |
 | `index-*.css`        |      70 kB |       12 kB | about 63 kB raw / 11.1 kB gzip / 9.6 kB br   |
 | `react-vendor-*.js`  |     230 kB |       72 kB | about 214 kB raw / 66.0 kB gzip / 56.7 kB br |
-| `vendor-*.js`        |     145 kB |       47 kB | about 127 kB raw / 41.1 kB gzip / 36.1 kB br |
+| `vendor-*.js`        |     180 kB |       56 kB | about 172 kB raw / 53.5 kB gzip / 47.1 kB br |
 | `charts-*.js`        |     170 kB |       60 kB | about 156 kB raw / 54.1 kB gzip / 47.6 kB br |
-| `validation-*.js`    |      85 kB |       24 kB | about 82 kB raw / 23.1 kB gzip / 20.5 kB br  |
+| `validation-*.js`    |      22 kB |        7 kB | about 19 kB raw / 6.0 kB gzip / 5.5 kB br    |
 | `ServiceDialog-*.js` |     100 kB |       28 kB | about 33 kB raw / 10.4 kB gzip / 9.4 kB br   |
 | `drag-drop-*.js`     |      48 kB |       16 kB | about 43 kB raw / 14.1 kB gzip / 12.7 kB br  |
 
@@ -63,6 +65,11 @@ The check reads the built files in `dist/assets` and fails if:
 
 ## History
 
+- Browser responses moved to zod/mini and the service form dropped full Zod, cutting
+  `validation-*` from about 82 kB / 23 kB gzip to 19 kB / 6 kB, so its budget fell from 85 kB /
+  24 kB to 22 kB / 7 kB. TanStack Query and Radix Toast joined `vendor-*` (budget 145 kB / 47 kB
+  to 180 kB / 56 kB) and the toast store joined the entry (60 kB / 18 kB to 66 kB / 20 kB). The
+  first paint still got smaller overall: about 87 kB to 78 kB gzip across the three chunks.
 - The entry budget was cut from 145 kB raw / 45 kB gzip to 60 kB / 18 kB when third-party UI code
   moved into `vendor-*`. The old `manualChunks` setup put React inside `charts-*`, so the entry
   imported Chart.js and dnd-kit statically and `index.html` preloaded both. The React vendor,

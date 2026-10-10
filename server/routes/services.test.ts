@@ -1,13 +1,63 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import fs from "fs";
 import path from "path";
 import { app } from "../app";
 import type { Service } from "@shared/types";
+import { getDb } from "../db";
+import { cleanupOrphanIcons } from "../services/icon-storage";
 import { cleanupTestDatabase, createTestDataDir } from "../test-utils";
 import { initializeServer, shutdown } from "../runtime";
 
 let testDataDir: string;
 const originalFetch = globalThis.fetch;
+
+const SVG_ICON = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+const PNG_BYTES = Buffer.from(
+  "89504e470d0a1a0a0000000d4948445200000001000000010806000000" +
+    "1f15c4890000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082",
+  "hex"
+);
+
+function mockIconDownload() {
+  globalThis.fetch = (async (..._args: Parameters<typeof fetch>) => {
+    return new Response(SVG_ICON, {
+      status: 200,
+      headers: { "content-length": String(SVG_ICON.length), "content-type": "image/svg+xml" },
+    });
+  }) as unknown as typeof fetch;
+}
+
+function iconFiles(): string[] {
+  const iconsDir = path.join(testDataDir, "icons");
+  return fs.existsSync(iconsDir) ? fs.readdirSync(iconsDir).sort() : [];
+}
+
+function serviceFormData(fields: Record<string, string>, iconBytes?: Buffer): FormData {
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    formData.set(key, value);
+  }
+  if (iconBytes) {
+    formData.set("icon_file", new File([iconBytes], "icon.png", { type: "image/png" }));
+  }
+  return formData;
+}
+
+async function updateService(id: string, body: FormData | Record<string, unknown>) {
+  return app.request(`/api/services/${id}`, {
+    method: "PUT",
+    ...(body instanceof FormData
+      ? { body }
+      : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  });
+}
+
+function failWritesToServices(operation: "INSERT" | "UPDATE") {
+  getDb().exec(
+    `CREATE TRIGGER fail_${operation.toLowerCase()} BEFORE ${operation} ON services
+     BEGIN SELECT RAISE(ABORT, 'simulated write failure'); END`
+  );
+}
 
 async function createService(overrides: Record<string, unknown> = {}): Promise<Response> {
   return app.request("/api/services", {
@@ -318,5 +368,148 @@ describe("services routes", () => {
     await expect(response.json()).resolves.toEqual({
       error: "content-type must be application/json or multipart/form-data",
     });
+  });
+});
+
+describe("service icon files", () => {
+  it("remembers where a downloaded icon came from and forgets it on upload or removal", async () => {
+    mockIconDownload();
+    const created = (await (
+      await createService({ icon_url: "https://example.com/icon.svg" })
+    ).json()) as Service;
+    expect(created.icon_source_url).toBe("https://example.com/icon.svg");
+
+    const uploaded = (await (
+      await updateService(created.id, serviceFormData({}, PNG_BYTES))
+    ).json()) as Service;
+    expect(uploaded.icon).toMatch(/\.png$/);
+    expect(uploaded.icon_source_url).toBeNull();
+
+    const redownloaded = (await (
+      await updateService(created.id, { icon_url: "https://example.com/other.svg" })
+    ).json()) as Service;
+    expect(redownloaded.icon_source_url).toBe("https://example.com/other.svg");
+
+    const renamed = (await (
+      await updateService(created.id, { name: "Renamed" })
+    ).json()) as Service;
+    expect(renamed.icon).toBe(redownloaded.icon);
+    expect(renamed.icon_source_url).toBe("https://example.com/other.svg");
+
+    const removed = (await (
+      await updateService(created.id, serviceFormData({ remove_icon: "true" }))
+    ).json()) as Service;
+    expect(removed.icon).toBeNull();
+    expect(removed.icon_source_url).toBeNull();
+    expect(iconFiles()).toEqual([]);
+  });
+
+  it("keeps the source URL on duplicates that copy a downloaded icon", async () => {
+    mockIconDownload();
+    const created = (await (
+      await createService({ icon_url: "https://example.com/icon.svg" })
+    ).json()) as Service;
+
+    const duplicated = (await (
+      await app.request(`/api/services/${created.id}/duplicate`, { method: "POST" })
+    ).json()) as Service;
+    expect(duplicated.icon_source_url).toBe("https://example.com/icon.svg");
+  });
+
+  it("replaces the previous icon file when a new icon is saved", async () => {
+    const created = (await (
+      await app.request("/api/services", {
+        method: "POST",
+        body: serviceFormData({ name: "Orbit", url: "https://example.com" }, PNG_BYTES),
+      })
+    ).json()) as Service;
+    expect(iconFiles()).toEqual([created.icon!]);
+
+    const updated = (await (
+      await updateService(created.id, serviceFormData({}, PNG_BYTES))
+    ).json()) as Service;
+    expect(updated.icon).not.toBe(created.icon);
+    expect(iconFiles()).toEqual([updated.icon!]);
+  });
+
+  it("removes a newly written icon when the service insert fails", async () => {
+    const errorLog = spyOn(console, "error").mockImplementation(() => {});
+    failWritesToServices("INSERT");
+
+    const response = await app.request("/api/services", {
+      method: "POST",
+      body: serviceFormData({ name: "Orbit", url: "https://example.com" }, PNG_BYTES),
+    });
+
+    expect(response.status).toBe(500);
+    expect(iconFiles()).toEqual([]);
+    errorLog.mockRestore();
+  });
+
+  it("removes a newly written icon and keeps the old one when the service update fails", async () => {
+    const created = (await (
+      await app.request("/api/services", {
+        method: "POST",
+        body: serviceFormData({ name: "Orbit", url: "https://example.com" }, PNG_BYTES),
+      })
+    ).json()) as Service;
+
+    const errorLog = spyOn(console, "error").mockImplementation(() => {});
+    failWritesToServices("UPDATE");
+    mockIconDownload();
+
+    const uploadResponse = await updateService(created.id, serviceFormData({}, PNG_BYTES));
+    const downloadResponse = await updateService(created.id, {
+      icon_url: "https://example.com/icon.svg",
+    });
+    const removeResponse = await updateService(
+      created.id,
+      serviceFormData({ remove_icon: "true" })
+    );
+
+    expect(uploadResponse.status).toBe(500);
+    expect(downloadResponse.status).toBe(500);
+    expect(removeResponse.status).toBe(500);
+    expect(iconFiles()).toEqual([created.icon!]);
+    expect((await app.request(`/api/icons/${created.icon}`)).status).toBe(200);
+    errorLog.mockRestore();
+  });
+
+  it("removes the icon file only after the service row is deleted", async () => {
+    const created = (await (
+      await app.request("/api/services", {
+        method: "POST",
+        body: serviceFormData({ name: "Orbit", url: "https://example.com" }, PNG_BYTES),
+      })
+    ).json()) as Service;
+
+    const errorLog = spyOn(console, "error").mockImplementation(() => {});
+    getDb().exec(
+      `CREATE TRIGGER fail_delete BEFORE DELETE ON services
+       BEGIN SELECT RAISE(ABORT, 'simulated write failure'); END`
+    );
+
+    const response = await app.request(`/api/services/${created.id}`, { method: "DELETE" });
+    expect(response.status).toBe(500);
+    expect(iconFiles()).toEqual([created.icon!]);
+    errorLog.mockRestore();
+  });
+
+  it("cleans up icon files that no service references", async () => {
+    const created = (await (
+      await app.request("/api/services", {
+        method: "POST",
+        body: serviceFormData({ name: "Orbit", url: "https://example.com" }, PNG_BYTES),
+      })
+    ).json()) as Service;
+
+    const iconsDir = path.join(testDataDir, "icons");
+    fs.writeFileSync(path.join(iconsDir, "orphan-a.png"), PNG_BYTES);
+    fs.writeFileSync(path.join(iconsDir, "orphan-b.svg"), SVG_ICON);
+    fs.mkdirSync(path.join(iconsDir, "nested"));
+
+    expect(cleanupOrphanIcons()).toBe(2);
+    expect(iconFiles()).toEqual([created.icon!, "nested"].sort());
+    expect(cleanupOrphanIcons()).toBe(0);
   });
 });

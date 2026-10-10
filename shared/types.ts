@@ -13,6 +13,7 @@ export interface Service {
   url: string;
   description: string | null;
   icon: string | null; // filename of uploaded icon
+  icon_source_url: string | null; // URL a downloaded icon came from
   category: string | null; // category name, kept for display and older clients
   category_id: string | null;
   position: number; // order within its category

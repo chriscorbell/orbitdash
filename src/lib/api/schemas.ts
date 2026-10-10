@@ -21,6 +21,7 @@ export const serviceSchema = z.object({
   url: z.string(),
   description: z.nullable(z.string()),
   icon: z.nullable(z.string()),
+  icon_source_url: z.nullable(z.string()),
   category: z.nullable(z.string()),
   category_id: z.nullable(z.string()),
   position: z.number(),

@@ -3,6 +3,7 @@ import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { RenameCategoryResponse, Service } from "@shared/types";
 import type { ServiceGroup } from "@/components/services/CategorySectionList";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+import { toast, toastError } from "@/lib/toast";
 
 const UNCATEGORIZED_KEY = "uncategorized";
 
@@ -32,7 +33,6 @@ export function useServicesSectionState({
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [renameCategoryTarget, setRenameCategoryTarget] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const {
@@ -99,15 +99,13 @@ export function useServicesSectionState({
     }
 
     setDeleting(true);
-    setActionError(null);
 
     try {
       await onDelete(deleteTarget.id);
+      toast({ title: `Deleted ${deleteTarget.name}`, tone: "success" });
       setDeleteTarget(null);
     } catch (deleteError) {
-      setActionError(
-        deleteError instanceof Error ? deleteError.message : "Failed to delete service"
-      );
+      toastError(deleteError, "Couldn't delete the service");
     } finally {
       setDeleting(false);
     }
@@ -115,13 +113,11 @@ export function useServicesSectionState({
 
   const handleDuplicate = useCallback(
     async (service: Service) => {
-      setActionError(null);
       try {
-        await onDuplicate(service.id);
+        const copy = await onDuplicate(service.id);
+        toast({ title: `Added ${copy.name}`, tone: "success" });
       } catch (duplicateError) {
-        setActionError(
-          duplicateError instanceof Error ? duplicateError.message : "Failed to duplicate service"
-        );
+        toastError(duplicateError, "Couldn't duplicate the service");
       }
     },
     [onDuplicate]
@@ -134,11 +130,11 @@ export function useServicesSectionState({
 
     const response = await onRenameCategory(renameCategoryTarget, to);
     categoryOrder.applyOrder(response.order);
+    toast({ title: `Renamed ${renameCategoryTarget} to ${to.trim()}`, tone: "success" });
     setRenameCategoryTarget(null);
   };
 
   return {
-    actionError,
     addOpen,
     categoryOptions,
     categoryOrderError,
@@ -160,7 +156,6 @@ export function useServicesSectionState({
     isReorderMode,
     renameCategoryTarget,
     search,
-    setActionError,
     setAddOpen,
     setDeleteTarget,
     setEditingService,

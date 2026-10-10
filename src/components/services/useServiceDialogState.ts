@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { getIconUrl } from "@/lib/api/services";
 import type { CreateServicePayload, Service } from "@shared/types";
+import { normalizeIconUrl, normalizeServiceUrl } from "@shared/urls";
 
 export const NEW_CATEGORY_VALUE = "__new__";
 export const NONE_CATEGORY_VALUE = "__none__";
@@ -111,6 +112,33 @@ export function buildServicePayload(formState: ServiceDialogFormState): CreateSe
   };
 }
 
+export type PreparedServicePayload =
+  { error: null; payload: CreateServicePayload } | { error: string; payload: null };
+
+/**
+ * Checks the form the same way the server will (required name, valid service and icon URLs) and
+ * returns the payload with URLs normalized. Kept free of zod so the form stays light; the server
+ * still validates everything it receives.
+ */
+export function prepareServicePayload(formState: ServiceDialogFormState): PreparedServicePayload {
+  const payload = buildServicePayload(formState);
+  if (!payload.name) {
+    return { error: "name is required", payload: null };
+  }
+
+  const url = normalizeServiceUrl(payload.url);
+  if (!url) {
+    return { error: "service url must be a valid URL", payload: null };
+  }
+
+  const iconUrl = payload.icon_url ? normalizeIconUrl(payload.icon_url) : null;
+  if (payload.icon_url && !iconUrl) {
+    return { error: "icon url must be a valid http(s) URL", payload: null };
+  }
+
+  return { error: null, payload: { ...payload, url, icon_url: iconUrl } };
+}
+
 export function isServiceDialogSubmittable(formState: ServiceDialogFormState): boolean {
   if (!formState.name.trim() || !formState.url.trim()) {
     return false;
@@ -181,6 +209,12 @@ export function useServiceDialogState({ categoryOptions, service }: UseServiceDi
     resetFileInput(fileInputRef);
   };
 
+  // Only worth showing while the saved, downloaded icon is still the one that will be kept.
+  const storedIconSourceUrl =
+    service?.icon_source_url && !iconFile && !formState.iconUrl.trim() && !formState.removeIcon
+      ? service.icon_source_url
+      : null;
+
   const fieldIds: ServiceDialogFieldIds = {
     categoryInputId: `${fieldIdPrefix}-category`,
     descriptionInputId: `${fieldIdPrefix}-description`,
@@ -200,6 +234,7 @@ export function useServiceDialogState({ categoryOptions, service }: UseServiceDi
     handleIconChange,
     handleIconUrlChange,
     handleRemoveIcon,
+    storedIconSourceUrl,
     setDescription: (description: string) => {
       setFormState((current) => ({
         ...current,

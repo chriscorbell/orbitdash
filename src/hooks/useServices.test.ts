@@ -27,6 +27,7 @@ const existingService: Service = {
   url: "https://example.com/orbit",
   description: "Dashboard",
   icon: null,
+  icon_source_url: null,
   category: "Infra",
   category_id: "cat-infra",
   position: 0,
@@ -91,7 +92,9 @@ describe("useServices", () => {
     });
 
     expect(duplicateServiceMock).toHaveBeenCalledWith(existingService.id);
-    await waitFor(() => expect(result.current.services).toEqual([existingService, duplicatedService]));
+    await waitFor(() =>
+      expect(result.current.services).toEqual([existingService, duplicatedService])
+    );
   });
 
   it("updates local state for create, update, delete, and reload", async () => {

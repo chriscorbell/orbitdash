@@ -33,6 +33,8 @@ vi.mock("@/components/services/CategorySectionList", () => ({
 }));
 
 import { ServicesSection } from "@/components/ServicesSection";
+import { Toaster } from "@/components/ui/toaster";
+import { resetToastsForTesting } from "@/lib/toast";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type { Service } from "@shared/types";
 
@@ -48,13 +50,14 @@ const categoryOrderStub: UseCategoryOrderResult = {
   isReorderMode: false,
   loading: false,
   namedCategories: [],
+  saveState: "idle",
   saving: false,
   visibleCategoryOrder: [],
   applyOrder: vi.fn(),
   beginReorder: vi.fn(),
   cancelReorder: vi.fn(),
-  moveCategory: vi.fn(),
-  reorderCategories: vi.fn(),
+  moveCategory: vi.fn().mockResolvedValue(undefined),
+  reorderCategories: vi.fn().mockResolvedValue(undefined),
   saveOrder: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -64,6 +67,7 @@ const baseService: Service = {
   url: "https://example.com/orbit",
   description: "Dashboard",
   icon: null,
+  icon_source_url: null,
   category: "Monitoring",
   category_id: "cat-monitoring",
   position: 0,
@@ -129,18 +133,20 @@ describe("ServicesSection", () => {
     expect(screen.getByText("Failed to load category order")).toBeTruthy();
   });
 
-  it("surfaces delete confirmation failures in the section UI", async () => {
+  it("surfaces delete failures as an error toast", async () => {
     const onDelete = vi.fn().mockRejectedValue(new Error("Delete failed"));
 
+    render(<Toaster />);
     renderServicesSection({ services: [baseService], onDelete });
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Orbit" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("Service action failed")).toBeTruthy();
+      expect(screen.getByText("Couldn't delete the service")).toBeTruthy();
     });
 
     expect(screen.getByText("Delete failed")).toBeTruthy();
+    resetToastsForTesting();
   });
 });

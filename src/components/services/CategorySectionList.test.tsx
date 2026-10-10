@@ -11,6 +11,7 @@ const monitoringService: Service = {
   url: "https://grafana.example.com",
   description: "Metrics",
   icon: null,
+  icon_source_url: null,
   category: "Monitoring",
   category_id: "cat-monitoring",
   position: 0,

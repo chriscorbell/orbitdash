@@ -126,7 +126,13 @@ const migrations: Migration[] = [
     statements: [`DROP TABLE IF EXISTS metrics_samples`],
   },
   {
-    // Id 4 is reserved for the icon_source_url column, which may land before or after this one.
+    // Installs that already ran migration 5 pick this up afterwards; it only adds a column.
+    id: 4,
+    name: "services-icon-source-url",
+    // Remembers where a downloaded icon came from so it can be refreshed later.
+    statements: [`ALTER TABLE services ADD COLUMN icon_source_url TEXT`],
+  },
+  {
     id: 5,
     name: "categories-table",
     statements: [

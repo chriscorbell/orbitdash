@@ -75,7 +75,9 @@ describe("useDashboardSettings", () => {
     );
     createServer({ shared: { layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 3 } } });
 
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
     expect(result.current.settings.layout.gridColumns).toBe(5);
 
     await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(3));
@@ -90,7 +92,9 @@ describe("useDashboardSettings", () => {
     window.localStorage.setItem("orbitdash.servicesGrid", "5");
     const server = createServer({ stored: false });
 
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(5));
     expect(server.shared.layout).toMatchObject({ servicesFirst: false, gridColumns: 5 });
@@ -102,7 +106,9 @@ describe("useDashboardSettings", () => {
     window.localStorage.setItem("orbitdash.showStatsSection", "false");
     const server = createServer({ stored: true });
 
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(result.current.scope).toBe("device"));
     expect(server.overrides).toEqual({ layout: { showStats: false } });
@@ -114,7 +120,9 @@ describe("useDashboardSettings", () => {
     window.localStorage.setItem("orbitdash.showStatsSection", "true");
     createServer({ stored: true });
 
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(api.fetchDashboardSettings).toHaveBeenCalled());
     await waitFor(() =>
@@ -126,7 +134,9 @@ describe("useDashboardSettings", () => {
 
   it("saves layout changes to the shared settings by default", async () => {
     const server = createServer();
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.updateLayout({ servicesFirst: false }));
@@ -141,7 +151,9 @@ describe("useDashboardSettings", () => {
 
   it("switches to per-device settings and back", async () => {
     const server = createServer();
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.setScope("device"));
@@ -163,7 +175,9 @@ describe("useDashboardSettings", () => {
 
   it("reverts an optimistic change when saving fails", async () => {
     createServer();
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
     await waitFor(() => expect(api.fetchDashboardSettings).toHaveBeenCalled());
     await waitFor(() => expect(result.current.settings).toEqual(DEFAULT_DASHBOARD_SETTINGS));
 
@@ -177,7 +191,9 @@ describe("useDashboardSettings", () => {
   it("reports load failures and keeps working from defaults", async () => {
     api.fetchDashboardSettings.mockRejectedValue(new Error("down"));
 
-    const { result } = renderHook(() => useDashboardSettings(), { wrapper: createQueryWrapper().wrapper });
+    const { result } = renderHook(() => useDashboardSettings(), {
+      wrapper: createQueryWrapper().wrapper,
+    });
 
     await waitFor(() => expect(result.current.error).toBe("down"));
     expect(result.current.settings).toEqual(DEFAULT_DASHBOARD_SETTINGS);

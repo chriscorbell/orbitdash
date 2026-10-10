@@ -4,10 +4,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, X } from "lucide-react";
 
+// Matches the formats the server detects; .ico is listed by extension because browsers disagree
+// on its MIME type.
+const ACCEPTED_ICON_TYPES = [
+  "image/png",
+  "image/svg+xml",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
+  ".ico",
+].join(",");
+
 interface ServiceIconFieldProps {
   fileInputId: string;
   fileInputRef: RefObject<HTMLInputElement | null>;
   iconPreview: string | null;
+  iconSourceUrl: string | null;
   iconUrl: string;
   iconUrlInputId: string;
   onIconChange: ChangeEventHandler<HTMLInputElement>;
@@ -19,6 +33,7 @@ export function ServiceIconField({
   fileInputId,
   fileInputRef,
   iconPreview,
+  iconSourceUrl,
   iconUrl,
   iconUrlInputId,
   onIconChange,
@@ -27,7 +42,7 @@ export function ServiceIconField({
 }: ServiceIconFieldProps) {
   return (
     <div className="space-y-2">
-      <Label className="font-semibold">Icon (PNG/SVG)</Label>
+      <Label className="font-semibold">Icon</Label>
       <div className="flex flex-wrap items-center gap-3">
         {iconPreview && (
           <div className="relative h-10 w-10 rounded-md border border-border bg-muted">
@@ -64,7 +79,7 @@ export function ServiceIconField({
           name="iconFile"
           ref={fileInputRef}
           type="file"
-          accept="image/png,image/svg+xml"
+          accept={ACCEPTED_ICON_TYPES}
           onChange={onIconChange}
           aria-label="Upload icon file"
           autoComplete="off"
@@ -84,8 +99,22 @@ export function ServiceIconField({
           className="min-w-48 flex-1 font-normal"
         />
       </div>
+      {iconSourceUrl && (
+        <p className="truncate text-xs text-muted-foreground">
+          Downloaded from{" "}
+          <a
+            href={iconSourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            title={iconSourceUrl}
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            {iconSourceUrl}
+          </a>
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
-        Upload or enter a URL to a PNG or SVG icon.
+        Upload or enter a URL to a PNG, SVG, JPG, GIF, WebP or ICO icon.
         <br />
         Browse{" "}
         <a

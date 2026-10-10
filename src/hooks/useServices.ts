@@ -89,8 +89,7 @@ export function useServices() {
   });
 
   const renameMutation = useMutation({
-    mutationFn: ({ from, to }: { from: string; to: string }) =>
-      renameCategoryRequest({ from, to }),
+    mutationFn: ({ from, to }: { from: string; to: string }) => renameCategoryRequest({ from, to }),
     onSuccess: (response: RenameCategoryResponse) => {
       setServices(() => response.services);
       queryClient.setQueryData(queryKeys.categoryOrder, { order: response.order });

@@ -82,10 +82,52 @@ describe("database integration", () => {
         name: "drop-metrics-samples",
       },
       {
+        id: 4,
+        name: "services-icon-source-url",
+      },
+      {
         id: 5,
         name: "categories-table",
       },
     ]);
+  });
+
+  it("adds a nullable icon_source_url column to services in a 0.2 database", () => {
+    const legacy = new Database(path.join(testDataDir!, "orbitdash.db"));
+    applyLegacyV02Schema(legacy);
+    legacy.exec(
+      `INSERT INTO services VALUES ('svc-1', 'Orbit', 'https://example.com', NULL, 'svc-1.png', NULL, 1, 1, 1)`
+    );
+    legacy.close();
+
+    initializeDb({ dataDir: testDataDir! });
+
+    expect(
+      getDb().prepare("SELECT icon, icon_source_url FROM services WHERE id = ?").get("svc-1")
+    ).toEqual({ icon: "svc-1.png", icon_source_url: null });
+  });
+
+  it("adds icon_source_url to databases that already ran the categories migration", () => {
+    initializeDb({ dataDir: testDataDir! });
+    getDb().exec(`
+      ALTER TABLE services DROP COLUMN icon_source_url;
+      DELETE FROM schema_migrations WHERE id = 4;
+    `);
+    closeDb();
+
+    initializeDb({ dataDir: testDataDir! });
+
+    const columns = getDb().prepare("PRAGMA table_info(services)").all() as Array<{
+      name: string;
+    }>;
+    expect(columns.map((column) => column.name)).toContain("icon_source_url");
+    expect(
+      (
+        getDb().prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{
+          id: number;
+        }>
+      ).map((row) => row.id)
+    ).toEqual([1, 2, 3, 4, 5]);
   });
 
   it("supports insert, update, and delete flows against the services table", () => {

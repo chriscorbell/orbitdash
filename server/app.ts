@@ -10,14 +10,13 @@ import { jsonError, jsonNotFound } from "./api-response";
 import { configScopeForMutation, ORIGIN_HEADER } from "@shared/events";
 import { isDbHealthy } from "./db";
 import { publish } from "./events";
-import { getRequestMetricsSnapshot, logOperationalError, recordRequest } from "./observability";
+import { logOperationalError, recordRequest } from "./observability";
 import { getIconsDir } from "./services/icon-storage";
 
 export const app = new Hono();
 
 function createHealthPayload(status: "ok" | "error") {
   return {
-    observability: getRequestMetricsSnapshot(),
     status,
     service: "orbitdash",
     observedAt: new Date().toISOString(),

@@ -174,6 +174,53 @@ describe("backup routes", () => {
     expect(service.open_in_new_tab).toBe(false);
   });
 
+  it("restores icon source URLs only for services whose icon survives the import", async () => {
+    const document = await exportDocument();
+    const baseService = {
+      url: "https://example.com",
+      description: null,
+      category_id: null,
+      open_in_new_tab: true,
+      created_at: 1,
+      updated_at: 1,
+    };
+    document.services = [
+      {
+        ...baseService,
+        id: "kept",
+        name: "Kept",
+        icon: "kept.png",
+        icon_source_url: "https://example.com/kept.png",
+        position: 0,
+      },
+      {
+        ...baseService,
+        id: "dropped",
+        name: "Dropped",
+        icon: "dropped.png",
+        icon_source_url: "https://example.com/dropped.png",
+        position: 1,
+      },
+    ];
+    document.icons = [{ filename: "kept.png", data: PNG_BYTES.toString("base64") }];
+
+    expect((await importDocument(document)).status).toBe(200);
+
+    const services = (await (await app.request("/api/services")).json()) as Service[];
+    expect(
+      services.map(({ name, icon, icon_source_url }) => ({ name, icon, icon_source_url }))
+    ).toEqual([
+      { name: "Kept", icon: "kept.png", icon_source_url: "https://example.com/kept.png" },
+      { name: "Dropped", icon: null, icon_source_url: null },
+    ]);
+
+    const restored = await exportDocument();
+    expect(restored.services.map((service) => service.icon_source_url)).toEqual([
+      "https://example.com/kept.png",
+      null,
+    ]);
+  });
+
   it("imports version 1 backups from orbitdash 0.2", async () => {
     const v1 = {
       format: "orbitdash-backup",
