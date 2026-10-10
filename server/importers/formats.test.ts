@@ -332,7 +332,7 @@ describe("format parsers", () => {
     expect(parsed.groups).toEqual([
       {
         name: "Lab <3",
-        services: [{ name: "iptA", url: "https://a.lan", description: null, icon: null }],
+        services: [{ name: "A", url: "https://a.lan", description: null, icon: null }],
       },
     ]);
   });

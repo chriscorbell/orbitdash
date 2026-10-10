@@ -198,14 +198,17 @@ const decodeEntities = (value: string) =>
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, "&");
 
-/** The text of an HTML fragment: tags and any stray angle brackets removed, entities decoded. */
-const fragmentText = (html: string) =>
-  decodeEntities(
-    html
-      .replace(/<[^>]*>/g, "")
-      .replace(/[<>]/g, "")
-      .trim()
-  );
+/** The text of an HTML fragment: everything inside angle brackets dropped, entities decoded. */
+function fragmentText(html: string): string {
+  let text = "";
+  let depth = 0;
+  for (const char of html) {
+    if (char === "<") depth += 1;
+    else if (char === ">") depth = Math.max(0, depth - 1);
+    else if (depth === 0) text += char;
+  }
+  return decodeEntities(text.trim());
+}
 
 /** Browser bookmarks (Netscape HTML): folders become categories, named after their path. */
 export function parseBookmarks(html: string): ParsedImport {
