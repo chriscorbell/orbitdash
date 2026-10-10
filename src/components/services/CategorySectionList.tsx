@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { memo, useCallback, useId } from "react";
 import { IconButton } from "@/components/common/IconButton";
 import { ServiceCard } from "@/components/ServiceCard";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
@@ -29,7 +29,7 @@ interface CategorySectionProps {
   onToggle: (category: string) => void;
 }
 
-function CategorySection({
+const CategorySection = memo(function CategorySection({
   category,
   collapsed,
   gridClassName,
@@ -87,7 +87,7 @@ function CategorySection({
       </div>
     </section>
   );
-}
+});
 
 function CategorizedSectionList({
   grouped,
@@ -102,13 +102,16 @@ function CategorizedSectionList({
     []
   );
 
-  const toggleCategory = (category: string) => {
-    setCollapsedCategories((currentCategories) =>
-      currentCategories.includes(category)
-        ? currentCategories.filter((currentCategory) => currentCategory !== category)
-        : [...currentCategories, category]
-    );
-  };
+  const toggleCategory = useCallback(
+    (category: string) => {
+      setCollapsedCategories((currentCategories) =>
+        currentCategories.includes(category)
+          ? currentCategories.filter((currentCategory) => currentCategory !== category)
+          : [...currentCategories, category]
+      );
+    },
+    [setCollapsedCategories]
+  );
 
   return grouped.map(([category, categoryServices]) => (
     <CategorySection

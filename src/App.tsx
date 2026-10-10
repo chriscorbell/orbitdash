@@ -1,14 +1,12 @@
-import { Fragment, lazy, Suspense } from "react";
+import { Fragment } from "react";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { MetricCard } from "@/components/MetricCard";
 import { ServicesSection } from "@/components/ServicesSection";
-import { SectionStateCard } from "@/components/common/SectionStateCard";
+import { StatsSection } from "@/components/StatsSection";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
-import { useMetrics } from "@/hooks/useMetrics";
 import { useServices } from "@/hooks/useServices";
 
 // One-time migration from the pre-rename "orbitdash.sectionOrder" key; the
@@ -32,24 +30,7 @@ function getInitialServicesFirst() {
   return true;
 }
 
-const MetricCharts = lazy(() =>
-  import("@/components/MetricCharts").then((module) => ({
-    default: module.MetricCharts,
-  }))
-);
-
-function MetricChartsFallback() {
-  return <Card size="sm" className="h-full min-h-45 py-2" />;
-}
-
 function App() {
-  const {
-    samples,
-    latest,
-    status: metricsStatus,
-    error: metricsError,
-    recoveredAt: metricsRecoveredAt,
-  } = useMetrics();
   const {
     services,
     loading: servicesLoading,
@@ -79,57 +60,7 @@ function App() {
     "4"
   );
   const columnCount: 3 | 4 | 5 = gridColumns === "5" ? 5 : gridColumns === "3" ? 3 : 4;
-  const showMetricsConnecting =
-    metricsStatus === "connecting" && samples.length === 0 && !metricsError;
-  const showMetricsError = metricsError !== null && samples.length === 0;
-  const showMetricsOffline = metricsStatus === "offline";
-  const showMetricsWarning = metricsError !== null && samples.length > 0;
-  const showMetricsRecovered = metricsRecoveredAt !== null && !showMetricsOffline;
-
-  const statsSection = (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Stats</h2>
-      {showMetricsConnecting && (
-        <SectionStateCard
-          tone="loading"
-          title="Connecting to live metrics"
-          description="Waiting for the first metrics snapshot and stream updates."
-        />
-      )}
-      {showMetricsError && (
-        <SectionStateCard tone="error" title="Metrics are unavailable" description={metricsError} />
-      )}
-      {showMetricsOffline && (
-        <SectionStateCard
-          tone="offline"
-          title="Metrics stream offline"
-          description="Showing the last received samples while the connection recovers."
-        />
-      )}
-      {showMetricsWarning && !showMetricsOffline && (
-        <SectionStateCard tone="error" title="Metrics may be stale" description={metricsError} />
-      )}
-      {showMetricsRecovered && !showMetricsConnecting && !showMetricsWarning && (
-        <SectionStateCard
-          tone="success"
-          title="Metrics stream restored"
-          description="Live updates have resumed after the last interruption."
-        />
-      )}
-      <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-stretch">
-        <div className="grid gap-3 md:h-full md:grid-rows-3">
-          <MetricCard className="h-full" title="CPU" value={latest?.cpu ?? null} icon="cpu" />
-          <MetricCard className="h-full" title="RAM" value={latest?.ram ?? null} icon="ram" />
-          <MetricCard className="h-full" title="Disk" value={latest?.disk ?? null} icon="disk" />
-        </div>
-        <div className="min-w-0 md:h-full">
-          <Suspense fallback={<MetricChartsFallback />}>
-            <MetricCharts samples={samples} />
-          </Suspense>
-        </div>
-      </div>
-    </div>
-  );
+  const statsSection = <StatsSection />;
 
   const servicesSection = (
     <ServicesSection

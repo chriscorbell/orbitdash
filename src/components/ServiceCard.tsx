@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,7 @@ interface ServiceCardProps {
   onDuplicate: (service: Service) => void;
 }
 
-export function ServiceCard({ service, onEdit, onDelete, onDuplicate }: ServiceCardProps) {
+function ServiceCardView({ service, onEdit, onDelete, onDuplicate }: ServiceCardProps) {
   const hasDescription = Boolean(service.description?.trim());
   const safeUrl = normalizeServiceUrl(service.url);
 
@@ -112,3 +113,6 @@ export function ServiceCard({ service, onEdit, onDelete, onDuplicate }: ServiceC
     </div>
   );
 }
+
+/** Memoized so unrelated dashboard updates never re-render every card. */
+export const ServiceCard = memo(ServiceCardView);
