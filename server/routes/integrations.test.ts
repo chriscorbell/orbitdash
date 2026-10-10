@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { app } from "../app";
+import { dockerMonitor } from "../docker/monitor";
 import { subscribeEvents } from "../events";
 import { createIntegrationPoller } from "../integrations/poller";
 import { integrationPoller } from "../integrations/poller-instance";
@@ -68,6 +69,30 @@ describe("integration routes", () => {
       types: Array<{ id: string; fields: Array<{ key: string }> }>;
     };
     expect(types.map((type) => type.id)).toContain("proxmox");
+    // Docker is only offered where it's set up (this machine may well have a socket).
+    const docker = spyOn(dockerMonitor, "snapshot").mockReturnValue({
+      configured: false,
+      available: false,
+      error: null,
+      containers: [],
+      updatedAt: null,
+    });
+    const withoutDocker = (await (await app.request("/api/integrations/types")).json()) as {
+      types: Array<{ id: string }>;
+    };
+    expect(withoutDocker.types.map((type) => type.id)).not.toContain("docker");
+    docker.mockReturnValue({
+      configured: true,
+      available: true,
+      error: null,
+      containers: [],
+      updatedAt: 1,
+    });
+    const withDocker = (await (await app.request("/api/integrations/types")).json()) as {
+      types: Array<{ id: string }>;
+    };
+    expect(withDocker.types.map((type) => type.id)).toContain("docker");
+    docker.mockRestore();
     expect(types.find((type) => type.id === "adguard")?.fields.map((field) => field.key)).toEqual([
       "url",
       "username",

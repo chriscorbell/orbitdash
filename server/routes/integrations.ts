@@ -3,6 +3,7 @@ import { integrationSaveSchema, integrationTestSchema } from "@shared/integratio
 import type { IntegrationType } from "@shared/types";
 import { normalizeServiceUrl } from "@shared/urls";
 import { jsonError } from "../api-response";
+import { dockerMonitor } from "../docker/monitor";
 import { ADAPTERS } from "../integrations/adapters";
 import { integrationPoller } from "../integrations/poller-instance";
 import { readIntegration } from "../integrations/poller";
@@ -23,12 +24,11 @@ const serviceExists = (id: string) => listServices().some((service) => service.i
 
 /** GET /api/integrations/types — the apps orbitdash can read and what each needs */
 integrationsRouter.get("/types", (c) => {
-  const types: IntegrationType[] = ADAPTERS.map(({ id, name, icon, fields }) => ({
-    id,
-    name,
-    icon,
-    fields,
-  }));
+  // Docker is only offered where it's set up.
+  const docker = dockerMonitor.snapshot().configured;
+  const types: IntegrationType[] = ADAPTERS.filter(
+    (adapter) => adapter.id !== "docker" || docker
+  ).map(({ id, name, icon, fields }) => ({ id, name, icon, fields }));
   return c.json({ types });
 });
 
