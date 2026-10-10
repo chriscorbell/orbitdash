@@ -15,7 +15,10 @@ type ServiceRow = Record<string, unknown> & {
 };
 
 /** Moves a service into the trash instead of deleting it; its icon stays until the purge. */
-export function trashService(id: string, now: number = Date.now()): ApiResult<{ restorableUntil: number }> {
+export function trashService(
+  id: string,
+  now: number = Date.now()
+): ApiResult<{ restorableUntil: number }> {
   const db = getDb();
   const row = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as ServiceRow | null;
   if (!row) {

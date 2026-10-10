@@ -51,8 +51,18 @@ export function duplicateService(id: string): Promise<Service> {
   );
 }
 
+/** Deletes into the server's trash; `restoreService` can bring it back for a while. */
 export async function deleteService(id: string): Promise<void> {
   await request(`/api/services/${id}`, { method: "DELETE" }, "Failed to delete service");
+}
+
+export function restoreService(id: string): Promise<Service> {
+  return requestJson(
+    `/api/services/${id}/restore`,
+    { method: "POST" },
+    "Failed to restore service",
+    serviceSchema
+  );
 }
 
 /** Get icon URL for display; `version` busts the browser cache when the icon changes. */

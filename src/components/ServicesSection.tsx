@@ -1,11 +1,10 @@
 import { lazy, Suspense, useCallback } from "react";
 import { CategorySectionList } from "@/components/services/CategorySectionList";
-import { DeleteServiceDialog } from "@/components/services/DeleteServiceDialog";
 import { ServicesEmptyState } from "@/components/services/ServicesEmptyState";
 import { ServicesSectionFeedback } from "@/components/services/ServicesSectionFeedback";
 import { ServicesToolbar } from "@/components/services/ServicesToolbar";
 import { useServicesSectionState } from "@/components/services/useServicesSectionState";
-import { toast } from "@/lib/toast";
+import { toast, toastError } from "@/lib/toast";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
 import type {
   Service,
@@ -41,6 +40,7 @@ interface ServicesSectionProps {
     removeIcon?: boolean
   ) => Promise<Service>;
   onDelete: (id: string) => Promise<void>;
+  onRestore: (id: string) => Promise<Service>;
   onDuplicate: (id: string) => Promise<Service>;
   onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
 }
@@ -55,6 +55,7 @@ export function ServicesSection({
   onCreate,
   onUpdate,
   onDelete,
+  onRestore,
   onDuplicate,
   onRenameCategory,
 }: ServicesSectionProps) {
@@ -62,13 +63,11 @@ export function ServicesSection({
     addOpen,
     categoryOptions,
     categoryOrderError,
-    deleteTarget,
-    deleting,
     editingService,
     filteredServices,
     gridClassName,
     groupedServices,
-    handleDeleteConfirm,
+    handleDelete,
     handleDuplicate,
     handleRenameCategoryConfirm,
     hasNamedCategories,
@@ -76,7 +75,6 @@ export function ServicesSection({
     renameCategoryTarget,
     search,
     setAddOpen,
-    setDeleteTarget,
     setEditingService,
     setRenameCategoryTarget,
     setSearch,
@@ -89,10 +87,20 @@ export function ServicesSection({
     error,
     loading,
     onDelete,
+    onRestore,
     onDuplicate,
     onRenameCategory,
     services,
   });
+
+  const handleDeleteCard = useCallback(
+    (service: Service) => {
+      handleDelete(service).catch((deleteError) =>
+        toastError(deleteError, "Couldn't delete the service")
+      );
+    },
+    [handleDelete]
+  );
 
   const handleDuplicateCard = useCallback(
     (service: Service) => {
@@ -144,7 +152,7 @@ export function ServicesSection({
           gridClassName={gridClassName}
           hasNamedCategories={hasNamedCategories}
           services={filteredServices}
-          onDelete={setDeleteTarget}
+          onDelete={handleDeleteCard}
           onDuplicate={handleDuplicateCard}
           onEdit={setEditingService}
           onRenameCategory={setRenameCategoryTarget}
@@ -186,24 +194,12 @@ export function ServicesSection({
           onDelete={
             editingService
               ? async () => {
-                  await onDelete(editingService.id);
-                  toast({ title: `Deleted ${editingService.name}`, tone: "success" });
+                  await handleDelete(editingService);
                 }
               : undefined
           }
         />
       </Suspense>
-
-      <DeleteServiceDialog
-        deleting={deleting}
-        onConfirm={handleDeleteConfirm}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
-        service={deleteTarget}
-      />
 
       <Suspense fallback={null}>
         <RenameCategoryDialog

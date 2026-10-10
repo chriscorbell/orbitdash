@@ -177,6 +177,7 @@ beforeEach(async () => {
     update: vi.fn().mockResolvedValue(serviceStub),
     duplicate: vi.fn().mockResolvedValue(serviceStub),
     remove: vi.fn().mockResolvedValue(undefined),
+    restore: vi.fn().mockResolvedValue(serviceStub),
     renameCategory: vi.fn().mockResolvedValue({ services: [], order: [] }),
     reload: vi.fn().mockResolvedValue(undefined),
   });

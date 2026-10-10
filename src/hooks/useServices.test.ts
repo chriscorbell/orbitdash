@@ -10,6 +10,7 @@ import type { Service } from "@shared/types";
 vi.mock("@/lib/api/services", () => ({
   createService: vi.fn(),
   deleteService: vi.fn(),
+  restoreService: vi.fn(),
   duplicateService: vi.fn(),
   fetchServices: vi.fn(),
   updateService: vi.fn(),
@@ -20,6 +21,7 @@ const createServiceMock = vi.mocked(servicesApi.createService);
 const updateServiceMock = vi.mocked(servicesApi.updateService);
 const deleteServiceMock = vi.mocked(servicesApi.deleteService);
 const duplicateServiceMock = vi.mocked(servicesApi.duplicateService);
+const restoreServiceMock = vi.mocked(servicesApi.restoreService);
 
 const existingService: Service = {
   id: "svc-1",
@@ -152,5 +154,27 @@ describe("useServices", () => {
 
     expect(fetchServicesMock).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(result.current.services).toEqual([updatedService]));
+  });
+
+  it("restores a deleted service and refetches positions", async () => {
+    fetchServicesMock
+      .mockResolvedValueOnce([existingService])
+      .mockResolvedValueOnce([existingService]);
+    deleteServiceMock.mockResolvedValue(undefined);
+    restoreServiceMock.mockResolvedValue(existingService);
+
+    const { result } = renderHook(() => useServices(), { wrapper: createQueryWrapper().wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.remove(existingService.id);
+    });
+    await waitFor(() => expect(result.current.services).toEqual([]));
+
+    await act(async () => {
+      await result.current.restore(existingService.id);
+    });
+    await waitFor(() => expect(result.current.services).toEqual([existingService]));
+    expect(fetchServicesMock).toHaveBeenCalledTimes(2);
   });
 });

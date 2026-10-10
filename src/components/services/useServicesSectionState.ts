@@ -13,6 +13,7 @@ interface UseServicesSectionStateOptions {
   error: string | null;
   loading: boolean;
   onDelete: (id: string) => Promise<void>;
+  onRestore: (id: string) => Promise<Service>;
   onDuplicate: (id: string) => Promise<Service>;
   onRenameCategory: (from: string, to: string) => Promise<RenameCategoryResponse>;
   services: Service[];
@@ -24,14 +25,13 @@ export function useServicesSectionState({
   error,
   loading,
   onDelete,
+  onRestore,
   onDuplicate,
   onRenameCategory,
   services,
 }: UseServicesSectionStateOptions) {
   const [addOpen, setAddOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [renameCategoryTarget, setRenameCategoryTarget] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -93,23 +93,29 @@ export function useServicesSectionState({
     return options.sort((left, right) => left.localeCompare(right));
   }, [services]);
 
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) {
-      return;
-    }
+  /**
+   * Deletes right away and offers Undo, which restores it from the server's trash. Throws when the
+   * delete fails so each caller can report it where the user is looking.
+   */
+  const handleDelete = useCallback(
+    async (service: Service) => {
+      await onDelete(service.id);
 
-    setDeleting(true);
-
-    try {
-      await onDelete(deleteTarget.id);
-      toast({ title: `Deleted ${deleteTarget.name}`, tone: "success" });
-      setDeleteTarget(null);
-    } catch (deleteError) {
-      toastError(deleteError, "Couldn't delete the service");
-    } finally {
-      setDeleting(false);
-    }
-  };
+      toast({
+        title: `Deleted ${service.name}`,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            onRestore(service.id).then(
+              () => toast({ title: `Restored ${service.name}`, tone: "success" }),
+              (restoreError) => toastError(restoreError, "Couldn't restore the service")
+            );
+          },
+        },
+      });
+    },
+    [onDelete, onRestore]
+  );
 
   const handleDuplicate = useCallback(
     async (service: Service) => {
@@ -138,8 +144,6 @@ export function useServicesSectionState({
     addOpen,
     categoryOptions,
     categoryOrderError,
-    deleteTarget,
-    deleting,
     editingService,
     filteredServices,
     gridClassName:
@@ -149,7 +153,7 @@ export function useServicesSectionState({
           ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
           : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
     groupedServices,
-    handleDeleteConfirm,
+    handleDelete,
     handleDuplicate,
     handleRenameCategoryConfirm,
     hasNamedCategories,
@@ -157,7 +161,6 @@ export function useServicesSectionState({
     renameCategoryTarget,
     search,
     setAddOpen,
-    setDeleteTarget,
     setEditingService,
     setRenameCategoryTarget,
     setSearch,

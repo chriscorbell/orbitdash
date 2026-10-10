@@ -30,7 +30,9 @@ async function createService(name: string, category: string | null, withIcon = f
 
 async function listNames() {
   const services = (await (await app.request("/api/services")).json()) as Service[];
-  return services.map((service) => `${service.category ?? "-"}/${service.name}/${service.position}`);
+  return services.map(
+    (service) => `${service.category ?? "-"}/${service.name}/${service.position}`
+  );
 }
 
 function deleteService(id: string) {
@@ -125,13 +127,17 @@ describe("undoable delete", () => {
     const service = await createService("A", null);
     await deleteService(service.id);
     // Recreate the row directly (as a backup import might), then try to restore.
-    const trashed = getDb().prepare("SELECT data FROM service_trash WHERE id = ?").get(service.id) as {
+    const trashed = getDb()
+      .prepare("SELECT data FROM service_trash WHERE id = ?")
+      .get(service.id) as {
       data: string;
     };
     const original = JSON.parse(trashed.data) as Record<string, string | number | null>;
     const columns = Object.keys(original);
     getDb()
-      .prepare(`INSERT INTO services (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`)
+      .prepare(
+        `INSERT INTO services (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`
+      )
       .run(...columns.map((column) => original[column]));
 
     expect((await restoreService(service.id)).status).toBe(409);
