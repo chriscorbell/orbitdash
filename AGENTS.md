@@ -54,6 +54,7 @@ Use this file as a practical handoff for future agents working in this repositor
   - `ORBITDASH_DISK_PATH`
   - `PORT`
   - `NODE_ENV`
+  - `LOG_LEVEL` (`debug` | `info` | `warn` | `error`, default `info`)
 
 ## Current Architecture Boundaries
 

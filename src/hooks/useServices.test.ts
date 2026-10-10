@@ -26,6 +26,7 @@ const existingService: Service = {
   url: "https://example.com/orbit",
   description: "Dashboard",
   icon: null,
+  icon_source_url: null,
   category: "Infra",
   category_id: "cat-infra",
   position: 0,

@@ -92,6 +92,7 @@ When changing server routes or shared validation logic, run both `test:unit` and
 | `ORBITDASH_DISK_PATH` | `/`                                                | Controls which mount path is used for disk usage collection  |
 | `PORT`                | `3001`                                             | Backend listen port                                          |
 | `NODE_ENV`            | unset in development, `production` for `npm start` | Standard runtime mode flag                                   |
+| `LOG_LEVEL`           | `info`                                             | Minimum log level: `debug`, `info`, `warn` or `error`        |
 
 ## Architecture Notes
 

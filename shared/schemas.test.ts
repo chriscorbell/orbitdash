@@ -46,6 +46,13 @@ describe("serviceCreateSchema", () => {
     });
   });
 
+  it("defaults schemeless LAN addresses to http", () => {
+    expect(serviceCreateSchema.parse({ name: "Jellyfin", url: "10.0.0.20:8096" }).url).toBe(
+      "http://10.0.0.20:8096/"
+    );
+    expect(serviceUpdateSchema.parse({ url: " nas:5000 " }).url).toBe("http://nas:5000/");
+  });
+
   it("converts empty optional text fields and icon URLs to null", () => {
     expect(
       serviceCreateSchema.parse({
@@ -231,6 +238,7 @@ describe("response schemas", () => {
       url: "https://example.com/orbit",
       description: null,
       icon: null,
+      icon_source_url: null,
       category: "Infra",
       category_id: "cat-infra",
       position: 3,
@@ -241,6 +249,16 @@ describe("response schemas", () => {
 
     expect(serviceSchema.parse(service)).toEqual(service);
     expect(servicesResponseSchema.parse([service])).toEqual([service]);
+
+    const downloaded = {
+      ...service,
+      icon: "svc-1-a1b2c3d4.svg",
+      icon_source_url: "https://example.com/icon.svg",
+    };
+    expect(serviceSchema.parse(downloaded)).toEqual(downloaded);
+
+    const { icon_source_url: _omitted, ...withoutSourceUrl } = service;
+    expect(serviceSchema.safeParse(withoutSourceUrl).success).toBe(false);
   });
 
   it("validates categories", () => {

@@ -117,6 +117,11 @@ The backend listens on port `3001` by default outside the container. Override it
 The disk metric uses `/` by default. Override it with `ORBITDASH_DISK_PATH=/path/to/mount` when you
 need to track a different mount.
 
+Logs are JSON lines on stdout/stderr. `LOG_LEVEL` sets the minimum level written: `debug`, `info`
+(default), `warn` or `error`. Successful health checks, icon and asset requests, and the live
+event streams are logged at `debug`; other successful requests at `info`; 4xx responses at `warn`;
+5xx responses at `error`.
+
 ## Health Checks
 
 - `GET /healthz` returns liveness for process-level checks.

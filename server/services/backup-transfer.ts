@@ -22,6 +22,8 @@ const serviceFields = {
     .refine((value) => normalizeServiceUrl(value) !== null, "service url must be a valid URL"),
   description: z.string().nullable(),
   icon: z.string().nullable(),
+  // Added after the first backup files were written, so older exports omit it.
+  icon_source_url: z.string().nullable().optional(),
   open_in_new_tab: z.boolean(),
   created_at: z.number().int(),
   updated_at: z.number().int(),
@@ -119,6 +121,7 @@ interface ServiceRow {
   url: string;
   description: string | null;
   icon: string | null;
+  icon_source_url: string | null;
   category_id: string | null;
   position: number;
   open_in_new_tab: number;
@@ -139,8 +142,8 @@ export function exportBackup(now: Date = new Date()): BackupDocument {
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT id, name, url, description, icon, category_id, position, open_in_new_tab,
-              created_at, updated_at
+      `SELECT id, name, url, description, icon, icon_source_url, category_id, position,
+              open_in_new_tab, created_at, updated_at
        FROM services ORDER BY category_id ASC, position ASC, name ASC`
     )
     .all() as ServiceRow[];
@@ -279,8 +282,8 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
       "INSERT INTO categories (id, name, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
     );
     const insertService = db.prepare(
-      `INSERT INTO services (id, name, url, description, icon, category_id, position, open_in_new_tab, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
 
@@ -300,12 +303,14 @@ export function importBackup(input: unknown): ApiResult<ImportSummary> {
       }
 
       for (const service of document.services) {
+        const icon = service.icon && icons.has(service.icon) ? service.icon : null;
         insertService.run(
           service.id,
           service.name,
           normalizeServiceUrl(service.url)!,
           service.description?.trim() || null,
-          service.icon && icons.has(service.icon) ? service.icon : null,
+          icon,
+          icon ? (service.icon_source_url ?? null) : null,
           service.category_id && categoryIds.has(service.category_id) ? service.category_id : null,
           service.position,
           service.open_in_new_tab ? 1 : 0,

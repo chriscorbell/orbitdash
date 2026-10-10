@@ -181,6 +181,12 @@ export function useServiceDialogState({ categoryOptions, service }: UseServiceDi
     resetFileInput(fileInputRef);
   };
 
+  // Only worth showing while the saved, downloaded icon is still the one that will be kept.
+  const storedIconSourceUrl =
+    service?.icon_source_url && !iconFile && !formState.iconUrl.trim() && !formState.removeIcon
+      ? service.icon_source_url
+      : null;
+
   const fieldIds: ServiceDialogFieldIds = {
     categoryInputId: `${fieldIdPrefix}-category`,
     descriptionInputId: `${fieldIdPrefix}-description`,
@@ -200,6 +206,7 @@ export function useServiceDialogState({ categoryOptions, service }: UseServiceDi
     handleIconChange,
     handleIconUrlChange,
     handleRemoveIcon,
+    storedIconSourceUrl,
     setDescription: (description: string) => {
       setFormState((current) => ({
         ...current,

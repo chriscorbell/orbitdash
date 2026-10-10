@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConfigChanges } from "@/hooks/useConfigChanges";
 import { invalidateRequestCache } from "@/lib/api/client";
 import { fetchCategoryOrder, updateCategoryOrder } from "@/lib/api/settings";
 import { mergeCategoryOrder, UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service } from "@shared/types";
+
+export type CategoryOrderSaveState = "idle" | "saving" | "saved" | "error";
 
 export interface UseCategoryOrderResult {
   draftOrder: string[];
@@ -13,13 +15,17 @@ export interface UseCategoryOrderResult {
   isReorderMode: boolean;
   loading: boolean;
   namedCategories: string[];
+  saveState: CategoryOrderSaveState;
   saving: boolean;
   visibleCategoryOrder: string[];
   applyOrder: (order: string[]) => void;
   beginReorder: () => void;
   cancelReorder: () => void;
-  moveCategory: (category: string, direction: "up" | "down") => void;
-  reorderCategories: (activeId: string, overId: string) => void;
+  /** Moves a category one step and saves the new order right away. */
+  moveCategory: (category: string, direction: "up" | "down") => Promise<void>;
+  /** Moves a dragged category onto another's position and saves the new order right away. */
+  reorderCategories: (activeId: string, overId: string) => Promise<void>;
+  /** Saves the current draft order again, e.g. after a failed save. */
   saveOrder: () => Promise<void>;
 }
 
@@ -51,8 +57,12 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<CategoryOrderSaveState>("idle");
   const [error, setError] = useState<string | null>(null);
+  // Saves run one after another so the server always ends on the latest order, and only the
+  // latest save updates the status shown to the user.
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const latestSaveRef = useRef(0);
 
   const namedCategories = useMemo(() => getNamedCategories(services), [services]);
   const hasNamedCategories = namedCategories.length > 0;
@@ -123,70 +133,77 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
   const beginReorder = useCallback(() => {
     setDraftOrder(mergedSavedOrder);
     setError(null);
+    setSaveState("idle");
     setIsReorderMode(true);
   }, [mergedSavedOrder]);
 
   const cancelReorder = useCallback(() => {
     setDraftOrder(mergedSavedOrder);
     setError(null);
+    setSaveState("idle");
     setIsReorderMode(false);
   }, [mergedSavedOrder]);
 
+  const persistOrder = useCallback((nextOrder: string[]) => {
+    latestSaveRef.current += 1;
+    const saveId = latestSaveRef.current;
+    setDraftOrder(nextOrder);
+    setSaveState("saving");
+
+    const save = async () => {
+      try {
+        const response = await updateCategoryOrder({ order: nextOrder });
+        setSavedOrder(response.order);
+        if (saveId === latestSaveRef.current) {
+          setDraftOrder(response.order);
+          setError(null);
+          setSaveState("saved");
+        }
+      } catch (saveError) {
+        if (saveId === latestSaveRef.current) {
+          setError(
+            saveError instanceof Error ? saveError.message : "Failed to save category order"
+          );
+          setSaveState("error");
+        }
+      }
+    };
+
+    const queued = saveQueueRef.current.then(save);
+    saveQueueRef.current = queued;
+    return queued;
+  }, []);
+
   const moveCategory = useCallback(
     (category: string, direction: "up" | "down") => {
-      setDraftOrder((currentOrder) => {
-        const orderedCategories = mergeCategoryOrder(namedCategories, currentOrder);
-        const currentIndex = orderedCategories.indexOf(category);
-        if (currentIndex === -1) {
-          return orderedCategories;
-        }
+      const currentIndex = mergedDraftOrder.indexOf(category);
+      const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (currentIndex === -1 || nextIndex < 0 || nextIndex >= mergedDraftOrder.length) {
+        return Promise.resolve();
+      }
 
-        const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-        if (nextIndex < 0 || nextIndex >= orderedCategories.length) {
-          return orderedCategories;
-        }
-
-        return moveItem(orderedCategories, currentIndex, nextIndex);
-      });
+      return persistOrder(moveItem(mergedDraftOrder, currentIndex, nextIndex));
     },
-    [namedCategories]
+    [mergedDraftOrder, persistOrder]
   );
 
   const reorderCategories = useCallback(
     (activeId: string, overId: string) => {
-      if (activeId === overId) {
-        return;
+      const activeIndex = mergedDraftOrder.indexOf(activeId);
+      const overIndex = mergedDraftOrder.indexOf(overId);
+      if (activeId === overId || activeIndex === -1 || overIndex === -1) {
+        return Promise.resolve();
       }
 
-      setDraftOrder((currentOrder) => {
-        const orderedCategories = mergeCategoryOrder(namedCategories, currentOrder);
-        const activeIndex = orderedCategories.indexOf(activeId);
-        const overIndex = orderedCategories.indexOf(overId);
-        if (activeIndex === -1 || overIndex === -1) {
-          return orderedCategories;
-        }
-
-        return moveItem(orderedCategories, activeIndex, overIndex);
-      });
+      return persistOrder(moveItem(mergedDraftOrder, activeIndex, overIndex));
     },
-    [namedCategories]
+    [mergedDraftOrder, persistOrder]
   );
 
-  const saveOrder = useCallback(async () => {
-    const nextOrder = mergedDraftOrder;
-    setSaving(true);
-    try {
-      const response = await updateCategoryOrder({ order: nextOrder });
-      setSavedOrder(response.order);
-      setDraftOrder(response.order);
-      setError(null);
-      setIsReorderMode(false);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save category order");
-    } finally {
-      setSaving(false);
-    }
-  }, [mergedDraftOrder]);
+  const saveOrder = useCallback(
+    () => persistOrder(mergedDraftOrder),
+    [mergedDraftOrder, persistOrder]
+  );
 
   return {
     draftOrder: mergedDraftOrder,
@@ -196,7 +213,8 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
     isReorderMode,
     loading,
     namedCategories,
-    saving,
+    saveState,
+    saving: saveState === "saving",
     visibleCategoryOrder,
     applyOrder,
     beginReorder,

@@ -30,6 +30,7 @@ interface StoredServiceInput {
   createdAt: number;
   description: string | null;
   icon: string | null;
+  iconSourceUrl: string | null;
   id: string;
   name: string;
   openInNewTab: boolean;
@@ -42,6 +43,7 @@ interface UpdatedServiceInput {
   categoryId: string | null;
   description: string | null;
   icon: string | null;
+  iconSourceUrl: string | null;
   name: string;
   openInNewTab: boolean;
   position: number;
@@ -67,14 +69,15 @@ function getServiceRecord(id: string): ServiceRecord | undefined {
 function createStoredService(input: StoredServiceInput): Service {
   const db = getDb();
   db.prepare(
-    `INSERT INTO services (id, name, url, description, icon, category_id, position, open_in_new_tab, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     input.id,
     input.name,
     input.url,
     input.description,
     input.icon,
+    input.iconSourceUrl,
     input.categoryId,
     input.position,
     input.openInNewTab ? 1 : 0,
@@ -89,14 +92,15 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
   const db = getDb();
   db.prepare(
     `UPDATE services SET
-       name = ?, url = ?, description = ?, icon = ?, category_id = ?, position = ?,
-       open_in_new_tab = ?, updated_at = ?
+       name = ?, url = ?, description = ?, icon = ?, icon_source_url = ?, category_id = ?,
+       position = ?, open_in_new_tab = ?, updated_at = ?
      WHERE id = ?`
   ).run(
     input.name,
     input.url,
     input.description,
     input.icon,
+    input.iconSourceUrl,
     input.categoryId,
     input.position,
     input.openInNewTab ? 1 : 0,
@@ -110,6 +114,16 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
 function deleteStoredService(id: string): void {
   const db = getDb();
   db.prepare("DELETE FROM services WHERE id = ?").run(id);
+}
+
+/** Runs a database write, deleting a freshly written icon if the write throws. */
+function withIconRollback<T>(newIcon: string | null, write: () => T): T {
+  try {
+    return write();
+  } catch (error) {
+    removeStoredIcon(newIcon);
+    throw error;
+  }
 }
 
 export function listServices(): Service[] {
@@ -139,31 +153,40 @@ export async function createService(
   const validatedPayload = validation.data;
 
   let iconFilename: string | null = null;
+  let iconSourceUrl: string | null = null;
   try {
     if (input.iconFile) {
       iconFilename = await persistUploadedIcon(id, input.iconFile);
     } else if (validatedPayload.icon_url) {
       iconFilename = await persistDownloadedIcon(id, validatedPayload.icon_url);
+      iconSourceUrl = validatedPayload.icon_url;
     }
   } catch (error) {
     return apiFail(400, getErrorMessage(error, "failed to persist icon"));
   }
 
-  const categoryId = resolveCategoryId(validatedPayload.category);
-  return apiOk(
-    createStoredService({
-      categoryId,
-      createdAt: now,
-      description: validatedPayload.description,
-      icon: iconFilename,
-      id,
-      name: validatedPayload.name,
-      openInNewTab: validatedPayload.open_in_new_tab,
-      position: nextServicePosition(categoryId),
-      updatedAt: now,
-      url: validatedPayload.url,
-    })
+  const db = getDb();
+  // One transaction, so a failed insert does not leave a newly created category behind either.
+  const service = withIconRollback(iconFilename, () =>
+    db.transaction(() => {
+      const categoryId = resolveCategoryId(validatedPayload.category);
+      return createStoredService({
+        categoryId,
+        createdAt: now,
+        description: validatedPayload.description,
+        icon: iconFilename,
+        iconSourceUrl,
+        id,
+        name: validatedPayload.name,
+        openInNewTab: validatedPayload.open_in_new_tab,
+        position: nextServicePosition(categoryId),
+        updatedAt: now,
+        url: validatedPayload.url,
+      });
+    })()
   );
+
+  return apiOk(service);
 }
 
 export async function updateService(
@@ -182,49 +205,65 @@ export async function updateService(
 
   const validatedPayload = validation.data;
   let iconFilename = existing.icon;
-
-  const replacingIcon = Boolean(input.iconFile || validatedPayload.icon_url);
-  if (!replacingIcon && input.removeIcon && existing.icon) {
-    removeStoredIcon(existing.icon);
-    iconFilename = null;
-  }
+  let iconSourceUrl = existing.icon_source_url;
+  let newIcon: string | null = null;
 
   try {
     if (input.iconFile) {
-      iconFilename = await persistUploadedIcon(id, input.iconFile, existing.icon);
+      newIcon = await persistUploadedIcon(id, input.iconFile);
+      iconSourceUrl = null;
     } else if (validatedPayload.icon_url) {
-      iconFilename = await persistDownloadedIcon(id, validatedPayload.icon_url, existing.icon);
+      newIcon = await persistDownloadedIcon(id, validatedPayload.icon_url);
+      iconSourceUrl = validatedPayload.icon_url;
+    } else if (input.removeIcon) {
+      iconFilename = null;
+      iconSourceUrl = null;
     }
   } catch (error) {
     return apiFail(400, getErrorMessage(error, "failed to persist icon"));
   }
 
-  // A service that changes category goes to the end of its new one.
-  const categoryId =
-    validatedPayload.category !== undefined
-      ? resolveCategoryId(validatedPayload.category)
-      : existing.category_id;
-  const position =
-    categoryId === existing.category_id ? existing.position : nextServicePosition(categoryId);
+  if (newIcon) {
+    iconFilename = newIcon;
+  }
 
-  return apiOk(
-    updateStoredService(id, {
-      categoryId,
-      position,
-      description:
-        validatedPayload.description !== undefined
-          ? validatedPayload.description
-          : existing.description,
-      icon: iconFilename,
-      name: validatedPayload.name !== undefined ? validatedPayload.name : existing.name,
-      openInNewTab:
-        validatedPayload.open_in_new_tab !== undefined
-          ? validatedPayload.open_in_new_tab
-          : Boolean(existing.open_in_new_tab),
-      updatedAt: Date.now(),
-      url: validatedPayload.url !== undefined ? validatedPayload.url : existing.url,
-    })
+  const db = getDb();
+  const service = withIconRollback(newIcon, () =>
+    db.transaction(() => {
+      // A service that changes category goes to the end of its new one.
+      const categoryId =
+        validatedPayload.category !== undefined
+          ? resolveCategoryId(validatedPayload.category)
+          : existing.category_id;
+      const position =
+        categoryId === existing.category_id ? existing.position : nextServicePosition(categoryId);
+
+      return updateStoredService(id, {
+        categoryId,
+        position,
+        description:
+          validatedPayload.description !== undefined
+            ? validatedPayload.description
+            : existing.description,
+        icon: iconFilename,
+        iconSourceUrl,
+        name: validatedPayload.name !== undefined ? validatedPayload.name : existing.name,
+        openInNewTab:
+          validatedPayload.open_in_new_tab !== undefined
+            ? validatedPayload.open_in_new_tab
+            : Boolean(existing.open_in_new_tab),
+        updatedAt: Date.now(),
+        url: validatedPayload.url !== undefined ? validatedPayload.url : existing.url,
+      });
+    })()
   );
+
+  // The old file goes only once the new reference is saved, so a failed write keeps it intact.
+  if (existing.icon !== iconFilename) {
+    removeStoredIcon(existing.icon);
+  }
+
+  return apiOk(service);
 }
 
 export function duplicateService(id: string): ApiResult<Service> {
@@ -236,6 +275,7 @@ export function duplicateService(id: string): ApiResult<Service> {
   const newId = crypto.randomUUID();
   const now = Date.now();
   const db = getDb();
+  const icon = copyStoredIcon(existing.icon, newId);
 
   // The copy goes right after the original.
   const duplicate = db.transaction(() => {
@@ -248,7 +288,8 @@ export function duplicateService(id: string): ApiResult<Service> {
       position: existing.position + 1,
       createdAt: now,
       description: existing.description,
-      icon: copyStoredIcon(existing.icon, newId),
+      icon,
+      iconSourceUrl: icon ? existing.icon_source_url : null,
       id: newId,
       name: `${existing.name} (copy)`,
       openInNewTab: Boolean(existing.open_in_new_tab),
@@ -257,7 +298,7 @@ export function duplicateService(id: string): ApiResult<Service> {
     });
   });
 
-  return apiOk(duplicate());
+  return apiOk(withIconRollback(icon, duplicate));
 }
 
 export function deleteService(id: string): ApiResult<{ success: true }> {
@@ -266,8 +307,8 @@ export function deleteService(id: string): ApiResult<{ success: true }> {
     return apiFail(404, "not found");
   }
 
-  removeStoredIcon(existing.icon);
   deleteStoredService(id);
+  removeStoredIcon(existing.icon);
   return apiOk({ success: true });
 }
 
