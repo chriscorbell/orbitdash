@@ -225,9 +225,9 @@ function OptionsRows({
     <div className="divide-y divide-border rounded-lg border border-border">
       <div className="flex items-center justify-between gap-4 p-3">
         <div className="space-y-0.5">
-          <Label htmlFor="notify-down-delay">Down alerts</Label>
+          <Label htmlFor="notify-down-delay">Report outages</Label>
           <p id="notify-down-delay-description" className="text-muted-foreground text-sm">
-            How long a service stays down first
+            Shorter blips stay quiet
           </p>
         </div>
         <Select
@@ -270,8 +270,6 @@ function OptionsRows({
         </div>
         {quietHours.enabled && (
           <QuietWindow
-            // Remounts with fresh values when another tab changes the window.
-            key={`${quietHours.start}-${quietHours.end}`}
             start={quietHours.start}
             end={quietHours.end}
             onChange={(window) =>
@@ -285,7 +283,7 @@ function OptionsRows({
         <div className="min-w-0 space-y-0.5">
           <Label htmlFor="notify-time-zone">Time zone</Label>
           <p id="notify-time-zone-description" className="text-muted-foreground text-sm">
-            For quiet hours and times in messages
+            For quiet hours and messages
           </p>
         </div>
         <Select
@@ -318,7 +316,11 @@ function OptionsRows({
   );
 }
 
-/** From and to times, saved when a field is left with a valid, different time. */
+/**
+ * From and to times, saved when a field is left with a valid, different time. Typed values live
+ * here only until then, so another tab's change shows up without remounting the inputs (which
+ * would take focus away while tabbing from one to the other).
+ */
 function QuietWindow({
   start,
   end,
@@ -328,22 +330,21 @@ function QuietWindow({
   end: string;
   onChange: (window: { start: string; end: string }) => void;
 }) {
-  const [values, setValues] = useState({ start, end });
+  const [editing, setEditing] = useState<{ start: string; end: string } | null>(null);
+  const values = editing ?? { start, end };
 
   const commit = () => {
+    if (!editing) return;
+    setEditing(null);
     const valid =
-      parseClock(values.start) !== null &&
-      parseClock(values.end) !== null &&
-      values.start !== values.end;
-    if (!valid) {
-      setValues({ start, end });
-      return;
-    }
-    if (values.start !== start || values.end !== end) onChange(values);
+      parseClock(editing.start) !== null &&
+      parseClock(editing.end) !== null &&
+      editing.start !== editing.end;
+    if (valid && (editing.start !== start || editing.end !== end)) onChange(editing);
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground animate-in fade-in-0 duration-200 motion-reduce:animate-none">
+    <div className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in-0 duration-200 motion-reduce:animate-none">
       <span>From</span>
       {(["start", "end"] as const).map((edge) => (
         <span key={edge} className="contents">
@@ -353,11 +354,9 @@ function QuietWindow({
             step={60}
             required
             aria-label={edge === "start" ? "Quiet hours start" : "Quiet hours end"}
-            className="w-28 font-mono tabular-nums"
+            className="flex-1 tabular-nums"
             value={values[edge]}
-            onChange={(event) =>
-              setValues((current) => ({ ...current, [edge]: event.target.value }))
-            }
+            onChange={(event) => setEditing({ ...values, [edge]: event.target.value })}
             onBlur={commit}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -388,9 +387,14 @@ function DeliveryLog({ deliveries }: { deliveries: NotificationDelivery[] }) {
             className="flex items-start gap-2 animate-in fade-in-0 duration-200 motion-reduce:animate-none"
           >
             {delivery.ok ? (
-              <Check aria-label="Delivered" className="text-success mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <Check
+                role="img"
+                aria-label="Delivered"
+                className="text-success mt-0.5 h-3.5 w-3.5 shrink-0"
+              />
             ) : (
               <X
+                role="img"
                 aria-label="Not delivered"
                 className="text-destructive mt-0.5 h-3.5 w-3.5 shrink-0"
               />

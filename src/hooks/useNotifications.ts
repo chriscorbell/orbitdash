@@ -58,11 +58,18 @@ export function useNotifications() {
     [update]
   );
 
-  const { mutateAsync: saveOptions } = useMutation({
+  const { mutateAsync: sendOptions } = useMutation({
     mutationFn: updateNotificationOptions,
-    onMutate: (options) => update((current) => ({ ...current, options })),
     onError: refetch,
   });
+  // Shown at once, in the same render as the change, so edited fields never flash the old value.
+  const saveOptions = useCallback(
+    (options: NotificationOptions) => {
+      update((current) => ({ ...current, options }));
+      return sendOptions(options);
+    },
+    [sendOptions, update]
+  );
 
   const createChannel = useCallback(
     async (payload: ChannelPayload) => {
@@ -115,6 +122,6 @@ export function useNotifications() {
     saveChannel,
     removeChannel,
     testChannel,
-    saveOptions: useCallback((options: NotificationOptions) => saveOptions(options), [saveOptions]),
+    saveOptions,
   };
 }

@@ -21,7 +21,9 @@ const channelBase = {
   updatedAt: z.number(),
 };
 
-export const notificationChannelSchema = z.discriminatedUnion("type", [
+// A plain union, not discriminatedUnion: the validation chunk loads on first paint, and union is
+// already in it.
+export const notificationChannelSchema = z.union([
   z.object({
     ...channelBase,
     type: z.literal("ntfy"),

@@ -108,16 +108,11 @@ export function emptyDraft(type: NotificationChannelType): ChannelDraft {
   };
 }
 
-/** A new channel's form keeps the name, events and server when only the type changes. */
+/** A new channel's form keeps a name the user typed, and the events, when the type changes. */
 export function switchDraftType(draft: ChannelDraft, type: NotificationChannelType): ChannelDraft {
   const next = emptyDraft(type);
-  const renamed = draft.name.trim() === "" || draft.name === DEFAULT_NAMES[draft.type];
-  return {
-    ...next,
-    name: renamed ? next.name : draft.name,
-    events: draft.events,
-    server: (type === "ntfy" || type === "gotify") && draft.server ? draft.server : next.server,
-  };
+  const typedName = draft.name.trim() !== "" && draft.name !== DEFAULT_NAMES[draft.type];
+  return { ...next, name: typedName ? draft.name : next.name, events: draft.events };
 }
 
 export function draftFromChannel(channel: NotificationChannel): ChannelDraft {
@@ -203,40 +198,59 @@ export function payloadFromDraft(draft: ChannelDraft): ChannelPayload {
 
 const needs = (value: string, saved: string | null) => value.trim() === "" && saved === null;
 
+/** Which input a problem belongs to; header problems name the row by its key. */
+export type DraftField = "name" | "server" | "topic" | "token" | "url" | `header-${number}`;
+
+export interface DraftProblem {
+  field: DraftField;
+  message: string;
+}
+
+const problem = (field: DraftField, message: string): DraftProblem => ({ field, message });
+
 /**
  * The first problem a quick look can find, or null. The server checks everything again; this only
  * saves a round trip for the obvious ones.
  */
-export function validateDraft(draft: ChannelDraft): string | null {
-  if (!draft.name.trim()) return "Give the channel a name.";
+export function validateDraft(draft: ChannelDraft): DraftProblem | null {
+  if (!draft.name.trim()) return problem("name", "Give the channel a name.");
   switch (draft.type) {
     case "ntfy":
-      if (!normalizeServerUrl(draft.server)) return "Enter the ntfy server's URL.";
-      if (needs(draft.topic, draft.saved.topic)) return "Enter a topic.";
+      if (!normalizeServerUrl(draft.server)) return problem("server", "Enter the server's URL.");
+      if (needs(draft.topic, draft.saved.topic)) return problem("topic", "Enter a topic.");
       if (draft.topic.trim() && !NTFY_TOPIC_PATTERN.test(draft.topic.trim())) {
-        return "Topics use letters, numbers, - and _ only.";
+        return problem("topic", "Topics use letters, numbers, - and _ only.");
       }
       return null;
     case "gotify":
-      if (!normalizeServerUrl(draft.server)) return "Enter the Gotify server's URL.";
-      if (needs(draft.token, draft.saved.token)) return "Enter the app token.";
+      if (!normalizeServerUrl(draft.server)) return problem("server", "Enter the server's URL.");
+      if (needs(draft.token, draft.saved.token)) return problem("token", "Enter the app token.");
       return null;
     case "discord":
-      if (needs(draft.url, draft.saved.url)) return "Paste the webhook URL from Discord.";
+      if (needs(draft.url, draft.saved.url)) {
+        return problem("url", "Paste the webhook URL from Discord.");
+      }
       if (draft.url.trim() && !isDiscordWebhookUrl(draft.url)) {
-        return "That isn't a Discord webhook URL.";
+        return problem("url", "That isn't a Discord webhook URL.");
       }
       return null;
     case "webhook": {
-      if (needs(draft.url, draft.saved.url)) return "Enter the URL to post to.";
-      if (draft.url.trim() && !parseHttpUrl(draft.url)) return "Enter an http or https URL.";
+      if (needs(draft.url, draft.saved.url)) return problem("url", "Enter the URL to post to.");
+      if (draft.url.trim() && !parseHttpUrl(draft.url)) {
+        return problem("url", "Enter an http or https URL.");
+      }
       for (const header of draft.headers) {
         const name = header.name.trim();
         if (!name && !header.value) continue;
         if (!HEADER_NAME_PATTERN.test(name) || RESERVED_HEADER_NAMES.has(name.toLowerCase())) {
-          return `"${name || "(empty)"}" can't be used as a header name.`;
+          return problem(
+            `header-${header.key}`,
+            name ? `${name} can't be used as a header name.` : "Name the header."
+          );
         }
-        if (!header.value && header.saved === null) return `Enter a value for ${name}.`;
+        if (!header.value && header.saved === null) {
+          return problem(`header-${header.key}`, `Enter a value for ${name}.`);
+        }
       }
       return null;
     }

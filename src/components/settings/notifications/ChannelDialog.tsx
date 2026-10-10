@@ -32,6 +32,7 @@ import {
   switchDraftType,
   validateDraft,
   type ChannelDraft,
+  type DraftField,
 } from "@/lib/notifications";
 import { CHANNEL_TYPE_LABELS, NOTIFICATION_CHANNEL_TYPES } from "@shared/notifications";
 import type {
@@ -146,19 +147,31 @@ export function ChannelDialog({
   );
   const [busy, setBusy] = useState<"save" | "test" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState<DraftField | null>(null);
   const [test, setTest] = useState<TestState | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const change = (patch: Partial<ChannelDraft>) => {
     setDraft((current) => ({ ...current, ...patch }));
     setTest(null);
+    setInvalid(null);
   };
   const field = (name: string) => `${id}-${name}`;
+  const errorId = field("error");
+
+  /** id, and the invalid state with the error message attached when the problem is here. */
+  const inputProps = (name: DraftField) => ({
+    id: field(name),
+    ...(invalid === name ? { "aria-invalid": true, "aria-describedby": errorId } : {}),
+  });
 
   const ready = (): ChannelPayload | null => {
     const problem = validateDraft(draft);
-    setError(problem);
-    return problem ? null : payloadFromDraft(draft);
+    setError(problem?.message ?? null);
+    setInvalid(problem?.field ?? null);
+    if (!problem) return payloadFromDraft(draft);
+    document.getElementById(field(problem.field))?.focus();
+    return null;
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -213,12 +226,7 @@ export function ChannelDialog({
       ),
     });
 
-  const secretInput = {
-    autoComplete: "off",
-    autoCapitalize: "off",
-    spellCheck: false,
-    className: "font-mono",
-  } as const;
+  const plainInput = { autoComplete: "off", autoCapitalize: "off", spellCheck: false } as const;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -238,13 +246,14 @@ export function ChannelDialog({
                 setDraft((current) => switchDraftType(current, type));
                 setTest(null);
                 setError(null);
+                setInvalid(null);
               }}
             />
           )}
 
           <Field id={field("name")} label="Name">
             <Input
-              id={field("name")}
+              {...inputProps("name")}
               value={draft.name}
               maxLength={60}
               onChange={(event) => change({ name: event.target.value })}
@@ -254,10 +263,9 @@ export function ChannelDialog({
           {(draft.type === "ntfy" || draft.type === "gotify") && (
             <Field id={field("server")} label="Server">
               <Input
-                id={field("server")}
+                {...inputProps("server")}
+                {...plainInput}
                 inputMode="url"
-                autoComplete="off"
-                spellCheck={false}
                 placeholder={draft.type === "gotify" ? "https://gotify.example.com" : undefined}
                 value={draft.server}
                 onChange={(event) => change({ server: event.target.value })}
@@ -270,8 +278,8 @@ export function ChannelDialog({
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id={field("topic")} label="Topic">
                   <Input
-                    id={field("topic")}
-                    {...secretInput}
+                    {...inputProps("topic")}
+                    {...plainInput}
                     placeholder={savedPlaceholder(draft.saved.topic, "homelab-alerts")}
                     value={draft.topic}
                     onChange={(event) => change({ topic: event.target.value })}
@@ -303,9 +311,9 @@ export function ChannelDialog({
                 }
               >
                 <Input
-                  id={field("token")}
+                  {...inputProps("token")}
+                  {...plainInput}
                   type="password"
-                  {...secretInput}
                   disabled={draft.removeToken}
                   placeholder={
                     draft.removeToken
@@ -331,9 +339,9 @@ export function ChannelDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id={field("token")} label="App token">
                 <Input
-                  id={field("token")}
+                  {...inputProps("token")}
+                  {...plainInput}
                   type="password"
-                  {...secretInput}
                   placeholder={savedPlaceholder(draft.saved.token, "")}
                   value={draft.token}
                   onChange={(event) => change({ token: event.target.value })}
@@ -351,9 +359,9 @@ export function ChannelDialog({
           {(draft.type === "discord" || draft.type === "webhook") && (
             <Field id={field("url")} label={draft.type === "discord" ? "Webhook URL" : "URL"}>
               <Input
-                id={field("url")}
+                {...inputProps("url")}
+                {...plainInput}
                 inputMode="url"
-                {...secretInput}
                 placeholder={savedPlaceholder(
                   draft.saved.url,
                   draft.type === "discord"
@@ -395,16 +403,17 @@ export function ChannelDialog({
                   className="flex items-center gap-2 animate-in fade-in-0 duration-200 motion-reduce:animate-none"
                 >
                   <Input
+                    {...inputProps(`header-${header.key}`)}
+                    {...plainInput}
                     aria-label={`Header ${index + 1} name`}
                     placeholder="Authorization"
-                    {...secretInput}
                     value={header.name}
                     onChange={(event) => updateHeader(header.key, { name: event.target.value })}
                   />
                   <Input
+                    {...plainInput}
                     aria-label={`Header ${index + 1} value`}
                     type="password"
-                    {...secretInput}
                     placeholder={savedPlaceholder(header.saved, "Value")}
                     value={header.value}
                     onChange={(event) => updateHeader(header.key, { value: event.target.value })}
@@ -457,7 +466,7 @@ export function ChannelDialog({
 
           <div aria-live="polite">{test && <TestResultLine state={test} />}</div>
           {error && (
-            <p role="alert" className="text-destructive text-sm font-medium">
+            <p id={errorId} role="alert" className="text-destructive text-sm font-medium">
               {error}
             </p>
           )}

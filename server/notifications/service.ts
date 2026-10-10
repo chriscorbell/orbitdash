@@ -92,7 +92,8 @@ export function createNotificationService(options: NotificationServiceOptions) {
       {
         channelId: channel.id,
         channelType: channel.type,
-        event: message.event,
+        // Not `event`, which names the log line itself.
+        notification: message.event,
         attempts: outcome.attempts,
         ...(outcome.ok ? {} : { reason: outcome.error }),
       }

@@ -44,6 +44,9 @@ const NotificationSettings = lazy(() =>
     default: module.NotificationSettings,
   }))
 );
+const SECTION_PLACEHOLDER = (
+  <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
+);
 
 interface SettingsAccount {
   mode: "password" | "proxy";
@@ -301,11 +304,7 @@ export function SettingsDialog({
             }}
           >
             <SettingsSectionLabel>Widgets</SettingsSectionLabel>
-            <Suspense
-              fallback={
-                <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
-              }
-            >
+            <Suspense fallback={SECTION_PLACEHOLDER}>
               <WidgetSettings widgets={widgets} onChange={onWidgetsChange} />
             </Suspense>
           </section>
@@ -317,11 +316,7 @@ export function SettingsDialog({
 
           <section className="space-y-3">
             <SettingsSectionLabel>Notifications</SettingsSectionLabel>
-            <Suspense
-              fallback={
-                <div className="h-24 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none" />
-              }
-            >
+            <Suspense fallback={SECTION_PLACEHOLDER}>
               <NotificationSettings />
             </Suspense>
           </section>

@@ -252,6 +252,22 @@ describe("test messages", () => {
     expect(result).toMatchObject({ ok: false, error: "HTTP 401: unauthorized" });
     expect(result.delivery).toMatchObject({ ok: false, error: "HTTP 401" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // The log names the channel and the reason, and nothing secret.
+    const lines = (console.warn as unknown as Mock<typeof console.warn>).mock.calls.map(([line]) =>
+      String(line)
+    );
+    const failure = lines.find((line) => line.includes("notification.failed"));
+    expect(JSON.parse(failure!)).toMatchObject({
+      event: "notification.failed",
+      channelId: created.id,
+      channelType: "ntfy",
+      notification: "test",
+      reason: "HTTP 401",
+    });
+    for (const secret of ["homelab-alerts", "tk_supersecret1234", "unauthorized"]) {
+      expect(lines.join("\n")).not.toContain(secret);
+    }
   });
 
   it("tests unsaved edits over a saved channel without saving them", async () => {
@@ -398,6 +414,73 @@ describe("notifications from events", () => {
       error: "HTTP 400",
       attempts: 1,
     });
+  });
+
+  it("keeps announced outages across a restart and drops ones whose service recovered", async () => {
+    await createNtfy();
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO service_status (service_id, target_key, state, failures, checked_at, changed_at)
+       VALUES ('svc', 'tcp x:1', 'down', 2, 1, 1)`
+    ).run();
+    db.prepare(
+      `INSERT INTO notification_incidents (service_id, started_at, notified_at)
+       VALUES ('svc', 1, 2), ('gone', 1, NULL)`
+    ).run();
+    answer(200, {});
+    notifications.start();
+    expect(db.prepare("SELECT service_id FROM notification_incidents").all()).toEqual([
+      { service_id: "svc" },
+    ]);
+
+    // Already announced before the restart: nothing again, but the recovery follows.
+    notifications.tick();
+    const now = Date.now();
+    publish({
+      type: "status",
+      id: "svc",
+      status: {
+        id: "svc",
+        state: "up",
+        latencyMs: 5,
+        statusCode: null,
+        error: null,
+        checkedAt: now,
+        changedAt: now,
+      },
+    });
+    await notifications.idle();
+    expect(
+      fetchMock.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)).title)
+    ).toEqual(["Jellyfin is back up"]);
+  });
+
+  it("survives a failing database inside the event listener", async () => {
+    const errors = spyOn(console, "error").mockImplementation(() => {});
+    notifications.start();
+    getDb().exec("DROP TABLE notification_incidents");
+    const event = {
+      type: "status" as const,
+      id: "svc",
+      status: {
+        id: "svc",
+        state: "down" as const,
+        latencyMs: null,
+        statusCode: null,
+        error: null,
+        checkedAt: 1,
+        changedAt: 1,
+      },
+    };
+    publish(event);
+    publish({ ...event, id: "other" });
+    notifications.tick();
+    // Logged once a minute at most, and the listener is still subscribed.
+    expect(
+      errors.mock.calls.map(([line]) => JSON.parse(String(line)).event).filter(Boolean)
+    ).toEqual(["notification.event_failed"]);
+    expect(notifications.isRunning()).toBe(true);
+    errors.mockRestore();
   });
 });
 

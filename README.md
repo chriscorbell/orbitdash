@@ -54,6 +54,7 @@ version before creating the matching tag.
 - An optional Prometheus `/metrics` endpoint with host, status check and container metrics
 - Simple service links with icons and categories; dark icons get a light plate automatically
 - Optional status checks per service (HTTP or TCP): a status dot and response time on the card, and a 24h uptime bar on hover
+- Notifications for outages and metric alerts on ntfy, Gotify, Discord or any webhook, with a delay that ignores blips, quiet hours that end with a summary, and a test button per channel
 - Icons from the dashboard-icons and selfh.st libraries, suggested from the service name, or upload your own or paste a link
 - Paste a link when adding a service and its name and icon fill in from the page; a Test button checks it before saving
 - A command palette (⌘K, `/`, or just start typing): open services, run actions, or search the web with DuckDuckGo, Google, Bing, Brave or your own SearXNG
@@ -446,6 +447,116 @@ spread out so they don't all fire together.
 Results are kept for 24 hours and hourly totals for 30 days. `GET /api/status` returns the current
 status of every checked service, `GET /api/events?topics=status` streams each result, and
 `GET /api/status/:id/history?range=24h|30d` returns the uptime history.
+
+## Notifications
+
+Settings → Notifications sends outages and metric alerts to ntfy, Gotify, Discord or any webhook.
+Nothing is sent until you add a channel. Each channel gets status changes (a service went down or
+came back), metric alerts (fired or resolved), or both; turning both off pauses it. The send button
+next to a channel, or Send test in its form, sends a test message and shows the answer right there,
+including the receiving service's own explanation when it refuses.
+
+- **Outages** are reported once a service has stayed down for a while: 2 minutes by default,
+  anything from right away to 1 hour. A service that comes back sooner says nothing at all. An
+  outage is reported once however many checks fail, and its "back up" message, with how long it
+  was down, only follows a "down" that was sent. This comes on top of the status check's own rule
+  (two failed checks in a row).
+- **Metric alerts** are sent when they fire and when they resolve; their rules already have a
+  duration.
+- **Quiet hours** (for example 22:00 to 07:00) hold messages back rather than drop them. When they
+  end, each channel gets one summary: what is still down or firing first, then what came and went.
+  Outages still going on are never lost, even across a restart; the ones that came and went are
+  kept in memory, so a restart during quiet hours leaves those out of the summary.
+- **Time zone**: quiet hours and the times in messages follow the server's time zone unless you
+  pick one. Containers usually run in UTC.
+
+A message that hits a network error, a timeout, a 429 or a 5xx answer is retried twice, after 1 and
+4 seconds. Redirects are never followed, so a token only goes to the host you entered. The last 50
+deliveries, sent or not, are listed under the options.
+
+Tokens, topics and webhook URLs stay on the server. The API shows them masked (`••••a1b2`, or a
+URL's origin followed by `••••`), to guests too, and a secret field left empty when you edit a
+channel keeps the saved value. Channels are stored in the `settings` table, so **backups and
+snapshots contain these secrets**; keep exported files private.
+
+### ntfy
+
+The server (`https://ntfy.sh` or your own), a topic, and optionally an access token, sent as
+`Authorization: Bearer`. On ntfy.sh anyone who knows a topic can read it, so pick a long, random
+one. The priority (1 to 5, High by default) applies to outages and alerts; recoveries, tests and
+summaries never go above ntfy's default (3). Messages are published as JSON to the server's root
+URL, with a severity tag ntfy shows as an emoji, then your own tags:
+
+```json
+{
+  "topic": "homelab-alerts",
+  "title": "Jellyfin is down",
+  "message": "Connection refused. Down since 14:02.",
+  "priority": 4,
+  "tags": ["rotating_light", "homelab"],
+  "click": "http://10.0.0.20:8096/"
+}
+```
+
+### Gotify
+
+The server's URL (`https://push.example.com`, or with the path Gotify is served under) and an
+application token from Apps → Create Application. The token is sent in the `X-Gotify-Key` header.
+The priority (0 to 10, 8 by default) applies to outages and alerts; everything else stays at 5 or
+below.
+
+### Discord
+
+In the Discord channel's settings: Integrations → Webhooks → New Webhook → Copy Webhook URL, and
+paste it as the channel's webhook URL. Messages are embeds colored by severity (red for down, amber
+for an alert, green when resolved, blue for tests) with mentions turned off, so a service name can
+never ping anyone.
+
+### Webhook
+
+A JSON `POST` to any http(s) URL, with optional headers such as `Authorization: Bearer …`. Any 2xx
+answer counts as delivered. The body:
+
+```json
+{
+  "version": 1,
+  "source": "Homelab",
+  "timestamp": "2026-10-10T14:04:00.000Z",
+  "event": "service.down",
+  "severity": "critical",
+  "title": "Jellyfin is down",
+  "message": "Connection refused. Down since 14:02.",
+  "service": {
+    "id": "0b7e6a52-…",
+    "name": "Jellyfin",
+    "url": "http://10.0.0.20:8096/",
+    "error": "Connection refused",
+    "downSince": "2026-10-10T14:02:00.000Z",
+    "recoveredAt": null,
+    "downtimeSeconds": null
+  },
+  "alert": null,
+  "items": []
+}
+```
+
+- `event`: `service.down`, `service.recovered`, `alert.firing`, `alert.resolved`, `summary` (sent
+  when quiet hours end) or `test`.
+- `severity`: `critical` (a service is down), `warning` (an alert fired), `resolved` or `info`.
+- `service`, for status events: `recoveredAt` and `downtimeSeconds` are set once it is back up.
+- `alert`, for alert events: `id`, `metric` (`cpu`, `memory`, `disk` or `temperature`), `subject`
+  (the mountpoint for disk alerts), `threshold`, `durationSeconds`, `value`, `peak`, `startedAt`,
+  `firedAt` and `resolvedAt`.
+- `items`, for summaries: one entry per event, each with `event`, `severity`, `title`, `message`,
+  `service` and `alert`.
+- `source` is the dashboard's name, or `orbitdash` before you set one. `version` goes up only when
+  a field is removed or changes meaning.
+
+`GET /api/notifications` returns the channels (masked), the options and the recent deliveries.
+Channels are managed with `POST /api/notifications/channels` and
+`PUT`/`DELETE /api/notifications/channels/:id`, tested with
+`POST /api/notifications/channels/:id/test` (or `POST /api/notifications/test` for one that isn't
+saved yet), and the options are set with `PUT /api/notifications/options`.
 
 ## Widgets
 

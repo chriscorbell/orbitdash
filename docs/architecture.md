@@ -133,6 +133,48 @@ TanStack Query cache keyed by service id, kept current by a single `status` subs
 refetched after the connection drops. Hovering or focusing a card shows the details, which fetch
 the 24h history when they open.
 
+### Notifications
+
+`server/notifications/` sends status changes and metric alerts to ntfy, Gotify, Discord and
+generic webhooks. The producers know nothing about it: it subscribes to the `status` and `alerts`
+topics on the event bus, the same events the browser gets, so the status monitor and alert
+evaluator stay as they were.
+
+- **Engine** (`engine.ts`) decides what to say and when, and sends nothing itself. A service that
+  goes down opens an incident; its "down" message waits until the outage has lasted the configured
+  delay (2 minutes by default), measured from the status's `changedAt`, so a blip says nothing and
+  an outage is announced once. The recovery, with the downtime, only follows an announced "down".
+  Alerts are announced when they fire (their rules have their own duration) and when they resolve,
+  if their firing was. A tick every 10 seconds sends delayed "down"s.
+- **Quiet hours** hold messages instead of dropping them, because the point is not being woken up,
+  not missing that a service has been down since 3am. Held events are merged per service or alert,
+  and the first tick after the window ends sends each channel one summary of the events it would
+  have received. The window is read in the configured IANA zone, or the server's.
+- **Incidents** (`notification_incidents`, migration 11) record each open outage and when it was
+  announced, so a restart neither repeats a "down" nor forgets one that is due. At startup,
+  incidents whose service is no longer down or checked are dropped. Alerts need no such record:
+  the alert service closes alerts left firing by a previous run without events.
+- **Delivery** (`deliver.ts`, `channels.ts`). `channels.ts` builds each type's request as a pure
+  function (ntfy's JSON publishing, Gotify's message API, a Discord embed with mentions off, the
+  versioned webhook payload). `deliver.ts` posts it with a 10-second `AbortSignal.timeout` and
+  retries network errors, timeouts, 429 and 5xx twice (1 and 4 seconds, longer if `Retry-After`
+  asks, up to 15). Redirects are not followed, so credentials only go to the configured host.
+  Messages to one channel go out one at a time, in order. Shutdown aborts deliveries in flight and
+  drops their results before the database closes.
+- **Secrets.** Channels and options are JSON in `settings` (`notifications.channels`,
+  `notifications.options`), which puts them in backups. `channel-config.ts` masks every secret in
+  API responses, to editors and guests alike, and merges updates so that a secret left out (or sent
+  back as its mask) keeps the stored value. Errors are described from status codes and error codes
+  only, and logs carry the channel id and that short reason, never a URL or token. A test also
+  returns the receiver's own `message` or `error` field (shortened) to whoever pressed the button;
+  the delivery log keeps only the short reason.
+- **Log.** `notification_deliveries` keeps the newest 50 deliveries for the settings section.
+
+In the browser the section is its own lazy chunk (`NotificationSettings-*`), loaded with the
+settings dialog. Its zod/mini response schemas live in `src/lib/api/notifications.ts` and use a
+plain union rather than `discriminatedUnion`, which would pull more of zod into the first-paint
+`validation` chunk.
+
 ### Installable App And Offline Shell
 
 orbitdash ships a web app manifest (`public/manifest.webmanifest`, icons in `public/icons/` made by
@@ -226,8 +268,12 @@ form validation.
 - `server/status/` owns status checks: the checker, the scheduler, state rules, storage and the
   monitor that wires them to the database and the event bus. `server/routes/status.ts` only reads
   from the monitor.
+- `server/notifications/` owns notifications and only listens to the event bus; the status monitor
+  and alert evaluator don't know it exists. `server/routes/notifications.ts` translates HTTP and
+  delegates to `notifications` in `service.ts`.
 - `shared/` owns client/server contracts, runtime schemas, URL normalization, service form-data
-  handling, category-order rules, and the status check rules both sides use (`shared/status.ts`).
+  handling, category-order rules, the status check rules both sides use (`shared/status.ts`), and
+  the notification rules (`shared/notifications.ts`: quiet-hour windows, URL checks, masks).
 - Frontend hooks under `src/hooks/` own API-backed services (`useServices`, with optimistic moves),
   categories (`useCategories`, with optimistic renames, deletes and reorders), metrics, and
   dashboard settings.

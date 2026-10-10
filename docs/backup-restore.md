@@ -44,6 +44,13 @@ Status checks are split the same way:
   no longer exist is removed by the hourly prune.
 - **Snapshots** include check history like any other table.
 
+Notification channels live in the `settings` table, secrets included:
+
+- **Export and snapshots contain every channel's tokens, topics, webhook URLs and header values in
+  plain text.** Keep export files and the `backups/` folder as private as the services they reach.
+- **Import** replaces the channels and notification options with the file's. The delivery log and
+  the record of outages already announced are left alone, like status history.
+
 ### Restore From A Snapshot
 
 Snapshots are complete data directories without the WAL files, so restoring one is a copy:
