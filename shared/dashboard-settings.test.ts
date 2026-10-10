@@ -34,7 +34,7 @@ describe("parseDashboardSettings", () => {
     expect(
       parseDashboardSettings({
         layout: {
-          gridColumns: 9,
+          density: "huge",
           statsPosition: "bottom",
           showServices: "yes",
           servicesFirst: true,
@@ -43,7 +43,13 @@ describe("parseDashboardSettings", () => {
       })
     ).toEqual({
       ...DEFAULT_DASHBOARD_SETTINGS,
-      layout: { gridColumns: 4, statsPosition: "bottom", showServices: true, showStats: true },
+      layout: {
+        mode: "columns",
+        density: "comfortable",
+        statsPosition: "bottom",
+        showServices: true,
+        showStats: true,
+      },
     });
   });
 
@@ -54,11 +60,11 @@ describe("parseDashboardSettings", () => {
 
 describe("patches", () => {
   it("accepts partial layout changes and rejects unknown or invalid fields", () => {
-    expect(dashboardSettingsPatchSchema.parse({ layout: { gridColumns: 5 } })).toEqual({
-      layout: { gridColumns: 5 },
+    expect(dashboardSettingsPatchSchema.parse({ layout: { density: "tiles" } })).toEqual({
+      layout: { density: "tiles" },
     });
     expect(dashboardSettingsPatchSchema.parse({})).toEqual({});
-    expect(dashboardSettingsPatchSchema.safeParse({ layout: { gridColumns: 6 } }).success).toBe(
+    expect(dashboardSettingsPatchSchema.safeParse({ layout: { density: "huge" } }).success).toBe(
       false
     );
     expect(dashboardSettingsPatchSchema.safeParse({ layout: { colour: "red" } }).success).toBe(
@@ -74,15 +80,15 @@ describe("patches", () => {
     expect(parseDashboardSettingsPatch({ layout: { showStats: "no" } })).toEqual({});
     expect(parseDashboardSettingsPatch(undefined)).toEqual({});
     expect(parseDashboardSettingsPatch({ layout: [] })).toEqual({});
-    expect(parseDashboardSettingsPatch({ layout: { gridColumns: 3, extra: 1 } })).toEqual({
-      layout: { gridColumns: 3 },
+    expect(parseDashboardSettingsPatch({ layout: { mode: "rows", extra: 1 } })).toEqual({
+      layout: { mode: "rows" },
     });
   });
 
   it("merges patches over a base", () => {
     expect(
-      mergeDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, { layout: { gridColumns: 3 } }).layout
-    ).toEqual({ ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 3 });
+      mergeDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, { layout: { mode: "rows" } }).layout
+    ).toEqual({ ...DEFAULT_DASHBOARD_SETTINGS.layout, mode: "rows" });
     expect(mergeDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, null)).toEqual(
       DEFAULT_DASHBOARD_SETTINGS
     );
@@ -93,10 +99,10 @@ describe("patches", () => {
 
   it("diffs two documents into the smallest patch", () => {
     const next = mergeDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, {
-      layout: { showStats: false, gridColumns: 5 },
+      layout: { showStats: false, density: "tiles" },
     });
     expect(diffDashboardSettings(DEFAULT_DASHBOARD_SETTINGS, next)).toEqual({
-      layout: { showStats: false, gridColumns: 5 },
+      layout: { showStats: false, density: "tiles" },
     });
     expect(diffDashboardSettings(next, next)).toEqual({});
   });
@@ -104,10 +110,10 @@ describe("patches", () => {
   it("merges patches field by field across sections", () => {
     expect(
       mergeSettingsPatches(
-        { layout: { gridColumns: 3 } },
+        { layout: { mode: "rows" } },
         { layout: { showStats: false }, appearance: { accent: "mint" } }
       )
-    ).toEqual({ layout: { gridColumns: 3, showStats: false }, appearance: { accent: "mint" } });
+    ).toEqual({ layout: { mode: "rows", showStats: false }, appearance: { accent: "mint" } });
     expect(mergeSettingsPatches({}, {})).toEqual({});
   });
 

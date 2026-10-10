@@ -65,7 +65,13 @@ const service = {
 
 const settings = {
   appearance: { accent: "mint", theme: "system" },
-  layout: { gridColumns: 4, statsPosition: "bottom", showServices: true, showStats: false },
+  layout: {
+    mode: "columns",
+    density: "comfortable",
+    statsPosition: "bottom",
+    showServices: true,
+    showStats: false,
+  },
 };
 
 /** Each pair must agree: the browser's zod/mini schema and the shared full-zod schema. */
@@ -106,7 +112,7 @@ const pairs = [
     mini: mini.dashboardSettingsResponseSchema,
     full: fullSettings,
     valid: {
-      device: { id: "device-1", name: null, overrides: { layout: { gridColumns: 3 } } },
+      device: { id: "device-1", name: null, overrides: { layout: { mode: "rows" } } },
       effective: settings,
       settings,
       stored: true,

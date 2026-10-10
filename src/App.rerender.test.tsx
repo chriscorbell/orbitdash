@@ -33,7 +33,10 @@ vi.mock("@/components/stats/StatsStrip", async () => {
 });
 
 vi.mock("@/components/header/AppHeader", () => ({ AppHeader: () => <header /> }));
-vi.mock("@/components/settings/SettingsDialog", () => ({ SettingsDialog: () => null }));
+vi.mock("@/components/settings/settings-preload", () => ({
+  preloadSettingsDialog: vi.fn(),
+  loadSettingsDialog: async () => ({ SettingsDialog: () => null }),
+}));
 vi.mock("@/hooks/useDashboardSettings", async () => {
   const { DEFAULT_DASHBOARD_SETTINGS } = await import("@shared/dashboard-settings");
   return {

@@ -127,7 +127,13 @@ describe("dashboard settings routes", () => {
 
     const defaults: View["settings"] = {
       appearance: { accent: "ice", theme: "dark" },
-      layout: { gridColumns: 4, statsPosition: "top", showServices: true, showStats: true },
+      layout: {
+        mode: "columns",
+        density: "comfortable",
+        statsPosition: "top",
+        showServices: true,
+        showStats: true,
+      },
     };
     expect(body).toEqual({ device: null, effective: defaults, settings: defaults, stored: false });
   });
@@ -144,23 +150,23 @@ describe("dashboard settings routes", () => {
   });
 
   it("patches the shared settings", async () => {
-    const response = await put("/api/settings", { layout: { gridColumns: 5 } });
+    const response = await put("/api/settings", { layout: { density: "tiles" } });
     expect(response.status).toBe(200);
     const body = (await response.json()) as View;
     expect(body.stored).toBe(true);
-    expect(body.settings.layout.gridColumns).toBe(5);
+    expect(body.settings.layout.density).toBe("tiles");
 
     const again = (await (await app.request("/api/settings")).json()) as View;
-    expect(again.settings.layout).toMatchObject({ gridColumns: 5, statsPosition: "top" });
+    expect(again.settings.layout).toMatchObject({ density: "tiles", statsPosition: "top" });
   });
 
   it("rejects unknown fields and bad values", async () => {
-    expect((await put("/api/settings", { layout: { gridColumns: 7 } })).status).toBe(400);
+    expect((await put("/api/settings", { layout: { density: "huge" } })).status).toBe(400);
     expect((await put("/api/settings", { theme: "dark" })).status).toBe(400);
   });
 
   it("layers device overrides over the shared settings", async () => {
-    await put("/api/settings", { layout: { gridColumns: 5 } });
+    await put("/api/settings", { layout: { density: "tiles" } });
 
     const response = await put(`/api/settings/devices/${device}`, {
       name: "Kitchen tablet",
@@ -173,14 +179,14 @@ describe("dashboard settings routes", () => {
       name: "Kitchen tablet",
       overrides: { layout: { showServices: false } },
     });
-    expect(body.effective.layout).toMatchObject({ gridColumns: 5, showServices: false });
+    expect(body.effective.layout).toMatchObject({ density: "tiles", showServices: false });
     expect(body.settings.layout.showServices).toBe(true);
 
     const merged = await put(`/api/settings/devices/${device}`, {
-      overrides: { layout: { gridColumns: 3 } },
+      overrides: { layout: { mode: "rows" } },
     });
     expect(((await merged.json()) as View).device?.overrides).toEqual({
-      layout: { showServices: false, gridColumns: 3 },
+      layout: { showServices: false, mode: "rows" },
     });
 
     const listed = (await (await app.request("/api/settings/devices")).json()) as {
@@ -222,7 +228,7 @@ describe("dashboard settings routes", () => {
 
     const body = (await (await app.request(`/api/settings?device=${device}`)).json()) as View;
     expect(body.stored).toBe(true);
-    expect(body.settings.layout.gridColumns).toBe(4);
+    expect(body.settings.layout.mode).toBe("columns");
     expect(body.device).toBeNull();
   });
 });

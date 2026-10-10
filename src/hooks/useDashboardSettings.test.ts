@@ -70,24 +70,24 @@ describe("useDashboardSettings", () => {
   it("starts from the cached settings and then loads the server's", async () => {
     window.localStorage.setItem(
       "orbitdash.settingsCache",
-      JSON.stringify({ layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 5 } })
+      JSON.stringify({ layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, density: "tiles" } })
     );
     createServer({
       shared: {
         ...DEFAULT_DASHBOARD_SETTINGS,
-        layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, gridColumns: 3 },
+        layout: { ...DEFAULT_DASHBOARD_SETTINGS.layout, density: "compact" },
       },
     });
 
     const { result } = renderHook(() => useDashboardSettings(), {
       wrapper: createQueryWrapper().wrapper,
     });
-    expect(result.current.settings.layout.gridColumns).toBe(5);
+    expect(result.current.settings.layout.density).toBe("tiles");
 
-    await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(3));
-    expect(
-      JSON.parse(window.localStorage.getItem("orbitdash.settingsCache")!).layout.gridColumns
-    ).toBe(3);
+    await waitFor(() => expect(result.current.settings.layout.density).toBe("compact"));
+    expect(JSON.parse(window.localStorage.getItem("orbitdash.settingsCache")!).layout.density).toBe(
+      "compact"
+    );
     expect(api.fetchDashboardSettings).toHaveBeenCalledWith("device-1");
   });
 
@@ -100,8 +100,8 @@ describe("useDashboardSettings", () => {
       wrapper: createQueryWrapper().wrapper,
     });
 
-    await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(5));
-    expect(server.shared.layout).toMatchObject({ statsPosition: "bottom", gridColumns: 5 });
+    await waitFor(() => expect(result.current.settings.layout.statsPosition).toBe("bottom"));
+    expect(server.shared.layout).toMatchObject({ statsPosition: "bottom", mode: "columns" });
     expect(result.current.scope).toBe("all");
     expect(window.localStorage.getItem("orbitdash.servicesGrid")).toBeNull();
   });
@@ -176,17 +176,17 @@ describe("useDashboardSettings", () => {
     await waitFor(() => expect(result.current.scope).toBe("device"));
     expect(server.overrides).toEqual(DEFAULT_DASHBOARD_SETTINGS);
 
-    act(() => result.current.updateLayout({ gridColumns: 3 }));
-    await waitFor(() => expect(server.overrides.layout?.gridColumns).toBe(3));
-    await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(3));
-    expect(server.shared.layout.gridColumns).toBe(4);
+    act(() => result.current.updateLayout({ mode: "rows" }));
+    await waitFor(() => expect(server.overrides.layout?.mode).toBe("rows"));
+    await waitFor(() => expect(result.current.settings.layout.mode).toBe("rows"));
+    expect(server.shared.layout.mode).toBe("columns");
 
     act(() => result.current.setScope("device"));
     expect(api.updateDeviceSettings).toHaveBeenCalledTimes(2);
 
     act(() => result.current.setScope("all"));
     await waitFor(() => expect(result.current.scope).toBe("all"));
-    await waitFor(() => expect(result.current.settings.layout.gridColumns).toBe(4));
+    await waitFor(() => expect(result.current.settings.layout.mode).toBe("columns"));
   });
 
   it("reverts an optimistic change when saving fails", async () => {
@@ -228,12 +228,16 @@ describe("readLegacyLayout", () => {
 
     expect(readLegacyLayout()).toEqual({
       ...DEFAULT_DASHBOARD_SETTINGS,
-      layout: { gridColumns: 3, statsPosition: "bottom", showServices: false, showStats: true },
+      layout: {
+        ...DEFAULT_DASHBOARD_SETTINGS.layout,
+        statsPosition: "bottom",
+        showServices: false,
+      },
     });
   });
 
-  it("ignores unknown grid values", () => {
-    window.localStorage.setItem("orbitdash.servicesGrid", "7");
-    expect(readLegacyLayout()?.layout.gridColumns).toBe(4);
+  it("drops the old column count, which layout modes replaced", () => {
+    window.localStorage.setItem("orbitdash.servicesGrid", "5");
+    expect(readLegacyLayout()?.layout).toEqual(DEFAULT_DASHBOARD_SETTINGS.layout);
   });
 });

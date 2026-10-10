@@ -32,26 +32,30 @@ vi.mock("@/components/ServicesSection", () => ({
   ),
 }));
 
-vi.mock("@/components/settings/SettingsDialog", () => ({
-  SettingsDialog: ({
-    open,
-    onShowServicesSectionChange,
-    onShowStatsSectionChange,
-    onStatsPositionChange,
-  }: MockSettingsProps) =>
-    open ? (
-      <div role="dialog" aria-label="Settings">
-        <button type="button" onClick={() => onShowServicesSectionChange(false)}>
-          Hide services
-        </button>
-        <button type="button" onClick={() => onShowStatsSectionChange(false)}>
-          Hide stats
-        </button>
-        <button type="button" onClick={() => onStatsPositionChange("bottom")}>
-          Stats below
-        </button>
-      </div>
-    ) : null,
+// The app loads the settings dialog lazily through this module.
+vi.mock("@/components/settings/settings-preload", () => ({
+  preloadSettingsDialog: vi.fn(),
+  loadSettingsDialog: async () => ({
+    SettingsDialog: ({
+      open,
+      onShowServicesSectionChange,
+      onShowStatsSectionChange,
+      onStatsPositionChange,
+    }: MockSettingsProps) =>
+      open ? (
+        <div role="dialog" aria-label="Settings">
+          <button type="button" onClick={() => onShowServicesSectionChange(false)}>
+            Hide services
+          </button>
+          <button type="button" onClick={() => onShowStatsSectionChange(false)}>
+            Hide stats
+          </button>
+          <button type="button" onClick={() => onStatsPositionChange("bottom")}>
+            Stats below
+          </button>
+        </div>
+      ) : null,
+  }),
 }));
 
 vi.mock("@/hooks/useCategoryOrder", () => ({
@@ -175,7 +179,7 @@ describe("App", () => {
     renderApp();
 
     await user.click(screen.getByRole("button", { name: "Open settings" }));
-    await user.click(screen.getByRole("button", { name: "Stats below" }));
+    await user.click(await screen.findByRole("button", { name: "Stats below" }));
 
     await waitFor(() => {
       const services = screen.getByTestId("services-section");
@@ -200,7 +204,7 @@ describe("App", () => {
     renderApp();
 
     await user.click(screen.getByRole("button", { name: "Open settings" }));
-    await user.click(screen.getByRole("button", { name: "Hide services" }));
+    await user.click(await screen.findByRole("button", { name: "Hide services" }));
     await user.click(screen.getByRole("button", { name: "Hide stats" }));
 
     expect(await screen.findByText("Nothing is shown right now")).toBeTruthy();

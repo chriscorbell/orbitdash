@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CategorySectionList } from "./CategorySectionList";
+import type { BoardMode, CardDensity } from "@shared/dashboard-settings";
 import type { Service } from "@shared/types";
 
 const monitoringService: Service = {
@@ -30,14 +31,18 @@ const storageService: Service = {
   position: 0,
 };
 
-function renderCategoryList(monitoringName = "Monitoring") {
+function renderCategoryList(
+  monitoringName = "Monitoring",
+  options: { density?: CardDensity; mode?: BoardMode } = {}
+) {
   return render(
     <CategorySectionList
       grouped={[
         { key: "cat-monitoring", name: monitoringName, services: [monitoringService] },
         { key: "cat-storage", name: "Storage", services: [storageService] },
       ]}
-      gridClassName="grid"
+      density={options.density ?? "comfortable"}
+      mode={options.mode ?? "columns"}
       hasNamedCategories
       services={[monitoringService, storageService]}
       onDelete={vi.fn()}
@@ -54,7 +59,12 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
+
+function mockBoardWidth(width: number) {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
+}
 
 describe("CategorySectionList", () => {
   it("collapses one category without hiding the others", () => {
@@ -120,7 +130,8 @@ describe("CategorySectionList", () => {
     render(
       <CategorySectionList
         grouped={[]}
-        gridClassName="grid"
+        density="comfortable"
+        mode="columns"
         hasNamedCategories={false}
         services={[{ ...monitoringService, category: null }]}
         onDelete={vi.fn()}
@@ -132,5 +143,35 @@ describe("CategorySectionList", () => {
 
     expect(screen.queryByRole("button", { name: /category/ })).toBeNull();
     expect(screen.getByRole("link", { name: /Grafana/ })).toBeTruthy();
+  });
+
+  it("lays categories side by side when there is room for columns", () => {
+    mockBoardWidth(1232);
+    const { container } = renderCategoryList();
+
+    expect(container.querySelector("[data-columns]")?.getAttribute("data-columns")).toBe("2");
+  });
+
+  it("stacks category columns into one on a narrow screen", () => {
+    mockBoardWidth(360);
+    const { container } = renderCategoryList();
+
+    expect(container.querySelector("[data-columns]")?.getAttribute("data-columns")).toBe("1");
+  });
+
+  it("stacks categories as rows in the rows layout", () => {
+    mockBoardWidth(1232);
+    const { container } = renderCategoryList("Monitoring", { mode: "rows" });
+
+    expect(container.querySelector("[data-columns]")).toBeNull();
+    expect(screen.getByRole("link", { name: /Grafana/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /TrueNAS/ })).toBeTruthy();
+  });
+
+  it("drops descriptions in the compact density but keeps them as a hint", () => {
+    renderCategoryList("Monitoring", { density: "compact" });
+
+    expect(screen.queryByText("Metrics")).toBeNull();
+    expect(screen.getByRole("link", { name: /Grafana/ }).getAttribute("title")).toBe("Metrics");
   });
 });
