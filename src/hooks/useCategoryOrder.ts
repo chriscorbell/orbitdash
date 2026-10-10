@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { arrayMove } from "@dnd-kit/sortable";
 import { fetchCategoryOrder, updateCategoryOrder } from "@/lib/api/settings";
 import { mergeCategoryOrder, UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service } from "@shared/types";
@@ -26,6 +25,15 @@ export interface UseCategoryOrderResult {
   reorderCategories: (activeId: string, overId: string) => Promise<void>;
   /** Saves the current draft order again, e.g. after a failed save. */
   saveOrder: () => Promise<void>;
+}
+
+// Same semantics as dnd-kit's arrayMove, kept local so this always-loaded hook
+// does not pull dnd-kit into the initial bundle.
+function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  const next = [...items];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
 }
 
 function getNamedCategories(services: Service[]): string[] {
@@ -167,7 +175,7 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
         return Promise.resolve();
       }
 
-      return persistOrder(arrayMove(mergedDraftOrder, currentIndex, nextIndex));
+      return persistOrder(moveItem(mergedDraftOrder, currentIndex, nextIndex));
     },
     [mergedDraftOrder, persistOrder]
   );
@@ -180,7 +188,7 @@ export function useCategoryOrder(services: Service[]): UseCategoryOrderResult {
         return Promise.resolve();
       }
 
-      return persistOrder(arrayMove(mergedDraftOrder, activeIndex, overIndex));
+      return persistOrder(moveItem(mergedDraftOrder, activeIndex, overIndex));
     },
     [mergedDraftOrder, persistOrder]
   );

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  categoriesResponseSchema,
   categoryOrderResponseSchema,
+  categorySchema,
   importSummarySchema,
   snapshotsResponseSchema,
   metricsResponseSchema,
@@ -9,9 +11,14 @@ import {
   servicesResponseSchema,
 } from "@shared/schemas";
 import {
+  categoryCreateSchema,
   categoryOrderUpdateSchema,
   categoryRenameSchema,
+  categoryReorderSchema,
+  categoryUpdateSchema,
   metricsQuerySchema,
+  serviceMoveSchema,
+  serviceReorderSchema,
 } from "@shared/server-schemas";
 import {
   getValidationMessage,
@@ -233,6 +240,8 @@ describe("response schemas", () => {
       icon: null,
       icon_source_url: null,
       category: "Infra",
+      category_id: "cat-infra",
+      position: 3,
       open_in_new_tab: true,
       created_at: 1,
       updated_at: 2,
@@ -250,6 +259,14 @@ describe("response schemas", () => {
 
     const { icon_source_url: _omitted, ...withoutSourceUrl } = service;
     expect(serviceSchema.safeParse(withoutSourceUrl).success).toBe(false);
+  });
+
+  it("validates categories", () => {
+    const category = { id: "c", name: "Media", position: 0, created_at: 1, updated_at: 1 };
+    expect(categoriesResponseSchema.parse({ categories: [category] })).toEqual({
+      categories: [category],
+    });
+    expect(categorySchema.safeParse({ ...category, position: "0" }).success).toBe(false);
   });
 
   it("validates category order responses", () => {
@@ -315,5 +332,65 @@ describe("backup response schemas", () => {
         snapshots: [{ createdAt: "x", name: "y", reason: "weekly", sizeBytes: 1 }],
       }).success
     ).toBe(false);
+  });
+});
+
+describe("category request schemas", () => {
+  it("trims names and rejects empty, oversized and reserved ones", () => {
+    expect(categoryCreateSchema.parse({ name: "  Media " })).toEqual({ name: "Media" });
+    expect(categoryUpdateSchema.parse({ name: "Infra" })).toEqual({ name: "Infra" });
+    expect(categoryCreateSchema.safeParse({ name: "   " }).error?.issues[0]?.message).toBe(
+      "name is required"
+    );
+    expect(categoryCreateSchema.safeParse({ name: "x".repeat(81) }).error?.issues[0]?.message).toBe(
+      "name must be 80 characters or fewer"
+    );
+    expect(
+      categoryCreateSchema.safeParse({ name: "Uncategorized" }).error?.issues[0]?.message
+    ).toBe('"Uncategorized" is a reserved category name');
+    expect(categoryCreateSchema.safeParse({ name: 5 }).error?.issues[0]?.message).toBe(
+      "name must be a string"
+    );
+  });
+
+  it("validates reorder id lists", () => {
+    expect(categoryReorderSchema.parse({ ids: ["a", "b"] })).toEqual({ ids: ["a", "b"] });
+    expect(categoryReorderSchema.safeParse({ ids: "a" }).error?.issues[0]?.message).toBe(
+      "ids must be an array of ids"
+    );
+    expect(categoryReorderSchema.safeParse({ ids: [1] }).error?.issues[0]?.message).toBe(
+      "ids must be an array of ids"
+    );
+  });
+});
+
+describe("service ordering schemas", () => {
+  it("accepts moves into a category or out of all categories", () => {
+    expect(serviceMoveSchema.parse({ category_id: "c", index: 2 })).toEqual({
+      category_id: "c",
+      index: 2,
+    });
+    expect(serviceMoveSchema.parse({ category_id: null, index: 0 })).toEqual({
+      category_id: null,
+      index: 0,
+    });
+  });
+
+  it("rejects negative, fractional and missing indexes", () => {
+    for (const index of [-1, 1.5, "1", undefined]) {
+      expect(
+        serviceMoveSchema.safeParse({ category_id: null, index }).error?.issues[0]?.message
+      ).toBe("index must be a non-negative integer");
+    }
+    expect(
+      serviceMoveSchema.safeParse({ category_id: 3, index: 0 }).error?.issues[0]?.message
+    ).toBe("category_id must be a string or null");
+  });
+
+  it("validates service reorders", () => {
+    expect(serviceReorderSchema.parse({ category_id: null, ids: ["a"] })).toEqual({
+      category_id: null,
+      ids: ["a"],
+    });
   });
 });

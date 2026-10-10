@@ -1,13 +1,20 @@
-import { useId } from "react";
+import { memo, useId } from "react";
 import { IconButton } from "@/components/common/IconButton";
 import { ServiceCard } from "@/components/ServiceCard";
-import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { useCollapsedCategories } from "@/components/services/useCollapsedCategories";
 import { UNCATEGORIZED_CATEGORY } from "@shared/category-order";
 import type { Service } from "@shared/types";
 import { ChevronDown, Pencil } from "lucide-react";
 
+export interface ServiceGroup {
+  /** Category id, or "uncategorized" for services without one. */
+  key: string;
+  name: string;
+  services: Service[];
+}
+
 interface CategorySectionListProps {
-  grouped: ReadonlyArray<readonly [string, Service[]]>;
+  grouped: readonly ServiceGroup[];
   gridClassName: string;
   hasNamedCategories: boolean;
   services: Service[];
@@ -19,6 +26,7 @@ interface CategorySectionListProps {
 
 interface CategorySectionProps {
   category: string;
+  categoryKey: string;
   collapsed: boolean;
   gridClassName: string;
   services: Service[];
@@ -26,11 +34,12 @@ interface CategorySectionProps {
   onDuplicate: (service: Service) => void;
   onEdit: (service: Service) => void;
   onRenameCategory: (category: string) => void;
-  onToggle: (category: string) => void;
+  onToggle: (categoryKey: string) => void;
 }
 
-function CategorySection({
+const CategorySection = memo(function CategorySection({
   category,
+  categoryKey,
   collapsed,
   gridClassName,
   services,
@@ -52,7 +61,7 @@ function CategorySection({
             aria-expanded={!collapsed}
             aria-label={`${collapsed ? "Expand" : "Collapse"} ${category} category`}
             className="flex min-h-8 items-center gap-1.5 rounded-md text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            onClick={() => onToggle(category)}
+            onClick={() => onToggle(categoryKey)}
           >
             <ChevronDown
               aria-hidden="true"
@@ -87,7 +96,7 @@ function CategorySection({
       </div>
     </section>
   );
-}
+});
 
 function CategorizedSectionList({
   grouped,
@@ -97,31 +106,21 @@ function CategorizedSectionList({
   onEdit,
   onRenameCategory,
 }: Omit<CategorySectionListProps, "hasNamedCategories" | "services">) {
-  const [collapsedCategories, setCollapsedCategories] = useLocalStorageState<string[]>(
-    "orbitdash.collapsedCategories",
-    []
-  );
+  const { collapsed, toggle } = useCollapsedCategories(grouped);
 
-  const toggleCategory = (category: string) => {
-    setCollapsedCategories((currentCategories) =>
-      currentCategories.includes(category)
-        ? currentCategories.filter((currentCategory) => currentCategory !== category)
-        : [...currentCategories, category]
-    );
-  };
-
-  return grouped.map(([category, categoryServices]) => (
+  return grouped.map((group) => (
     <CategorySection
-      key={category}
-      category={category}
-      collapsed={collapsedCategories.includes(category)}
+      key={group.key}
+      category={group.name}
+      categoryKey={group.key}
+      collapsed={collapsed.includes(group.key)}
       gridClassName={gridClassName}
-      services={categoryServices}
+      services={group.services}
       onDelete={onDelete}
       onDuplicate={onDuplicate}
       onEdit={onEdit}
       onRenameCategory={onRenameCategory}
-      onToggle={toggleCategory}
+      onToggle={toggle}
     />
   ));
 }

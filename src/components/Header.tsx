@@ -1,18 +1,4 @@
-import { useEffect, useState } from "react";
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,19 +11,45 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { SortableCategoryItem } from "@/components/services/SortableCategoryItem";
 import { BackupSettingsSection } from "@/components/settings/BackupSettingsSection";
 import { CategoryOrderSaveStatus } from "@/components/settings/CategoryOrderSaveStatus";
 import type { UseCategoryOrderResult } from "@/hooks/useCategoryOrder";
+import type { SettingsScope } from "@/hooks/useDashboardSettings";
+
+// The sortable list pulls in dnd-kit, so it loads on demand. Hovering or
+// focusing the settings button starts the download before the dialog opens.
+const loadCategoryOrderList = () => import("@/components/services/CategoryOrderList");
+
+const CategoryOrderList = lazy(() =>
+  loadCategoryOrderList().then((module) => ({ default: module.CategoryOrderList }))
+);
+
+function preloadCategoryOrderList() {
+  void loadCategoryOrderList();
+}
+
+// Matches the height of a SortableCategoryItem row so the dialog does not jump.
+function CategoryOrderListFallback({ count }: { count: number }) {
+  return (
+    <div className="space-y-2" aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} className="h-11.5 rounded-lg border border-border bg-background" />
+      ))}
+    </div>
+  );
+}
 
 interface HeaderProps {
   categoryOrder: UseCategoryOrderResult;
   columnCount: 3 | 4 | 5;
   servicesFirst: boolean;
+  settingsError?: string | null;
+  settingsScope: SettingsScope;
   showServicesSection: boolean;
   showStatsSection: boolean;
   onColumnCountChange: (columnCount: 3 | 4 | 5) => void;
   onServicesFirstChange: (enabled: boolean) => void;
+  onSettingsScopeChange: (scope: SettingsScope) => void;
   onShowServicesSectionChange: (enabled: boolean) => void;
   onShowStatsSectionChange: (enabled: boolean) => void;
 }
@@ -102,19 +114,17 @@ export function Header({
   categoryOrder,
   columnCount,
   servicesFirst,
+  settingsError = null,
+  settingsScope,
   showServicesSection,
   showStatsSection,
   onColumnCountChange,
   onServicesFirstChange,
+  onSettingsScopeChange,
   onShowServicesSectionChange,
   onShowStatsSectionChange,
 }: HeaderProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
 
   // Each move saves on its own, so closing settings only drops any order that failed to save.
   useEffect(() => {
@@ -126,13 +136,6 @@ export function Header({
     // Only run when isSettingsOpen toggles
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSettingsOpen]);
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over) {
-      void categoryOrder.reorderCategories(String(active.id), String(over.id));
-    }
-  };
 
   const canReorderCategories = categoryOrder.namedCategories.length >= 2;
 
@@ -150,6 +153,8 @@ export function Header({
             size="icon-sm"
             aria-label="Open settings"
             onClick={() => setIsSettingsOpen(true)}
+            onFocus={preloadCategoryOrderList}
+            onPointerEnter={preloadCategoryOrderList}
           >
             <Settings aria-hidden="true" />
           </Button>
@@ -163,6 +168,36 @@ export function Header({
               </DialogHeader>
 
               <div className="space-y-6">
+                <section className="space-y-2" aria-labelledby="settings-scope-label">
+                  <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                    {(
+                      [
+                        ["all", "All devices"],
+                        ["device", "This device"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        variant={settingsScope === value ? "outline" : "ghost"}
+                        size="sm"
+                        aria-pressed={settingsScope === value}
+                        onClick={() => onSettingsScopeChange(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <p id="settings-scope-label" className="text-muted-foreground text-xs">
+                    {settingsScope === "device"
+                      ? "Visibility and layout changes apply only to this browser."
+                      : "Visibility and layout changes apply to every browser."}
+                  </p>
+                  {settingsError && (
+                    <p className="text-destructive text-sm font-medium">{settingsError}</p>
+                  )}
+                </section>
+
                 {/* Visibility */}
                 <section className="space-y-3">
                   <SettingsSectionLabel>Visibility</SettingsSectionLabel>
@@ -258,29 +293,17 @@ export function Header({
                       <SettingsSectionLabel>Category order</SettingsSectionLabel>
                       <CategoryOrderSaveStatus state={categoryOrder.saveState} />
                     </div>
-                    <DndContext
-                      collisionDetection={closestCenter}
-                      sensors={sensors}
-                      onDragEnd={handleDragEnd}
+                    <Suspense
+                      fallback={
+                        <CategoryOrderListFallback count={categoryOrder.draftOrder.length} />
+                      }
                     >
-                      <SortableContext
-                        items={categoryOrder.draftOrder}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <div className="space-y-2">
-                          {categoryOrder.draftOrder.map((category, index) => (
-                            <SortableCategoryItem
-                              key={category}
-                              category={category}
-                              index={index}
-                              total={categoryOrder.draftOrder.length}
-                              onMoveUp={() => void categoryOrder.moveCategory(category, "up")}
-                              onMoveDown={() => void categoryOrder.moveCategory(category, "down")}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
+                      <CategoryOrderList
+                        order={categoryOrder.draftOrder}
+                        onMove={categoryOrder.moveCategory}
+                        onReorder={categoryOrder.reorderCategories}
+                      />
+                    </Suspense>
                     {categoryOrder.error && (
                       <div className="flex items-center justify-between gap-3">
                         <p role="alert" className="text-destructive text-sm font-medium">

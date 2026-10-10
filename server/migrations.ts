@@ -1,9 +1,68 @@
 import type { Database } from "bun:sqlite";
+import { CATEGORY_ORDER_SETTING_KEY, mergeCategoryOrder } from "@shared/category-order";
 
 interface Migration {
   id: number;
   name: string;
-  statements: string[];
+  statements?: string[];
+  /** For data migrations that SQL alone can't express; runs after `statements`. */
+  up?: (db: Database) => void;
+}
+
+function readLegacyCategoryOrder(db: Database): string[] {
+  const row = db
+    .prepare("SELECT value FROM settings WHERE key = ?")
+    .get(CATEGORY_ORDER_SETTING_KEY) as { value: string } | null;
+  if (!row) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(row.value);
+    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Moves categories out of free-text service columns into their own table, keeping the saved
+ * category order, and gives every service a position that matches today's alphabetical order.
+ */
+function migrateToCategoriesTable(db: Database): void {
+  const now = Date.now();
+  const names = (
+    db
+      .prepare(
+        `SELECT DISTINCT trim(category) AS name FROM services
+         WHERE category IS NOT NULL AND trim(category) != ''`
+      )
+      .all() as Array<{ name: string }>
+  ).map((row) => row.name);
+
+  const insertCategory = db.prepare(
+    "INSERT INTO categories (id, name, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+  );
+  mergeCategoryOrder(names, readLegacyCategoryOrder(db)).forEach((name, position) => {
+    insertCategory.run(crypto.randomUUID(), name, position, now, now);
+  });
+
+  db.exec(`UPDATE services
+           SET category_id = (SELECT id FROM categories WHERE categories.name = trim(services.category))`);
+
+  const services = db
+    .prepare("SELECT id, category_id FROM services ORDER BY name COLLATE NOCASE ASC, name ASC")
+    .all() as Array<{ id: string; category_id: string | null }>;
+  const nextPosition = new Map<string | null, number>();
+  const setPosition = db.prepare("UPDATE services SET position = ? WHERE id = ?");
+  for (const service of services) {
+    const position = nextPosition.get(service.category_id) ?? 0;
+    setPosition.run(position, service.id);
+    nextPosition.set(service.category_id, position + 1);
+  }
+
+  db.exec("DROP INDEX IF EXISTS services_category_name_idx");
+  db.exec("ALTER TABLE services DROP COLUMN category");
+  db.exec("CREATE INDEX services_category_position_idx ON services (category_id, position)");
+  db.prepare("DELETE FROM settings WHERE key = ?").run(CATEGORY_ORDER_SETTING_KEY);
 }
 
 const migrations: Migration[] = [
@@ -67,10 +126,27 @@ const migrations: Migration[] = [
     statements: [`DROP TABLE IF EXISTS metrics_samples`],
   },
   {
+    // Installs that already ran migration 5 pick this up afterwards; it only adds a column.
     id: 4,
     name: "services-icon-source-url",
     // Remembers where a downloaded icon came from so it can be refreshed later.
     statements: [`ALTER TABLE services ADD COLUMN icon_source_url TEXT`],
+  },
+  {
+    id: 5,
+    name: "categories-table",
+    statements: [
+      `CREATE TABLE categories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE CHECK (length(trim(name)) > 0),
+        position INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+      `ALTER TABLE services ADD COLUMN category_id TEXT REFERENCES categories(id) ON DELETE SET NULL`,
+      `ALTER TABLE services ADD COLUMN position INTEGER NOT NULL DEFAULT 0`,
+    ],
+    up: migrateToCategoriesTable,
   },
 ];
 
@@ -162,9 +238,10 @@ export function applyMigrations(db: Database): void {
     }
 
     const transaction = db.transaction(() => {
-      for (const statement of migration.statements) {
+      for (const statement of migration.statements ?? []) {
         db.exec(statement);
       }
+      migration.up?.(db);
 
       insertMigration.run(migration.id, migration.name, Date.now());
     });

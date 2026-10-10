@@ -14,36 +14,52 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("/node_modules/zod/")) {
-            return "validation";
-          }
-
-          if (!id.includes("node_modules")) {
-            return;
-          }
-
-          if (
-            id.includes("/node_modules/chart.js/") ||
-            id.includes("/node_modules/react-chartjs-2/") ||
-            id.includes("/node_modules/@kurkle/color/")
-          ) {
-            return "charts";
-          }
-
-          if (id.includes("@dnd-kit")) {
-            return "drag-drop";
-          }
-
-          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/")) {
-            return "react-vendor";
-          }
-
-          if (id.includes("lucide-react")) {
-            return "icons";
-          }
+        // A group also captures the dependencies of the modules it matches, so
+        // React has to be claimed first (highest priority). Otherwise chart.js
+        // or dnd-kit drag React into their chunk, the entry has to import that
+        // chunk, and the lazy chart and settings imports stop being lazy.
+        codeSplitting: {
+          groups: [
+            {
+              name: "react-vendor",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 40,
+            },
+            {
+              // Zod only: the app's own schemas change with the app, so they
+              // ship in the entry and keep this chunk's hash stable.
+              name: "validation",
+              test: /[\\/]node_modules[\\/]zod[\\/]/,
+              priority: 30,
+            },
+            {
+              name: "charts",
+              test: /[\\/]node_modules[\\/](chart\.js|react-chartjs-2|@kurkle[\\/]color)[\\/]/,
+              priority: 20,
+            },
+            {
+              name: "drag-drop",
+              test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/,
+              priority: 20,
+            },
+            {
+              name: "icons",
+              test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
+              priority: 10,
+            },
+            {
+              // Remaining third-party code the first render needs (Radix,
+              // Floating UI, tailwind-merge). `$initial` leaves packages that
+              // only lazy chunks use, such as the Select and Tabs primitives,
+              // in those lazy chunks.
+              name: "vendor",
+              test: /[\\/]node_modules[\\/]/,
+              tags: ["$initial"],
+              priority: 0,
+            },
+          ],
         },
       },
     },

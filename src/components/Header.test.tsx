@@ -38,10 +38,12 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = 
     categoryOrder: categoryOrderStub,
     columnCount: 4,
     servicesFirst: true,
+    settingsScope: "all",
     showServicesSection: true,
     showStatsSection: true,
     onColumnCountChange: vi.fn(),
     onServicesFirstChange: vi.fn(),
+    onSettingsScopeChange: vi.fn(),
     onShowServicesSectionChange: vi.fn(),
     onShowStatsSectionChange: vi.fn(),
     ...overrides,
@@ -54,6 +56,32 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof Header>> = 
 }
 
 describe("Header", () => {
+  it("switches between shared and per-device settings", async () => {
+    const user = userEvent.setup();
+    const { props } = renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(screen.getByRole("button", { name: "All devices" }).getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+    expect(screen.getByText("Visibility and layout changes apply to every browser.")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "This device" }));
+    expect(props.onSettingsScopeChange).toHaveBeenCalledWith("device");
+  });
+
+  it("explains per-device scope and shows save errors", async () => {
+    const user = userEvent.setup();
+    renderHeader({ settingsScope: "device", settingsError: "Failed to save settings" });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+
+    expect(
+      screen.getByText("Visibility and layout changes apply only to this browser.")
+    ).toBeTruthy();
+    expect(screen.getByText("Failed to save settings")).toBeTruthy();
+  });
+
   it("opens settings in a dialog and toggles the services section", async () => {
     const user = userEvent.setup();
     const { props } = renderHeader();
@@ -114,7 +142,8 @@ describe("Header", () => {
     await user.click(screen.getByRole("button", { name: "Open settings" }));
 
     expect(screen.getByText("Category order")).toBeTruthy();
-    expect(screen.getByText("Web")).toBeTruthy();
+    // The sortable list is lazily loaded with dnd-kit.
+    expect(await screen.findByText("Web")).toBeTruthy();
     expect(screen.getByText("Homelab")).toBeTruthy();
   });
 
@@ -141,7 +170,7 @@ describe("Header", () => {
     await user.click(screen.getByRole("button", { name: "Open settings" }));
     expect(categoryOrder.beginReorder).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole("button", { name: "Move Homelab up" }));
+    await user.click(await screen.findByRole("button", { name: "Move Homelab up" }));
     expect(categoryOrder.moveCategory).toHaveBeenCalledWith("Homelab", "up");
 
     await user.keyboard("{Escape}");
@@ -183,5 +212,25 @@ describe("Header", () => {
 
     expect(screen.getByRole("alert").textContent).toBe("Failed to fetch category order");
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
+
+  it("moves categories from the lazily loaded category order list", async () => {
+    const user = userEvent.setup();
+    const moveCategory = vi.fn();
+
+    renderHeader({
+      categoryOrder: {
+        ...categoryOrderStub,
+        namedCategories: ["Web", "Homelab"],
+        draftOrder: ["Web", "Homelab"],
+        moveCategory,
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }));
+    await user.click(await screen.findByRole("button", { name: "Move Homelab up" }));
+
+    expect(moveCategory).toHaveBeenCalledWith("Homelab", "up");
+    expect(screen.getByRole("button", { name: "Move Web up" }).hasAttribute("disabled")).toBe(true);
   });
 });

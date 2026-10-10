@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { app } from "../app";
+import type { DashboardSettingsResponse as View } from "@shared/dashboard-settings";
 import { initializeServer, shutdown } from "../runtime";
 import { cleanupTestDatabase, setupTestDatabase } from "../test-utils";
 
@@ -106,5 +107,116 @@ describe("settings routes", () => {
     await expect(response.json()).resolves.toEqual({
       error: "content-type must be application/json",
     });
+  });
+});
+
+describe("dashboard settings routes", () => {
+  const device = "device-1234";
+
+  function put(path: string, body: unknown) {
+    return app.request(path, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("returns defaults before anything is saved", async () => {
+    const response = await app.request(`/api/settings?device=${device}`);
+    const body = (await response.json()) as View;
+
+    expect(body).toEqual({
+      device: null,
+      effective: {
+        layout: { gridColumns: 4, servicesFirst: true, showServices: true, showStats: true },
+      },
+      settings: {
+        layout: { gridColumns: 4, servicesFirst: true, showServices: true, showStats: true },
+      },
+      stored: false,
+    });
+  });
+
+  it("patches the shared settings", async () => {
+    const response = await put("/api/settings", { layout: { gridColumns: 5 } });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as View;
+    expect(body.stored).toBe(true);
+    expect(body.settings.layout.gridColumns).toBe(5);
+
+    const again = (await (await app.request("/api/settings")).json()) as View;
+    expect(again.settings.layout).toMatchObject({ gridColumns: 5, servicesFirst: true });
+  });
+
+  it("rejects unknown fields and bad values", async () => {
+    expect((await put("/api/settings", { layout: { gridColumns: 7 } })).status).toBe(400);
+    expect((await put("/api/settings", { theme: "dark" })).status).toBe(400);
+  });
+
+  it("layers device overrides over the shared settings", async () => {
+    await put("/api/settings", { layout: { gridColumns: 5 } });
+
+    const response = await put(`/api/settings/devices/${device}`, {
+      name: "Kitchen tablet",
+      overrides: { layout: { showServices: false } },
+    });
+    const body = (await response.json()) as View;
+
+    expect(body.device).toEqual({
+      id: device,
+      name: "Kitchen tablet",
+      overrides: { layout: { showServices: false } },
+    });
+    expect(body.effective.layout).toMatchObject({ gridColumns: 5, showServices: false });
+    expect(body.settings.layout.showServices).toBe(true);
+
+    const merged = await put(`/api/settings/devices/${device}`, {
+      overrides: { layout: { gridColumns: 3 } },
+    });
+    expect(((await merged.json()) as View).device?.overrides).toEqual({
+      layout: { showServices: false, gridColumns: 3 },
+    });
+
+    const listed = (await (await app.request("/api/settings/devices")).json()) as {
+      devices: Array<{ id: string }>;
+    };
+    expect(listed.devices.map((entry) => entry.id)).toEqual([device]);
+  });
+
+  it("clears overrides with null and deletes devices", async () => {
+    await put(`/api/settings/devices/${device}`, { overrides: { layout: { showStats: false } } });
+
+    const cleared = (await (
+      await put(`/api/settings/devices/${device}`, { overrides: null })
+    ).json()) as View;
+    expect(cleared.device?.overrides).toEqual({});
+    expect(cleared.effective.layout.showStats).toBe(true);
+
+    const deleted = await app.request(`/api/settings/devices/${device}`, { method: "DELETE" });
+    expect(deleted.status).toBe(200);
+    const missing = await app.request(`/api/settings/devices/${device}`, { method: "DELETE" });
+    expect(missing.status).toBe(404);
+  });
+
+  it("validates device ids and ignores invalid ones in queries", async () => {
+    expect((await put("/api/settings/devices/bad", { name: "x" })).status).toBe(400);
+
+    const response = await app.request("/api/settings?device=../etc");
+    expect(((await response.json()) as View).device).toBeNull();
+  });
+
+  it("survives a corrupt stored document", async () => {
+    const { getDb } = await import("../db");
+    getDb()
+      .prepare("INSERT INTO settings (key, value) VALUES ('dashboard.settings', '{oops')")
+      .run();
+    getDb()
+      .prepare(`INSERT INTO settings (key, value) VALUES ('dashboard.device.${device}', '"weird"')`)
+      .run();
+
+    const body = (await (await app.request(`/api/settings?device=${device}`)).json()) as View;
+    expect(body.stored).toBe(true);
+    expect(body.settings.layout.gridColumns).toBe(4);
+    expect(body.device).toBeNull();
   });
 });

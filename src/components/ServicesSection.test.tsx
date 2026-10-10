@@ -67,6 +67,8 @@ const baseService: Service = {
   icon: null,
   icon_source_url: null,
   category: "Monitoring",
+  category_id: "cat-monitoring",
+  position: 0,
   open_in_new_tab: true,
   created_at: 1,
   updated_at: 1,

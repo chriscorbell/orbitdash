@@ -1,0 +1,85 @@
+// @vitest-environment happy-dom
+
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { MetricSample } from "@shared/types";
+
+const harness = vi.hoisted(() => ({
+  onSample: undefined as ((sample: MetricSample) => void) | undefined,
+  servicesRenders: 0,
+}));
+
+vi.mock("@/lib/api/metrics", () => ({
+  fetchMetrics: vi.fn().mockResolvedValue([]),
+  subscribeMetrics: vi.fn((onSample: (sample: MetricSample) => void) => {
+    harness.onSample = onSample;
+    return () => {};
+  }),
+}));
+
+vi.mock("@/components/ServicesSection", () => ({
+  ServicesSection: () => {
+    harness.servicesRenders += 1;
+    return <section>Services</section>;
+  },
+}));
+
+vi.mock("@/components/MetricCharts", () => ({
+  MetricCharts: ({ samples }: { samples: MetricSample[] }) => <div>{samples.length} points</div>,
+}));
+
+vi.mock("@/components/Header", () => ({ Header: () => <header /> }));
+vi.mock("@/hooks/useDashboardSettings", async () => {
+  const { DEFAULT_DASHBOARD_SETTINGS } = await import("@shared/dashboard-settings");
+  return {
+    useDashboardSettings: () => ({
+      error: null,
+      scope: "all",
+      settings: DEFAULT_DASHBOARD_SETTINGS,
+      setScope: () => {},
+      updateLayout: () => {},
+    }),
+  };
+});
+vi.mock("@/components/Footer", () => ({ Footer: () => <footer /> }));
+
+vi.mock("@/hooks/useServices", () => ({
+  useServices: () => ({
+    services: [],
+    loading: false,
+    error: null,
+    create: vi.fn(),
+    update: vi.fn(),
+    duplicate: vi.fn(),
+    remove: vi.fn(),
+    renameCategory: vi.fn(),
+    reload: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/useCategoryOrder", () => ({
+  useCategoryOrder: () => ({ visibleCategoryOrder: [], namedCategories: [] }),
+}));
+
+import App from "@/App";
+
+afterEach(() => {
+  cleanup();
+});
+
+describe("App render isolation", () => {
+  it("re-renders only the stats section when a metrics sample arrives", async () => {
+    render(<App />);
+    expect(await screen.findByText("0 points")).toBeTruthy();
+    const rendersBefore = harness.servicesRenders;
+
+    for (let index = 1; index <= 3; index++) {
+      act(() => {
+        harness.onSample?.({ ts: index, cpu: index, ram: 1, disk: 1 });
+      });
+    }
+
+    expect(await screen.findByText("3 points")).toBeTruthy();
+    expect(harness.servicesRenders).toBe(rendersBefore);
+  });
+});

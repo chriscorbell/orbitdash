@@ -3,9 +3,16 @@ import {
   serviceCreateSchema,
   serviceUpdateSchema,
 } from "@shared/service-schemas";
-import type { Service, CreateServicePayload, UpdateServicePayload } from "@shared/types";
+import type {
+  Service,
+  CreateServicePayload,
+  MoveServicePayload,
+  ReorderServicesPayload,
+  UpdateServicePayload,
+} from "@shared/types";
 import { apiFail, apiOk, getErrorMessage, type ApiResult } from "../api-response";
 import { getDb } from "../db";
+import { getCategory, nextServicePosition, resolveCategoryId } from "./category-store";
 import {
   copyStoredIcon,
   persistDownloadedIcon,
@@ -19,7 +26,7 @@ type ServiceRecord = Omit<Service, "open_in_new_tab"> & {
 };
 
 interface StoredServiceInput {
-  category: string | null;
+  categoryId: string | null;
   createdAt: number;
   description: string | null;
   icon: string | null;
@@ -27,20 +34,25 @@ interface StoredServiceInput {
   id: string;
   name: string;
   openInNewTab: boolean;
+  position: number;
   updatedAt: number;
   url: string;
 }
 
 interface UpdatedServiceInput {
-  category: string | null;
+  categoryId: string | null;
   description: string | null;
   icon: string | null;
   iconSourceUrl: string | null;
   name: string;
   openInNewTab: boolean;
+  position: number;
   updatedAt: number;
   url: string;
 }
+
+const SERVICE_SELECT = `SELECT services.*, categories.name AS category
+  FROM services LEFT JOIN categories ON categories.id = services.category_id`;
 
 function normalizeServiceRecord(service: ServiceRecord): Service {
   return {
@@ -51,14 +63,14 @@ function normalizeServiceRecord(service: ServiceRecord): Service {
 
 function getServiceRecord(id: string): ServiceRecord | undefined {
   const db = getDb();
-  return db.prepare("SELECT * FROM services WHERE id = ?").get(id) as ServiceRecord | undefined;
+  return db.prepare(`${SERVICE_SELECT} WHERE services.id = ?`).get(id) as ServiceRecord | undefined;
 }
 
 function createStoredService(input: StoredServiceInput): Service {
   const db = getDb();
   db.prepare(
-    `INSERT INTO services (id, name, url, description, icon, icon_source_url, category, open_in_new_tab, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO services (id, name, url, description, icon, icon_source_url, category_id, position, open_in_new_tab, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     input.id,
     input.name,
@@ -66,7 +78,8 @@ function createStoredService(input: StoredServiceInput): Service {
     input.description,
     input.icon,
     input.iconSourceUrl,
-    input.category,
+    input.categoryId,
+    input.position,
     input.openInNewTab ? 1 : 0,
     input.createdAt,
     input.updatedAt
@@ -79,8 +92,8 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
   const db = getDb();
   db.prepare(
     `UPDATE services SET
-       name = ?, url = ?, description = ?, icon = ?, icon_source_url = ?, category = ?,
-       open_in_new_tab = ?, updated_at = ?
+       name = ?, url = ?, description = ?, icon = ?, icon_source_url = ?, category_id = ?,
+       position = ?, open_in_new_tab = ?, updated_at = ?
      WHERE id = ?`
   ).run(
     input.name,
@@ -88,7 +101,8 @@ function updateStoredService(id: string, input: UpdatedServiceInput): Service {
     input.description,
     input.icon,
     input.iconSourceUrl,
-    input.category,
+    input.categoryId,
+    input.position,
     input.openInNewTab ? 1 : 0,
     input.updatedAt,
     id
@@ -114,8 +128,13 @@ function withIconRollback<T>(newIcon: string | null, write: () => T): T {
 
 export function listServices(): Service[] {
   const db = getDb();
+  // Categories in their saved order, uncategorized last, then each service's position.
   const services = db
-    .prepare("SELECT * FROM services ORDER BY category ASC, name ASC")
+    .prepare(
+      `${SERVICE_SELECT}
+       ORDER BY categories.position IS NULL, categories.position ASC, services.position ASC,
+                services.name ASC`
+    )
     .all() as ServiceRecord[];
 
   return services.map(normalizeServiceRecord);
@@ -146,19 +165,25 @@ export async function createService(
     return apiFail(400, getErrorMessage(error, "failed to persist icon"));
   }
 
+  const db = getDb();
+  // One transaction, so a failed insert does not leave a newly created category behind either.
   const service = withIconRollback(iconFilename, () =>
-    createStoredService({
-      category: validatedPayload.category,
-      createdAt: now,
-      description: validatedPayload.description,
-      icon: iconFilename,
-      iconSourceUrl,
-      id,
-      name: validatedPayload.name,
-      openInNewTab: validatedPayload.open_in_new_tab,
-      updatedAt: now,
-      url: validatedPayload.url,
-    })
+    db.transaction(() => {
+      const categoryId = resolveCategoryId(validatedPayload.category);
+      return createStoredService({
+        categoryId,
+        createdAt: now,
+        description: validatedPayload.description,
+        icon: iconFilename,
+        iconSourceUrl,
+        id,
+        name: validatedPayload.name,
+        openInNewTab: validatedPayload.open_in_new_tab,
+        position: nextServicePosition(categoryId),
+        updatedAt: now,
+        url: validatedPayload.url,
+      });
+    })()
   );
 
   return apiOk(service);
@@ -202,24 +227,35 @@ export async function updateService(
     iconFilename = newIcon;
   }
 
+  const db = getDb();
   const service = withIconRollback(newIcon, () =>
-    updateStoredService(id, {
-      category:
-        validatedPayload.category !== undefined ? validatedPayload.category : existing.category,
-      description:
-        validatedPayload.description !== undefined
-          ? validatedPayload.description
-          : existing.description,
-      icon: iconFilename,
-      iconSourceUrl,
-      name: validatedPayload.name !== undefined ? validatedPayload.name : existing.name,
-      openInNewTab:
-        validatedPayload.open_in_new_tab !== undefined
-          ? validatedPayload.open_in_new_tab
-          : Boolean(existing.open_in_new_tab),
-      updatedAt: Date.now(),
-      url: validatedPayload.url !== undefined ? validatedPayload.url : existing.url,
-    })
+    db.transaction(() => {
+      // A service that changes category goes to the end of its new one.
+      const categoryId =
+        validatedPayload.category !== undefined
+          ? resolveCategoryId(validatedPayload.category)
+          : existing.category_id;
+      const position =
+        categoryId === existing.category_id ? existing.position : nextServicePosition(categoryId);
+
+      return updateStoredService(id, {
+        categoryId,
+        position,
+        description:
+          validatedPayload.description !== undefined
+            ? validatedPayload.description
+            : existing.description,
+        icon: iconFilename,
+        iconSourceUrl,
+        name: validatedPayload.name !== undefined ? validatedPayload.name : existing.name,
+        openInNewTab:
+          validatedPayload.open_in_new_tab !== undefined
+            ? validatedPayload.open_in_new_tab
+            : Boolean(existing.open_in_new_tab),
+        updatedAt: Date.now(),
+        url: validatedPayload.url !== undefined ? validatedPayload.url : existing.url,
+      });
+    })()
   );
 
   // The old file goes only once the new reference is saved, so a failed write keeps it intact.
@@ -238,24 +274,31 @@ export function duplicateService(id: string): ApiResult<Service> {
 
   const newId = crypto.randomUUID();
   const now = Date.now();
+  const db = getDb();
   const icon = copyStoredIcon(existing.icon, newId);
 
-  return apiOk(
-    withIconRollback(icon, () =>
-      createStoredService({
-        category: existing.category,
-        createdAt: now,
-        description: existing.description,
-        icon,
-        iconSourceUrl: icon ? existing.icon_source_url : null,
-        id: newId,
-        name: `${existing.name} (copy)`,
-        openInNewTab: Boolean(existing.open_in_new_tab),
-        updatedAt: now,
-        url: existing.url,
-      })
-    )
-  );
+  // The copy goes right after the original.
+  const duplicate = db.transaction(() => {
+    db.prepare(
+      "UPDATE services SET position = position + 1 WHERE category_id IS ? AND position > ?"
+    ).run(existing.category_id, existing.position);
+
+    return createStoredService({
+      categoryId: existing.category_id,
+      position: existing.position + 1,
+      createdAt: now,
+      description: existing.description,
+      icon,
+      iconSourceUrl: icon ? existing.icon_source_url : null,
+      id: newId,
+      name: `${existing.name} (copy)`,
+      openInNewTab: Boolean(existing.open_in_new_tab),
+      updatedAt: now,
+      url: existing.url,
+    });
+  });
+
+  return apiOk(withIconRollback(icon, duplicate));
 }
 
 export function deleteService(id: string): ApiResult<{ success: true }> {
@@ -267,4 +310,62 @@ export function deleteService(id: string): ApiResult<{ success: true }> {
   deleteStoredService(id);
   removeStoredIcon(existing.icon);
   return apiOk({ success: true });
+}
+
+function listServiceIdsInCategory(categoryId: string | null, excludeId?: string): string[] {
+  return (
+    getDb()
+      .prepare("SELECT id FROM services WHERE category_id IS ? ORDER BY position ASC, name ASC")
+      .all(categoryId) as Array<{ id: string }>
+  )
+    .map((row) => row.id)
+    .filter((id) => id !== excludeId);
+}
+
+function writePositions(categoryId: string | null, ids: readonly string[]): void {
+  const update = getDb().prepare(
+    "UPDATE services SET category_id = ?, position = ?, updated_at = ? WHERE id = ?"
+  );
+  const now = Date.now();
+  ids.forEach((id, position) => update.run(categoryId, position, now, id));
+}
+
+/** Moves a service into a category (null = uncategorized) at `index`, renumbering both sides. */
+export function moveService(id: string, input: MoveServicePayload): ApiResult<Service> {
+  const existing = getServiceRecord(id);
+  if (!existing) {
+    return apiFail(404, "not found");
+  }
+  if (input.category_id !== null && !getCategory(input.category_id)) {
+    return apiFail(404, "category not found");
+  }
+
+  const db = getDb();
+  db.transaction(() => {
+    if (existing.category_id !== input.category_id) {
+      writePositions(existing.category_id, listServiceIdsInCategory(existing.category_id, id));
+    }
+    const target = listServiceIdsInCategory(input.category_id, id);
+    target.splice(Math.min(input.index, target.length), 0, id);
+    writePositions(input.category_id, target);
+  })();
+
+  return apiOk(normalizeServiceRecord(getServiceRecord(id)!));
+}
+
+/**
+ * Orders the services of one category: listed ids first in the given order, any others after.
+ * Ids that belong to another category are ignored.
+ */
+export function reorderServices(input: ReorderServicesPayload): ApiResult<Service[]> {
+  if (input.category_id !== null && !getCategory(input.category_id)) {
+    return apiFail(404, "category not found");
+  }
+
+  const current = listServiceIdsInCategory(input.category_id);
+  const listed = [...new Set(input.ids)].filter((id) => current.includes(id));
+  const rest = current.filter((id) => !listed.includes(id));
+
+  getDb().transaction(() => writePositions(input.category_id, [...listed, ...rest]))();
+  return apiOk(listServices());
 }

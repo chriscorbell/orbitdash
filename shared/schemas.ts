@@ -15,9 +15,23 @@ export const serviceSchema = z.object({
   icon: z.string().nullable(),
   icon_source_url: z.string().nullable(),
   category: z.string().nullable(),
+  category_id: z.string().nullable(),
+  position: z.number(),
   open_in_new_tab: z.boolean(),
   created_at: z.number(),
   updated_at: z.number(),
+});
+
+export const categorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: z.number(),
+  created_at: z.number(),
+  updated_at: z.number(),
+});
+
+export const categoriesResponseSchema = z.object({
+  categories: z.array(categorySchema),
 });
 
 export const servicesResponseSchema = z.array(serviceSchema);

@@ -91,6 +91,25 @@ vi.mock("@/hooks/useServices", () => ({
   useServices: vi.fn(),
 }));
 
+vi.mock("@/lib/api/dashboard-settings", async () => {
+  const shared = await import("@shared/dashboard-settings");
+  let stored = shared.DEFAULT_DASHBOARD_SETTINGS;
+  const view = () => ({ device: null, effective: stored, settings: stored, stored: true });
+  return {
+    fetchDashboardSettings: vi.fn(async () => view()),
+    updateSharedSettings: vi.fn(
+      async (patch: Parameters<typeof shared.mergeDashboardSettings>[1]) => {
+        stored = shared.mergeDashboardSettings(stored, patch);
+        return view();
+      }
+    ),
+    updateDeviceSettings: vi.fn(async () => view()),
+    resetForTesting: () => {
+      stored = shared.DEFAULT_DASHBOARD_SETTINGS;
+    },
+  };
+});
+
 import App from "@/App";
 import { useCategoryOrder } from "@/hooks/useCategoryOrder";
 import { useMetrics } from "@/hooks/useMetrics";
@@ -127,13 +146,19 @@ const serviceStub: Service = {
   icon: null,
   icon_source_url: null,
   category: null,
+  category_id: null,
+  position: 0,
   open_in_new_tab: true,
   created_at: 1,
   updated_at: 1,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   window.localStorage.clear();
+  const settingsApi = (await import("@/lib/api/dashboard-settings")) as unknown as {
+    resetForTesting: () => void;
+  };
+  settingsApi.resetForTesting();
 
   mockedUseMetrics.mockReturnValue({
     samples: [],
