@@ -72,7 +72,7 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.12.0",
-    "happy-dom": "^20.14.5",
+    "happy-dom": "^21.0.1",
     "lint-staged": "^17.5.1",
     "prettier": "^3.9.7",
     "simple-git-hooks": "^2.14.0",
