@@ -10,7 +10,8 @@ interface CategoryMenuProps {
   onDelete: () => void;
 }
 
-const GAP = 6;
+// Far enough below the button that the menu's top edge clearly overlaps the panel's.
+const GAP = 10;
 const EDGE = 8;
 
 /** A category's less frequent actions, in a popover menu under a "more" button. */

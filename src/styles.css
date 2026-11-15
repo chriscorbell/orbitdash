@@ -439,9 +439,8 @@ a.link-card:focus-visible .link-go {
 }
 
 /* Colored logos with large dark parts keep their colors and get a hairline edge instead. */
-.link-icon[data-tone="mixed"] img,
-.icon-option[data-tone="mixed"] img {
-  filter: drop-shadow(0 0 0.5px oklch(1 0 0 / 70%)) drop-shadow(0 0 0.5px oklch(1 0 0 / 35%));
+.link-icon[data-tone="mixed"] img {
+  filter: drop-shadow(0 0 0.5px oklch(1 0 0 / 50%));
 }
 
 .link-icon[data-large] {
@@ -454,6 +453,11 @@ a.link-card:focus-visible .link-go {
 
 .link-icon[data-large] img {
   padding: 11px;
+}
+
+.link-icon[data-large] svg.lucide {
+  width: 22px;
+  height: 22px;
 }
 
 /* Edit mode */
@@ -599,7 +603,7 @@ a.link-card:focus-visible .link-go {
 }
 
 .dialog::backdrop {
-  background: oklch(0.08 0.01 265 / 55%);
+  background: oklch(0.08 0.01 265 / 70%);
   backdrop-filter: blur(4px);
   animation: fade-in 240ms ease;
 }
@@ -634,12 +638,18 @@ a.link-card:focus-visible .link-go {
   color: var(--text-muted);
 }
 
+/* Stays in view when a tall dialog scrolls on a short screen; the fade shows there's more above. */
 .dialog-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding-top: 6px;
+  margin: -12px -24px -24px;
+  padding: 18px 24px 24px;
+  background: linear-gradient(to bottom, oklch(0.212 0.008 265 / 0), var(--raised) 14px);
 }
 
 .dialog-footer [data-push] {
@@ -803,8 +813,8 @@ a.link-card:focus-visible .link-go {
   display: grid;
   grid-template-columns: repeat(auto-fill, 44px);
   justify-content: space-between;
-  gap: 6px;
-  max-height: calc(3 * 44px + 2 * 6px + 4px);
+  gap: 8px 6px;
+  max-height: calc(3 * 44px + 2 * 8px + 4px);
   margin: -2px;
   padding: 2px;
   overflow-y: auto;
@@ -825,7 +835,8 @@ a.link-card:focus-visible .link-go {
   padding: 10px;
   border: 0;
   border-radius: var(--radius-control);
-  background: var(--field);
+  /* Lighter than the fields, so dark artwork stays legible. */
+  background: oklch(0.255 0.007 265);
   box-shadow: inset 0 0 0 1px var(--border);
   cursor: pointer;
   animation: fade-in 200ms ease both;
@@ -835,11 +846,11 @@ a.link-card:focus-visible .link-go {
 }
 
 .icon-option:hover {
-  background: oklch(1 0 0 / 6%);
+  background: oklch(0.29 0.008 265);
 }
 
 .icon-option[aria-pressed="true"] {
-  background: oklch(1 0 0 / 8%);
+  background: oklch(0.3 0.008 265);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
@@ -957,7 +968,7 @@ a.link-card:focus-visible .link-go {
 
   /* Negative margins keep the header as tall as in view mode, so switching modes doesn't shift. */
   .category-actions {
-    gap: 4px;
+    gap: 0;
     margin: -9px -8px -9px 0;
   }
 
@@ -979,6 +990,10 @@ a.link-card:focus-visible .link-go {
     font-size: 16px;
   }
 
+  .dialog-title {
+    font-size: 18px;
+  }
+
   .picker-toggle {
     width: 36px;
     height: 36px;
@@ -991,6 +1006,13 @@ a.link-card:focus-visible .link-go {
   .menu-item {
     height: 42px;
     font-size: 14px;
+  }
+}
+
+/* Short screens keep two rows of icon results, leaving room for the rest of the form. */
+@media (max-height: 760px) {
+  .icon-results {
+    max-height: calc(2 * 44px + 8px + 4px);
   }
 }
 
@@ -1012,6 +1034,7 @@ a.link-card:focus-visible .link-go {
 
   .topbar {
     min-height: 64px;
+    margin-bottom: 8px;
   }
 
   /* Icon-only on phones, and square like the other icon buttons. */
