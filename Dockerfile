@@ -1,4 +1,4 @@
-FROM node:24-slim AS base
+FROM node:26-slim AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
@@ -17,7 +17,7 @@ RUN pnpm build
 FROM base AS prod-deps
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24-slim
+FROM node:26-slim
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
