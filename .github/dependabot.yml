@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "bun"
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -12,8 +12,6 @@ updates:
     groups:
       production-routine:
         dependency-type: "production"
-        exclude-patterns:
-          - "radix-ui"
         update-types:
           - "minor"
           - "patch"
@@ -22,7 +20,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    # Match CI's Node 24 runtime and typescript-eslint's supported TypeScript range.
+    # Match the Node 24 runtime and typescript-eslint's supported TypeScript range.
     ignore:
       - dependency-name: "typescript"
         update-types:

@@ -1,8 +1,11 @@
 node_modules
 dist
-dist-server
 data
+.e2e-data
 .git
-*.md
-.vscode
 .github
+.vscode
+.claude
+*.md
+playwright-report
+test-results

@@ -1,67 +1,34 @@
-# Install all dependencies needed to build the app.
-FROM oven/bun:1.4.2 AS deps
-
+FROM node:24-slim AS base
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
 
-COPY package.json bun.lock* ./
-COPY scripts/prepare-git-hooks.mjs ./scripts/prepare-git-hooks.mjs
-RUN bun install --frozen-lockfile
-
-# Install only production dependencies for the runtime image.
-FROM oven/bun:1.4.2 AS prod-deps
-
-WORKDIR /app
-
-COPY package.json bun.lock* ./
-COPY scripts/prepare-git-hooks.mjs ./scripts/prepare-git-hooks.mjs
-RUN bun install --frozen-lockfile --production
-
-# Build stage
-FROM deps AS builder
-
-WORKDIR /app
-
-# Copy only the files needed for the production build to keep cache hits stable.
-COPY package.json bun.lock* ./
-COPY index.html ./
-COPY tsconfig.json tsconfig.app.json tsconfig.node.json tsconfig.server.json tsconfig.sw.json ./
-COPY vite.config.ts ./
-COPY scripts/compress-assets.mjs scripts/vite-service-worker.ts ./scripts/
+# Build the frontend with every dependency.
+FROM base AS build
+RUN pnpm install --frozen-lockfile
+COPY index.html vite.config.ts tsconfig.json ./
 COPY public/ ./public/
-COPY server/ ./server/
 COPY shared/ ./shared/
 COPY src/ ./src/
+RUN pnpm build
 
-RUN bun run build
+# The server needs only its own two dependencies.
+FROM base AS prod-deps
+RUN pnpm install --frozen-lockfile --prod
 
-# Production stage
-FROM oven/bun:1.4.2-slim
-
+FROM node:24-slim
 WORKDIR /app
-
-COPY package.json bun.lock* ./
-COPY --from=prod-deps /app/node_modules ./node_modules
-
-# Copy server source, shared modules, and TS config for Bun path aliases
-COPY server/ ./server/
-COPY shared/ ./shared/
-COPY tsconfig.json ./tsconfig.json
-
-# Copy built frontend assets, including the precompressed .br/.gz siblings
-# (Vite copies public/ into dist/ during the build)
-COPY --from=builder /app/dist ./dist
-
-# Create the data directory writable by the unprivileged bun user (uid 1000)
-RUN mkdir -p /data && chown bun:bun /data
-
 ENV NODE_ENV=production
 ENV PORT=3000
-
+COPY package.json ./
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY server/ ./server/
+COPY shared/ ./shared/
+RUN rm -f server/*.test.ts && mkdir -p /data && chown node:node /data
+USER node
 EXPOSE 3000
-
-USER bun
-
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD ["bun", "-e", "const res = await fetch(`http://127.0.0.1:${process.env.PORT || 3000}/healthz`); process.exit(res.ok ? 0 : 1)"]
-
-CMD ["bun", "server/index.ts"]
+  CMD ["node", "-e", "fetch(`http://127.0.0.1:${process.env.PORT}/healthz`).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+CMD ["node", "server/index.ts"]

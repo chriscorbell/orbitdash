@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/images/logo.svg" alt="orbitdash - yet another modern server dashboard" width="320">
+  <img src=".github/images/logo.svg" alt="orbitdash" width="320">
 </p>
 
 <p align="center">
@@ -11,12 +11,8 @@
 <br/>
 
 <p align="center">
-  <b>orbitdash</b> is a dashboard for your home server: your services, live system stats,<br>
-  and what your apps and containers are up to, on one fast page.
-</p>
-
-<p align="center">
-  Inspired by <a href="https://github.com/MauriceNino/dashdot" target="_blank">dashdot</a>, <a href="https://github.com/bastienwirtz/homer" target="_blank">homer</a> and <a href="https://github.com/ajnart/homarr" target="_blank">homarr</a>. Built with TypeScript, React, Tailwind CSS, Vite, Bun, Hono and SQLite.
+  <b>orbitdash</b> is a startpage for your home server: your services and bookmarks as cards with<br>
+  a title and an icon, grouped under headings, on one fast page.
 </p>
 
 <p align="center">
@@ -27,45 +23,16 @@
 
 ## Preview
 
-<img src=".github/images/preview.png" alt="orbitdash with a row of widgets, live stats and service cards in columns" />
+<img src=".github/images/preview.png" alt="orbitdash showing service cards in five columns of categories" />
 
-## Features
+## What it does
 
-**Services**
+- Cards link to your services, with icons from the [dashboard-icons](https://github.com/homarr-labs/dashboard-icons) and [selfh.st](https://selfh.st/icons/) libraries or your own uploads.
+- Categories sit in balanced columns that fit the window. Links without a category go above them.
+- The pencil button switches to edit mode: add, edit and delete links and categories, and drag cards between categories. There's no config file.
+- Everything lives in one SQLite file and an icon folder, in one small container for x86_64 and aarch64.
 
-- Service links with icons from the dashboard-icons and selfh.st libraries, categories, and no config file: everything is managed in the UI
-- Paste a link and the name and icon fill in from the page; a Test button checks it before saving
-- An internal and an external URL per service (cards open the one that fits where you are), up to 5 extra named links, and tags
-- Categories as balanced columns or stacked rows, in compact, card or tile styles
-- Edit mode: drag cards and categories, rename in place, and select several cards to move, delete (with undo) or change together
-- A command palette (⌘K, `/`, or just start typing) for services, actions and web search
-- Import from Homepage, Dashy, Homer, Homarr or browser bookmarks, and seed a fresh install from a file
-
-**Monitoring**
-
-- Live CPU, memory and disk in a compact strip, and a Stats page with per-core load, memory, network, disk activity, storage and temperatures, live or over the last hour, day, week or month
-- Status checks (HTTP or TCP) with a status dot, response time and a 24-hour uptime bar on each card
-- Threshold alerts for CPU, memory, disks and temperature
-- Notifications for outages and alerts on ntfy, Gotify, Discord or any webhook, with quiet hours
-- Docker containers with state, health and resources, and suggestions for running containers that aren't on the dashboard yet
-- An optional Prometheus `/metrics` endpoint
-
-**Integrations and widgets**
-
-- Live figures on service cards from AdGuard Home, Jellyfin, Pi-hole, Plex, Proxmox VE, qBittorrent, Radarr, Sonarr, or a linked Docker container
-- Clock, weather (Open-Meteo, no API key) and calendar agenda (iCal) widgets
-
-**Yours**
-
-- Dark and light themes, accent colors, a wallpaper with blur and dim, your own dashboard name and custom CSS
-- Settings shared across browsers, with per-device overrides for a wall tablet or a phone
-- Optional sign-in with a password or your sign-in proxy (Authelia, Authentik, Tailscale Serve), with a read-only view for guests
-- Backups as one file plus automatic nightly snapshots; deleting a service can be undone for 30 minutes
-- Installable as an app on phones and desktops, and readable offline (over https)
-
-Runs on x86_64 and aarch64.
-
-## Quick Start
+## Quick start
 
 ```bash
 docker run -d \
@@ -76,754 +43,63 @@ docker run -d \
   ghcr.io/chriscorbell/orbitdash:latest
 ```
 
-Then open `http://<server-ip>:7770` and add your first service. Change `7770` to serve it on
-another port.
-
-### Docker Compose with everything
-
-This adds the host's own mounts, network and OS name to the Stats page, Docker containers through
-a read-only socket proxy, and a password sign-in. Each part is optional; the sections below explain
-them.
+Then open `http://<server-ip>:7770` and add your first link. With Docker Compose:
 
 ```yaml
 services:
   orbitdash:
     container_name: orbitdash
     image: ghcr.io/chriscorbell/orbitdash:latest
-    restart: unless-stopped
     ports:
       - "7770:3000"
-    environment:
-      - ORBITDASH_HOST_ROOT=/mnt/host
-      - ORBITDASH_DOCKER_HOST=tcp://dockerproxy:2375
-      - ORBITDASH_AUTH=password
-      - ORBITDASH_PASSWORD_HASH=$$argon2id$$v=19$$... # see Password below
     volumes:
       - ./orbitdash-data:/data
-      - /:/mnt/host:ro,rslave
-    depends_on:
-      - dockerproxy
-
-  dockerproxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:latest
     restart: unless-stopped
-    environment:
-      - CONTAINERS=1
-      - EVENTS=1
-      - POST=0
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
 
-### Configuration
-
-Everything else is set in the UI. These environment variables cover what can't be:
-
-| Variable                                             | Default           | What it does                                                                                         |
-| ---------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
-| `PORT`                                               | `3000`            | Port inside the container (`3001` outside Docker)                                                    |
-| `ORBITDASH_DATA_DIR`                                 | `/data`           | Where the database, icons, backups and `secret.key` live                                             |
-| `ORBITDASH_HOST_ROOT`                                | unset             | A read-only mount of the host's `/`, for the host's own stats ([more](#seeing-the-host-from-docker)) |
-| `ORBITDASH_DISK_PATH`                                | `/`               | The filesystem the strip's disk tile follows                                                         |
-| `ORBITDASH_HOSTNAME`                                 | host name         | The name shown in the header                                                                         |
-| `ORBITDASH_DOCKER_HOST`                              | socket if found   | `tcp://host:port`, `unix:///path`, or `off` ([more](#docker-containers))                             |
-| `ORBITDASH_AUTH` and related                         | `none`            | `password` or `proxy` sign-in ([more](#authentication))                                              |
-| `ORBITDASH_PROMETHEUS`, `ORBITDASH_PROMETHEUS_TOKEN` | off               | The `/metrics` endpoint ([more](#prometheus))                                                        |
-| `ORBITDASH_SEED_FILE`                                | `/data/seed.yaml` | Services to add on a fresh install ([more](#seeding-a-fresh-install))                                |
-| `ORBITDASH_BACKUP_KEEP`                              | `7`               | How many nightly snapshots to keep                                                                   |
-| `LOG_LEVEL`                                          | `info`            | `debug`, `info`, `warn` or `error`                                                                   |
+orbitdash has no sign-in, and anyone who can open it can edit it. Keep it on your LAN or VPN, or put it behind a proxy that asks for a sign-in.
 
 ### Image tags
 
 - `latest` and `main` follow every validated push to `main`.
-- `vX.Y.Z` is a stable release; `sha-<commit>` is the build of one commit.
-- For an immutable deployment or rollback, pin the digest:
-  `ghcr.io/chriscorbell/orbitdash@sha256:<digest>`.
+- `vX.Y.Z` is a release; `sha-<commit>` is the build of one commit.
+- To pin a deployment, use the digest: `ghcr.io/chriscorbell/orbitdash@sha256:<digest>`.
 
-## Install As An App
+## Data
 
-Browsers only allow installing a web app, and keeping it available offline, over https (or on
-`localhost`). Put orbitdash behind a reverse proxy with a certificate, or use something like
-`tailscale serve`, then:
+Everything is under `/data` in the container:
 
-- iPhone and iPad: open it in Safari, tap Share, then Add to Home Screen.
-- Android: open it in Chrome and tap Install app (or Add to Home screen) in the menu.
-- Desktop Chrome or Edge: use the install icon in the address bar.
+- `orbitdash.db`, the SQLite database
+- `icons/`, the icon files
+- `cache/`, the icon library index, refreshed daily and safe to delete
 
-The installed app opens full screen. When the server can't be reached, it still opens with the last
-services, categories and settings it saw; live stats come back once the server does. Over plain
-http everything else works the same, just not installed or offline.
+To back up, stop the container and copy the folder.
 
-## Authentication
+The container runs as the unprivileged `node` user (uid 1000), so a bind-mounted data folder must be writable by uid 1000. If Docker created it as root, fix it once with `chown -R 1000:1000 ./orbitdash-data`.
 
-orbitdash is open by default, which suits a dashboard that only your own network can reach. To
-require a sign-in, set `ORBITDASH_AUTH`:
+| Variable             | Default                                       |
+| -------------------- | --------------------------------------------- |
+| `PORT`               | `3000` in the container, `3001` outside it    |
+| `ORBITDASH_DATA_DIR` | `/data` in the container, `./data` outside it |
 
-- `password`: one shared password; each browser that signs in gets a session cookie.
-- `proxy`: a reverse proxy that already signs people in (Authelia, Authentik, Tailscale Serve)
-  names the user in a header, and orbitdash trusts it from that proxy only.
+## Upgrading from 1.x
 
-Auth is set only through environment variables, so nothing in the dashboard can turn it off.
-orbitdash refuses to start with an incomplete or contradictory setup (password mode without a
-password, proxy mode without trusted proxies, a password while auth is off) and logs what to fix.
+2.0 drops everything except the links: metrics and the Stats page, status checks, alerts, notifications, Docker, integrations, widgets, importers, sign-in, Prometheus, themes, wallpapers and the settings page.
 
-| Variable                    | Default       | Purpose                                                                                                                                                                               |
-| --------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ORBITDASH_AUTH`            | `none`        | `none`, `password` or `proxy`                                                                                                                                                         |
-| `ORBITDASH_PASSWORD`        | unset         | Password mode: the password. Hashed with argon2id when the server starts                                                                                                              |
-| `ORBITDASH_PASSWORD_HASH`   | unset         | Password mode: an argon2id hash to use instead of the plain password (set one of the two)                                                                                             |
-| `ORBITDASH_SESSION_DAYS`    | `30`          | How long a sign-in lasts without use, 1 to 400; using the dashboard extends it                                                                                                        |
-| `ORBITDASH_GUEST`           | `none`        | `view` lets anyone see the dashboard read-only; changes need a sign-in                                                                                                                |
-| `ORBITDASH_PROXY_HEADER`    | `Remote-User` | Proxy mode: the header that names the user                                                                                                                                            |
-| `ORBITDASH_TRUSTED_PROXIES` | unset         | IPs or CIDR ranges (IPv4 or IPv6, comma-separated) of your reverse proxies. Required in proxy mode; in password mode it lets orbitdash read `X-Forwarded-For` and `X-Forwarded-Proto` |
+On its first start, 2.0 keeps each link's name, URL, icon, category and position, and removes the rest from `orbitdash.db`. Before it changes anything, it saves the whole 1.x database as `orbitdash-v1.db` in the same folder. To go back, stop the container, replace `orbitdash.db` with that copy, and run a 1.x image such as `ghcr.io/chriscorbell/orbitdash:v1.0.0`.
 
-With auth on, every `/api` route needs a session (or the proxy's user), including the live event
-stream, icons, wallpapers and backups. The health checks (`/healthz`, `/readyz`, `/api/health`) and
-the sign-in routes stay open, and so do the page and its scripts, so the sign-in screen can load.
-With `ORBITDASH_GUEST=view`, anyone can read the dashboard and a Sign in button appears in the
-header; adding, editing, settings and backups still need a sign-in.
+The 1.x environment variables, the host and Docker socket mounts, and the `backups/` and `wallpapers/` folders are no longer used. You can remove them.
 
-### Password
+## Development
 
-```yaml
-services:
-  orbitdash:
-    container_name: orbitdash
-    image: ghcr.io/chriscorbell/orbitdash:latest
-    restart: unless-stopped
-    ports:
-      - "7770:3000"
-    environment:
-      - ORBITDASH_AUTH=password
-      # Every $ in the hash is doubled, because Compose treats $ as the start of a variable.
-      - ORBITDASH_PASSWORD_HASH=$$argon2id$$v=19$$m=65536,t=2,p=1$$...
-      # - ORBITDASH_GUEST=view
-    volumes:
-      - ./orbitdash-data:/data
-```
-
-Create the hash with the image itself. It asks for the password twice without showing it, so the
-password stays out of your shell history, and prints the hash plus a copy with every `$` doubled
-for `docker-compose.yml`:
+Requires Node.js 24 and pnpm.
 
 ```bash
-docker run --rm -it ghcr.io/chriscorbell/orbitdash:latest bun server/cli/hash-password.ts
-# or, with orbitdash already running:
-docker exec -it orbitdash bun server/cli/hash-password.ts
-# or, from a checkout of this repository:
-bun run hash-password
+pnpm install
+pnpm dev:all     # API on :3001 with reload, Vite on :5173
+pnpm test        # unit and API tests
+pnpm test:e2e    # builds, then runs Playwright against the production server
+pnpm lint && pnpm typecheck && pnpm format:check
 ```
 
-`ORBITDASH_PASSWORD=...` works too; orbitdash then hashes it at startup and never stores it in
-plain text. Changing the password and restarting signs every browser out.
-
-Sessions are random 32-byte tokens in an `HttpOnly`, `SameSite=Lax` cookie, marked `Secure` over
-https (directly, or when a trusted proxy sends `X-Forwarded-Proto: https`). The database stores only
-a SHA-256 of each token. Signing out ends the session on the server. After 5 wrong passwords from
-one address within 15 minutes, that address has to wait (the sign-in screen shows how long).
-Failed attempts are logged with the client's address, never with the password.
-
-### Behind a sign-in proxy
-
-orbitdash trusts the user header only on connections from an address in
-`ORBITDASH_TRUSTED_PROXIES`, judged by the connection itself, not by `X-Forwarded-For`. The same
-header from anywhere else is ignored and logged as `auth.proxy_header_ignored` with the address it
-came from, which also tells you the right address when the list is wrong. Keep that list tight:
-anything that can connect from a trusted address can claim to be anyone. Don't let clients reach
-orbitdash around the proxy from such an address, for example by publishing the port only on
-`127.0.0.1` or not at all.
-
-Authelia or Authentik, with forward auth in front of orbitdash (Traefik, Caddy or nginx):
-
-```yaml
-services:
-  orbitdash:
-    container_name: orbitdash
-    image: ghcr.io/chriscorbell/orbitdash:latest
-    restart: unless-stopped
-    # No published port: only the reverse proxy, on the same network, reaches orbitdash.
-    networks:
-      proxy:
-        ipv4_address: 172.30.0.10
-    environment:
-      - ORBITDASH_AUTH=proxy
-      # Authelia sends Remote-User; Authentik's proxy outpost sends X-authentik-username.
-      - ORBITDASH_PROXY_HEADER=Remote-User
-      # The reverse proxy's fixed address on that network.
-      - ORBITDASH_TRUSTED_PROXIES=172.30.0.2
-    volumes:
-      - ./orbitdash-data:/data
-
-networks:
-  proxy:
-    external: true
-```
-
-Have the reverse proxy copy the header from the auth response onto the request, which also replaces
-any value a client sent: Traefik's `authResponseHeaders`, Caddy's `copy_headers` in
-`forward_auth`, or `auth_request_set` with `proxy_set_header` in nginx.
-
-Tailscale Serve sends `Tailscale-User-Login` for people on your tailnet and strips that header from
-what clients send. It proxies to `127.0.0.1` on the host, so the simplest setup runs orbitdash on
-the host network, where those connections arrive from `127.0.0.1`:
-
-```yaml
-services:
-  orbitdash:
-    container_name: orbitdash
-    image: ghcr.io/chriscorbell/orbitdash:latest
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      - PORT=7770
-      - ORBITDASH_AUTH=proxy
-      - ORBITDASH_PROXY_HEADER=Tailscale-User-Login
-      - ORBITDASH_TRUSTED_PROXIES=127.0.0.1
-      # Optional: people reaching port 7770 directly, outside Tailscale, can look but not edit.
-      # - ORBITDASH_GUEST=view
-    volumes:
-      - ./orbitdash-data:/data
-```
-
-Then run `tailscale serve --bg 7770` on the host. Funnel (public) traffic carries no identity, so it
-gets the sign-in screen, or the read-only view with guest access on. The signed-in user's name is
-shown in Settings.
-
-## Data Persistence
-
-All data is stored under `/data` inside the container:
-
-- `orbitdash.db` (SQLite database)
-- `icons/` (uploaded/downloaded service icons)
-- `wallpapers/` (uploaded wallpapers; ones no setting uses are cleaned up after an hour)
-- `cache/` (the icon library index, refreshed daily; safe to delete)
-- `backups/` (automatic snapshots, the newest 7 by default; see `ORBITDASH_BACKUP_KEEP`)
-
-The docker run/compose examples above bind-mount `/data` to `./orbitdash-data` in the current working host directory. You can change this to a different location on the host, or alternatively map to a volume instead if desired.
-
-The container runs as the unprivileged `bun` user (uid 1000). A bind-mounted data directory must be
-writable by that uid — if Docker created it as root, fix it once with `chown -R 1000:1000 ./orbitdash-data`.
-Named volumes inherit the correct ownership automatically.
-
-Outside Docker, orbitdash stores data in `./data` by default. You can override the storage path in any environment with `ORBITDASH_DATA_DIR=/path/to/data`.
-
-For backup and restore steps, including SQLite WAL files and icon assets, see
-[docs/backup-restore.md](docs/backup-restore.md).
-
-The backend listens on port `3001` by default outside the container. Override it with `PORT=<port>`.
-
-The disk metric uses `/` by default. Override it with `ORBITDASH_DISK_PATH=/path/to/mount` when you
-need to track a different mount. With `ORBITDASH_HOST_ROOT` set (see below), this is a path on the
-host, and the default `/` is the host's root filesystem.
-
-Logs are JSON lines on stdout/stderr. `LOG_LEVEL` sets the minimum level written: `debug`, `info`
-(default), `warn` or `error`. Successful health checks, icon and asset requests, and the live
-event streams are logged at `debug`; other successful requests at `info`; 4xx responses at `warn`;
-5xx responses at `error`.
-
-## Importing From Another Dashboard
-
-Settings → Data → **Import from another dashboard** reads these files:
-
-| From              | File                                                      |
-| ----------------- | --------------------------------------------------------- |
-| Homepage          | `services.yaml` (nested groups become their own category) |
-| Dashy             | `conf.yml`                                                |
-| Homer             | `config.yml`                                              |
-| Homarr            | the JSON export of a board                                |
-| Browser bookmarks | the HTML export from Chrome, Firefox, Safari or Edge      |
-
-Nothing is added until you confirm. The preview shows every service with its icon, unticks links
-that are already on your dashboard, and lets you rename each group's category. Icons named in the
-file (`jellyfin.png`, `sh-jellyfin`, `hl-jellyfin`) or matching the service name are looked up in
-the dashboard-icons and selfh.st libraries. Icon fonts such as `mdi-` or Font Awesome have no image
-to copy, so those services come across without an icon. A snapshot is saved before anything is
-added.
-
-### Seeding a fresh install
-
-To start a new install with services already in place, put a file in any of the formats above at
-`/data/seed.yaml` (or point `ORBITDASH_SEED_FILE` at it). It is applied once, on the first start
-with an empty dashboard; after that the UI is the source of truth and the file is ignored. The
-simplest format is orbitdash's own:
-
-```yaml
-categories:
-  - name: Media
-    services:
-      - name: Jellyfin
-        url: http://10.0.0.20:8096
-        description: Movies and shows
-        icon: jellyfin # a dashboard-icons or selfh.st name, or an image URL
-  - name: Infrastructure
-    services:
-      - name: Proxmox
-        url: https://pve.lan:8006
-```
-
-## Host Metrics
-
-orbitdash reads metrics straight from the kernel's `/proc` and `/sys`; there is no agent to install.
-It collects:
-
-- **CPU**: total and per-core usage, load average, frequency, and the CPU temperature
-- **Temperatures**: hwmon sensors (`coretemp`, `k10temp`, NVMe drives and others), or thermal zones
-  where there are none
-- **Memory**: used, available, cache and swap
-- **Filesystems**: size and use of every local filesystem; virtual, network, snap and container
-  filesystems are left out
-- **Disk I/O**: read and write rates per physical disk
-- **Network**: receive and send rates per interface; loopback, Docker, bridge and VM interfaces are
-  left out
-
-`GET /api/metrics/host` returns the latest reading, and `GET /api/events?topics=host` streams a new
-one every second. `GET /api/system` returns the hostname, OS, kernel, CPU model and uptime.
-Anything that can't be read on a platform (macOS, or a restricted container) is left out rather
-than failing.
-
-orbitdash also keeps history, even when nobody has the dashboard open. It stores CPU, memory,
-disk, load, CPU temperature, network and disk I/O at 1-minute resolution for 48 hours and
-15-minute resolution for 90 days, which comes to about 2 MB in the data directory.
-`GET /api/metrics/history?range=1h|24h|7d|30d` returns the average and peak of each metric per
-point: 1-minute points for `1h`, 5-minute points for `24h`, and 15-minute points for `7d` and `30d`.
-
-### Seeing the host from Docker
-
-Inside a container, orbitdash already sees the host's CPU, memory, temperatures and disk I/O. It
-only sees its own network interfaces, its own mounts and its image's OS name. To show the host's,
-mount the host's root filesystem read-only and point `ORBITDASH_HOST_ROOT` at it:
-
-```yaml
-services:
-  orbitdash:
-    container_name: orbitdash
-    image: ghcr.io/chriscorbell/orbitdash:latest
-    restart: unless-stopped
-    ports:
-      - "7770:3000"
-    environment:
-      - ORBITDASH_HOST_ROOT=/mnt/host
-    volumes:
-      - ./orbitdash-data:/data
-      - /:/mnt/host:ro
-```
-
-With `docker run`, add `-e ORBITDASH_HOST_ROOT=/mnt/host -v /:/mnt/host:ro`.
-
-orbitdash then reads the host's `/proc`, `/sys`, mount table, `/etc/hostname` and `/etc/os-release`
-under `/mnt/host`. The mount is read-only and the container still runs as its unprivileged user:
-it needs no `privileged: true` and no extra capabilities. Use `/:/mnt/host:ro,rslave` instead if
-drives you mount after the container starts should show up too.
-
-If you only need the host's network interfaces, `network_mode: host` works without the mount.
-Docker then ignores `ports:`, and the dashboard listens on the host's port `3000` (change it with
-`PORT`).
-
-## Docker Containers
-
-With access to Docker, orbitdash shows a Containers tile in the stats strip (running out of total,
-plus anything unhealthy, restarting or stopped) and a Containers list on the Stats page with each
-container's state, health, CPU (as a share of the whole host), memory and published ports. Ports
-link to the same host the dashboard was opened on. Updates arrive within a second of Docker
-reporting a change; CPU and memory refresh every 15 seconds. orbitdash only ever reads from
-Docker.
-
-The safest setup is a [docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy)
-that only allows reading containers, so orbitdash never touches the socket itself:
-
-```yaml
-services:
-  orbitdash:
-    image: ghcr.io/chriscorbell/orbitdash:latest
-    environment:
-      - ORBITDASH_DOCKER_HOST=tcp://dockerproxy:2375
-    # ...ports and volumes as above
-
-  dockerproxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:latest
-    restart: unless-stopped
-    environment:
-      - CONTAINERS=1 # list and inspect containers
-      - EVENTS=1 # live updates (on by default)
-      - POST=0 # nothing can be changed
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-```
-
-Mounting the socket straight into orbitdash also works (`- /var/run/docker.sock:/var/run/docker.sock`),
-but it gives the container full control of Docker: `:ro` on a socket doesn't stop writes. The
-container runs as uid 1000, which also needs to be in the socket's group (`group_add:` with the
-group id from `stat -c %g /var/run/docker.sock`). orbitdash finds a socket at
-`/var/run/docker.sock` on its own; `ORBITDASH_DOCKER_HOST` (or `DOCKER_HOST`) takes
-`tcp://host:port` or `unix:///path/to/socket`, and `ORBITDASH_DOCKER_HOST=off` turns Docker
-support off.
-
-### Adding containers as services
-
-When running containers aren't on the dashboard yet, a line above the board says so, and
-**Review** lists them with a name, link, icon and category filled in, ready to add or dismiss.
-Suggestions come from container labels first:
-
-| Label                                            | Used for                                       |
-| ------------------------------------------------ | ---------------------------------------------- |
-| `orbitdash.name` / `homepage.name`               | Service name                                   |
-| `orbitdash.url` / `homepage.href`                | Link                                           |
-| `orbitdash.icon` / `homepage.icon`               | Icon: a URL or a dashboard-icons/selfh.st name |
-| `orbitdash.category` / `homepage.group`          | Category                                       |
-| `orbitdash.description` / `homepage.description` | Description                                    |
-| `orbitdash.enable=false`                         | Never suggest this container                   |
-
-A container without labels is suggested when it publishes a port that looks like a web UI, linked
-on the host you opened the dashboard from, with its name and icon matched against the icon
-library ("media-qbittorrent-1" becomes qBittorrent). Containers already on the dashboard (same link,
-or same port) aren't suggested, and dismissed ones stay hidden until you bring them back from the
-same dialog. Homepage's `homepage.widget.*` labels, which hold API keys, are never read.
-
-## Status Checks
-
-Status checks are off until you turn one on in a service's settings, so upgrading never makes
-orbitdash contact anything new. A check runs from the server, every 15 seconds to 1 hour (1 minute
-by default), against the service's link or a separate URL or `host:port`:
-
-- **HTTP** sends a `HEAD` request (or `GET` if the service refuses `HEAD`), follows up to 5
-  redirects, and never downloads the page. 2xx and 3xx answers count as up, and so do 401 and 403,
-  since a login page still means the service answered. Self-signed certificates can be allowed per
-  check.
-- **TCP** only opens a connection to the port and closes it. There is no ping: the container runs
-  without the privileges ICMP needs.
-
-A check fails after 10 seconds without an answer. A service shows as slow when it answers in more
-than 2 seconds, and as down after two failed checks in a row (the second one 15 seconds after the
-first), so a single dropped request doesn't count as an outage. At most 8 checks run at once,
-spread out so they don't all fire together.
-
-Results are kept for 24 hours and hourly totals for 30 days. `GET /api/status` returns the current
-status of every checked service, `GET /api/events?topics=status` streams each result, and
-`GET /api/status/:id/history?range=24h|30d` returns the uptime history.
-
-## Notifications
-
-Settings → Notifications sends outages and metric alerts to ntfy, Gotify, Discord or any webhook.
-Nothing is sent until you add a channel. Each channel gets status changes (a service went down or
-came back), metric alerts (fired or resolved), or both; turning both off pauses it. The send button
-next to a channel, or Send test in its form, sends a test message and shows the answer right there,
-including the receiving service's own explanation when it refuses.
-
-- **Outages** are reported once a service has stayed down for a while: 2 minutes by default,
-  anything from right away to 1 hour. A service that comes back sooner says nothing at all. An
-  outage is reported once however many checks fail, and its "back up" message, with how long it
-  was down, only follows a "down" that was sent. This comes on top of the status check's own rule
-  (two failed checks in a row).
-- **Metric alerts** are sent when they fire and when they resolve; their rules already have a
-  duration.
-- **Quiet hours** (for example 22:00 to 07:00) hold messages back rather than drop them. When they
-  end, each channel gets one summary: what is still down or firing first, then what came and went.
-  Outages still going on are never lost, even across a restart; the ones that came and went are
-  kept in memory, so a restart during quiet hours leaves those out of the summary.
-- **Time zone**: quiet hours and the times in messages follow the server's time zone unless you
-  pick one. Containers usually run in UTC.
-
-A message that hits a network error, a timeout, a 429 or a 5xx answer is retried twice, after 1 and
-4 seconds. Redirects are never followed, so a token only goes to the host you entered. The last 50
-deliveries, sent or not, are listed under the options.
-
-Tokens, topics and webhook URLs stay on the server. The API shows them masked (`••••a1b2`, or a
-URL's origin followed by `••••`), to guests too, and a secret field left empty when you edit a
-channel keeps the saved value. Channels are stored in the `settings` table, so **backups and
-snapshots contain these secrets**; keep exported files private.
-
-### ntfy
-
-The server (`https://ntfy.sh` or your own), a topic, and optionally an access token, sent as
-`Authorization: Bearer`. On ntfy.sh anyone who knows a topic can read it, so pick a long, random
-one. The priority (1 to 5, High by default) applies to outages and alerts; recoveries, tests and
-summaries never go above ntfy's default (3). Messages are published as JSON to the server's root
-URL, with a severity tag ntfy shows as an emoji, then your own tags:
-
-```json
-{
-  "topic": "homelab-alerts",
-  "title": "Jellyfin is down",
-  "message": "Connection refused. Down since 14:02.",
-  "priority": 4,
-  "tags": ["rotating_light", "homelab"],
-  "click": "http://10.0.0.20:8096/"
-}
-```
-
-### Gotify
-
-The server's URL (`https://push.example.com`, or with the path Gotify is served under) and an
-application token from Apps → Create Application. The token is sent in the `X-Gotify-Key` header.
-The priority (0 to 10, 8 by default) applies to outages and alerts; everything else stays at 5 or
-below. Messages go to `POST <server>/message`; a tap on the notification opens the service:
-
-```json
-{
-  "title": "Jellyfin is back up",
-  "message": "Down for 12 min, from 14:02 to 14:14.",
-  "priority": 5,
-  "extras": {
-    "client::display": { "contentType": "text/plain" },
-    "client::notification": { "click": { "url": "http://10.0.0.20:8096/" } }
-  }
-}
-```
-
-### Discord
-
-In the Discord channel's settings: Integrations → Webhooks → New Webhook → Copy Webhook URL, and
-paste it as the channel's webhook URL. Messages are embeds colored by severity (red for down, amber
-for an alert, green when resolved, blue for tests) with mentions turned off, so a service name can
-never ping anyone:
-
-```json
-{
-  "allowed_mentions": { "parse": [] },
-  "embeds": [
-    {
-      "title": "CPU above 90% for 5 min",
-      "description": "Now 97%, peak 98%. Since 14:02.",
-      "color": 16096779,
-      "timestamp": "2026-10-10T14:07:00.000Z",
-      "footer": { "text": "Homelab" }
-    }
-  ]
-}
-```
-
-### Webhook
-
-A JSON `POST` to any http(s) URL, with optional headers such as `Authorization: Bearer …`. Any 2xx
-answer counts as delivered. The body:
-
-```json
-{
-  "version": 1,
-  "source": "Homelab",
-  "timestamp": "2026-10-10T14:04:00.000Z",
-  "event": "service.down",
-  "severity": "critical",
-  "title": "Jellyfin is down",
-  "message": "Connection refused. Down since 14:02.",
-  "service": {
-    "id": "0b7e6a52-…",
-    "name": "Jellyfin",
-    "url": "http://10.0.0.20:8096/",
-    "externalUrl": "https://jellyfin.example.com/",
-    "error": "Connection refused",
-    "downSince": "2026-10-10T14:02:00.000Z",
-    "recoveredAt": null,
-    "downtimeSeconds": null
-  },
-  "alert": null,
-  "items": []
-}
-```
-
-- `event`: `service.down`, `service.recovered`, `alert.firing`, `alert.resolved`, `summary` (sent
-  when quiet hours end) or `test`.
-- `severity`: `critical` (a service is down), `warning` (an alert fired), `resolved` or `info`.
-- `service`, for status events: `externalUrl` is the service's outside link (or `null`), and
-  `recoveredAt` and `downtimeSeconds` are set once it is back up. ntfy, Gotify and Discord
-  notifications open the outside link when a service has one, since they are often read away from
-  home, and its main link otherwise.
-- `alert`, for alert events: `id`, `metric` (`cpu`, `memory`, `disk` or `temperature`), `subject`
-  (the mountpoint for disk alerts), `threshold`, `durationSeconds`, `value`, `peak`, `startedAt`,
-  `firedAt` and `resolvedAt`.
-- `items`, for summaries: one entry per event, each with `event`, `severity`, `title`, `message`,
-  `service` and `alert`.
-- `source` is the dashboard's name, or `orbitdash` before you set one. `version` goes up only when
-  a field is removed or changes meaning.
-
-`GET /api/notifications` returns the channels (masked), the options and the recent deliveries.
-Channels are managed with `POST /api/notifications/channels` and
-`PUT`/`DELETE /api/notifications/channels/:id`, tested with
-`POST /api/notifications/channels/:id/test` (or `POST /api/notifications/test` for one that isn't
-saved yet), and the options are set with `PUT /api/notifications/options`.
-
-## Widgets
-
-Settings → Widgets turns on any of three widgets, shown as a row above the board or as small
-pills in the header:
-
-- **Clock**: the time and date in large type, with an optional greeting. The time format (auto,
-  12-hour or 24-hour) also applies to the header clock.
-- **Weather**: current conditions and a five-day forecast from
-  [Open-Meteo](https://open-meteo.com/), which needs no account or API key. Search for a place by
-  name or postal code; °C or °F. The server fetches the forecast and caches it for ten minutes.
-- **Agenda**: upcoming events from one or more iCal links (`https://` or `webcal://`, for example
-  a Google, iCloud, Fastmail or Nextcloud calendar's secret address), for today or the next 3, 7
-  or 14 days. Recurring events, moved and cancelled instances, and all-day events are handled.
-
-Calendar links are often secret, so they stay on the server: the browser only ever sees each
-calendar's name and host, plus event titles, times and locations. The server checks a link when it
-is added, refreshes each calendar every 15 minutes, and reports a calendar that stops loading
-without hiding the others. With [authentication](#authentication) on, guests can see the widgets
-but only a signed-in user can add or remove calendars. Calendar links are included in backups.
-
-## Links, Tags And Bulk Edits
-
-Each service has a **URL**, the one used on your own network, and optionally an **External URL**
-for when you're away (a reverse proxy or tunnel address, for example). A card opens:
-
-- the URL when this dashboard was opened at a private address: `localhost`, `10.x`, `172.16-31.x`,
-  `192.168.x`, Tailscale's `100.64.0.0/10`, IPv6 unique-local and link-local addresses, single-word
-  names like `nas`, and names ending in `.local`, `.lan`, `.home`, `.home.arpa`, `.internal` or
-  `.ts.net`
-- the External URL everywhere else, falling back to the URL for services without one
-
-Settings → Layout → **Service links** overrides this with Internal or External, and like every
-layout setting it can apply to one device only: a wall tablet on your network that reaches the
-dashboard by its public name can be set to Internal. Status checks always use the URL (or their
-own check target), since they run from the server.
-
-A service can also have up to 5 **links**, each a label and a URL, such as "Admin" or "Logs". On
-cards that have links or an External URL, a menu button appears beside the status dot when you
-hover or focus the card (touch screens always show it). It lists the named links and the URL the
-card isn't using. In edit mode the same links are in the card's menu.
-
-**Tags** are free-form words such as `media` or `home lab`, up to 10 per service. They are stored
-in lowercase with single spaces, so `Media` and `media` are the same tag. The service dialog adds a
-tag on Enter or a comma and suggests tags other services use; the command palette finds services by
-tag and shows the tag that matched.
-
-In edit mode, hovering a card shows a checkbox in its corner; shift-click selects a run of cards,
-Ctrl- or ⌘-click on a card selects it, and each category has a checkbox for all of its cards. A bar
-at the bottom then moves the selection to a category, turns status checks on or off or sets their
-interval, or deletes the selection, with one Undo for all of it. Each action is a single request
-(`POST /api/services/bulk/move`, `/bulk/delete`, `/bulk/restore` and `/bulk/checks`, all taking
-`{ "ids": [...] }`), applied in one transaction. External URLs, links and tags are part of backups;
-older backup files import without them.
-
-## Integrations
-
-An integration puts a few live figures on a service's card, like Sonarr's queue, Pi-hole's
-blocked share or how many people are watching on Plex. Pick one in the service dialog under
-**Integration**, fill in what that app needs, and use **Test** to check it before saving.
-
-| App              | Needs                                          | Shows                                          |
-| ---------------- | ---------------------------------------------- | ---------------------------------------------- |
-| AdGuard Home     | Username and password                          | Queries, blocked, blocked share, lookup time   |
-| Docker container | The container's name (picked from a list)      | State and health, CPU, memory                  |
-| Jellyfin         | API key                                        | Playing now, movies, series, songs             |
-| Pi-hole          | Password or app password (v6), API token (v5)  | Queries, blocked, blocked share, clients       |
-| Plex             | Plex token                                     | Playing now, movies, shows, libraries          |
-| Proxmox VE       | API token ID and secret (PVEAuditor is enough) | Guests running, nodes online, CPU, memory      |
-| qBittorrent      | Username and password                          | Download and upload speed, downloading, active |
-| Radarr, Sonarr   | API key                                        | Queue, missing, this week                      |
-
-The API address defaults to the service's own link, and self-signed certificates can be allowed
-per integration. The Docker option appears when [Docker](#docker-containers) is set up. Figures
-show on cards in the Cards style and refresh on their own (every 15 seconds to a minute,
-depending on the app) while the dashboard is open.
-
-Integrations only read. API keys, tokens and passwords stay on the server, encrypted with a key
-orbitdash creates in `/data/secret.key`; the browser never receives them, and editing an
-integration keeps a saved secret unless you type a new one. Keep `secret.key` with your backups:
-restored on another machine without it, integrations need their secrets typed again.
-[docs/integrations.md](docs/integrations.md) explains how adapters work and how to add one.
-
-## Prometheus
-
-Set `ORBITDASH_PROMETHEUS=true` to serve metrics at `/metrics` in Prometheus text format: CPU
-(total and per core), load, memory and swap, each filesystem, disk and network rates,
-temperatures, firing alerts, each service's status check (`orbitdash_service_up`,
-`orbitdash_service_slow`, `orbitdash_service_response_milliseconds`, labelled with the service and
-category names) and, with Docker set up, containers by state and each container's running,
-health, CPU and memory. It's off by default.
-
-Set `ORBITDASH_PROMETHEUS_TOKEN` to require `Authorization: Bearer <token>`. With
-[authentication](#authentication) on, the token is required: the endpoint stays closed until one is
-set, since a scraper can't sign in.
-
-```yaml
-scrape_configs:
-  - job_name: orbitdash
-    metrics_path: /metrics
-    authorization:
-      credentials: your-token
-    static_configs:
-      - targets: ["orbitdash:3000"]
-```
-
-## Health Checks
-
-- `GET /healthz` returns liveness for process-level checks.
-- `GET /readyz` returns readiness for deployment and CI probes, including a SQLite connectivity check.
-- `GET /api/health` returns the same readiness payload as `readyz` for API-oriented clients.
-
-## Deployment Verification
-
-After deploying or upgrading the container, verify the service with:
-
-```bash
-curl --fail http://127.0.0.1:7770/healthz
-curl --fail http://127.0.0.1:7770/readyz
-```
-
-Also confirm that:
-
-- the host directory or volume mapped to `/data` is intact
-- the expected host port is mapped to container port `3000`
-- persisted services and icons still load after the restart
-
-To roll back, resolve the previous `vX.Y.Z` or `sha-<commit>` image to its manifest digest, pin
-`ghcr.io/chriscorbell/orbitdash@sha256:<digest>`, restart the container, and repeat the health
-checks. Image rollback does not reverse database changes; keep a data backup from before each
-upgrade.
-
-## Testing
-
-Use the following commands for the initial automated test workflow:
-
-```bash
-npm run test:e2e:install
-npm run format
-npm run format:check
-npm run typecheck
-npm run test:unit
-npm run test:integration
-npm run test:e2e
-npm test -- --run
-npm run test:coverage
-```
-
-Run `npm run test:e2e:install` once per machine before the first browser smoke test so Chromium is
-available locally.
-
-Formatting is enforced with Prettier. Use `npm run format` locally to normalize files and
-`npm run format:check` to run the same check that CI uses.
-
-The coverage gate reports shared, frontend, and server scopes separately. Shared runtime modules
-remain at 100%; focused frontend application code and loaded server production modules use
-baseline thresholds derived from their existing behavior tests. See [CONTRIBUTING.md](CONTRIBUTING.md#test-strategy)
-for exact scope and thresholds.
-
-## Validation Rules
-
-Shared runtime validation now lives in `shared/schemas.ts` and is used by both the server routes
-and the service dialog submit path. The current canonical rules are:
-
-- service names are required after trimming
-- service URLs must normalize to valid `http` or `https` URLs
-- icon URLs, when provided, must normalize to valid `http` or `https` URLs
-- external URLs follow the same rules as service URLs; empty clears them
-- a service has up to 5 links, each with a label of up to 40 characters and a valid URL; rows left
-  completely blank are dropped
-- a service has up to 10 tags of up to 32 characters, stored trimmed, single-spaced and lowercase,
-  without repeats; commas separate tags
-- bulk actions take 1 to 1000 service ids
-- remote icon downloads are limited to 2 MB, time out after 5 seconds, and verify the downloaded
-  bytes match a supported image format
-- category and description fields are trimmed and normalized to `null` when empty
-- the `Uncategorized` section cannot be manually included in saved category ordering
-- metrics `window` must be a positive integer and is bounded to 60 seconds (the sample retention period)
-- metric history `range` must be `1h`, `24h`, `7d` or `30d` (default `1h`)
-
-## Contributing
-
-Issues and PRs are welcomed. Please include description, screenshots and any related logs.
-
-For local workflows and project conventions, see [CONTRIBUTING.md](CONTRIBUTING.md),
-[docs/architecture.md](docs/architecture.md), and [docs/release-checklist.md](docs/release-checklist.md).
+`pnpm build && pnpm start` runs the production server on port 3001, serving `dist/`.

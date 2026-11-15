@@ -1,4 +1,4 @@
-import type { IconTone } from "@/lib/icon-tone";
+import type { IconTone } from "./icon-tone.ts";
 
 const SAMPLE_SIZE = 32;
 
@@ -10,6 +10,12 @@ const MIN_COVERAGE = 0.02;
 const SELF_BACKED_COVERAGE = 0.9;
 /** Share of an icon's visible pixels that must be dark (or light) to call the whole icon so. */
 const DOMINANT_SHARE = 0.75;
+/** A dark icon is only drawn in reverse when it is a plain glyph: at most this share in color. */
+const MONOCHROME_SHARE = 0.15;
+/** Below dominance, this much dark still needs help to stand out, without changing its colors. */
+const MIXED_DARK_SHARE = 0.3;
+/** Chroma (max channel minus min, 0 to 255) above which a pixel counts as colored. */
+const COLORED_CHROMA = 50;
 /** CIE L* bounds (0 black to 100 white); saturated colors like pure red sit in between. */
 const DARK_LIGHTNESS = 30;
 const LIGHT_LIGHTNESS = 88;
@@ -31,19 +37,23 @@ export function classifyIconPixels(data: ArrayLike<number>): IconTone {
   let visible = 0;
   let dark = 0;
   let light = 0;
+  let colored = 0;
 
   for (let offset = 0; offset < data.length; offset += 4) {
     if (data[offset + 3] < VISIBLE_ALPHA) continue;
     visible += 1;
-    const lightness = perceivedLightness(data[offset], data[offset + 1], data[offset + 2]);
+    const [red, green, blue] = [data[offset], data[offset + 1], data[offset + 2]];
+    const lightness = perceivedLightness(red, green, blue);
     if (lightness < DARK_LIGHTNESS) dark += 1;
     else if (lightness > LIGHT_LIGHTNESS) light += 1;
+    if (Math.max(red, green, blue) - Math.min(red, green, blue) > COLORED_CHROMA) colored += 1;
   }
 
   const coverage = pixelCount === 0 ? 0 : visible / pixelCount;
   if (coverage < MIN_COVERAGE || coverage > SELF_BACKED_COVERAGE) return "normal";
-  if (dark / visible >= DOMINANT_SHARE) return "dark";
+  if (dark / visible >= DOMINANT_SHARE && colored / visible <= MONOCHROME_SHARE) return "dark";
   if (light / visible >= DOMINANT_SHARE) return "light";
+  if (dark / visible >= MIXED_DARK_SHARE) return "mixed";
   return "normal";
 }
 
