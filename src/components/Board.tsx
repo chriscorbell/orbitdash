@@ -1,3 +1,4 @@
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { memo } from "react";
 import type { Board as BoardData, Link } from "../../shared/types.ts";
 import { linkIconSrc } from "../api.ts";
@@ -16,6 +17,11 @@ const LinkCard = memo(function LinkCard({ link }: { link: Link }) {
     >
       <LinkIcon src={linkIconSrc(link)} />
       <span className="link-name">{link.name}</span>
+      {link.newTab ? (
+        <ArrowUpRight className="link-go" aria-hidden="true" />
+      ) : (
+        <ArrowRight className="link-go" aria-hidden="true" />
+      )}
     </a>
   );
 });

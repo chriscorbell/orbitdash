@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - orbitdash is a startpage: links shown as cards with a title and an icon, grouped under categories. That is the whole product. 2.0 removed everything else 1.x had (metrics, status checks, alerts, notifications, Docker, integrations, widgets, importers, auth, settings); don't bring features back without being asked.
-- Frontend: React 19, TypeScript, Vite, plain CSS (`src/styles.css`, no Tailwind), lucide-react, dnd-kit for edit mode.
+- Frontend: React 19, TypeScript, Vite, plain CSS (`src/styles.css`, no Tailwind), lucide-react, dnd-kit for edit mode. Colors are shadcn/ui's default theme tokens (Neutral base color, dark values only); new colors are mixes of those tokens, not new literals. The font is Geist (`@fontsource-variable/geist`).
 - Backend: Node 24 running TypeScript directly (type stripping, no build step), Hono on `@hono/node-server`, SQLite through the built-in `node:sqlite`.
 - Package manager: pnpm (pinned in `packageManager`). The runtime image installs only `dependencies` (`hono`, `@hono/node-server`); everything the browser bundle needs is a devDependency.
 

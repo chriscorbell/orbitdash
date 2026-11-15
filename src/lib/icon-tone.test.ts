@@ -32,8 +32,22 @@ describe("classifyIconPixels", () => {
 
   it("needs a clear majority before choosing a tone", () => {
     const data = pixels(100, 40, [20, 20, 20]);
-    data.set(pixels(20, 20, [240, 60, 60]), 0);
+    data.set(pixels(30, 30, [240, 60, 60]), 0);
     expect(classifyIconPixels(data)).toBe("normal");
+  });
+
+  it("only reverses plain dark glyphs; colored logos with dark parts are mixed", () => {
+    const halfDark = pixels(100, 40, [20, 20, 20]);
+    halfDark.set(pixels(20, 20, [240, 140, 20]), 0);
+    expect(classifyIconPixels(halfDark)).toBe("mixed");
+
+    const darkWithGold = pixels(100, 40, [30, 30, 30]);
+    darkWithGold.set(pixels(10, 10, [230, 170, 30]), 0);
+    expect(classifyIconPixels(darkWithGold)).toBe("mixed");
+
+    const darkWithSpeck = pixels(100, 40, [30, 30, 30]);
+    darkWithSpeck.set(pixels(2, 2, [230, 60, 160]), 0);
+    expect(classifyIconPixels(darkWithSpeck)).toBe("dark");
   });
 });
 

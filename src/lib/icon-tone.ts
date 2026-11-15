@@ -1,10 +1,12 @@
 /**
- * Icon tone: whether an icon is mostly very dark or very light. A dark glyph disappears on the dark
- * theme (and a white one on the light theme), so cards put those icons on a contrasting plate.
+ * Icon tone: whether an icon would vanish on the dark page. A plain dark glyph ("dark") is drawn
+ * in reverse; a colored logo with large dark parts ("mixed") gets a faint outline instead, so its
+ * colors stay true.
  */
-export type IconTone = "dark" | "light" | "normal";
+export type IconTone = "dark" | "mixed" | "light" | "normal";
 
-const CACHE_KEY = "orbitdash.iconTones";
+// Bumped when the classification changes, so old verdicts aren't reused.
+const CACHE_KEY = "orbitdash.iconTones.v2";
 const CACHE_LIMIT = 300;
 
 const memoryCache = new Map<string, IconTone>();
@@ -12,7 +14,7 @@ const pending = new Map<string, Promise<IconTone>>();
 let storageLoaded = false;
 
 function isTone(value: unknown): value is IconTone {
-  return value === "dark" || value === "light" || value === "normal";
+  return value === "dark" || value === "mixed" || value === "light" || value === "normal";
 }
 
 function loadStoredTones() {
@@ -45,7 +47,7 @@ export function getCachedIconTone(src: string): IconTone | undefined {
   return memoryCache.get(src);
 }
 
-/** Measures an icon once per URL; same-origin icons only, anything unreadable counts as normal. */
+/** Measures an icon once per URL; anything unreadable (no CORS, broken image) counts as normal. */
 export function measureIconTone(src: string): Promise<IconTone> {
   const cached = getCachedIconTone(src);
   if (cached) return Promise.resolve(cached);
@@ -58,6 +60,8 @@ export function measureIconTone(src: string): Promise<IconTone> {
     new Promise<HTMLImageElement | null>((resolve) => {
       const image = new Image();
       image.decoding = "async";
+      // Library icons come from a CDN that allows CORS; without this the canvas can't be read.
+      if (new URL(src, location.href).origin !== location.origin) image.crossOrigin = "anonymous";
       image.onload = () => resolve(image);
       image.onerror = () => resolve(null);
       image.src = src;

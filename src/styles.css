@@ -1,24 +1,43 @@
 :root {
   color-scheme: dark;
 
-  --bg: oklch(0.155 0.008 255);
-  --surface: oklch(0.195 0.009 255);
-  --surface-hover: oklch(0.23 0.01 255);
-  --surface-raised: oklch(0.205 0.01 255);
-  --text: oklch(0.955 0.004 255);
-  --text-muted: oklch(0.7 0.012 255);
-  --text-faint: oklch(0.55 0.012 255);
-  --border: oklch(1 0 0 / 7%);
-  --border-strong: oklch(1 0 0 / 13%);
-  --accent: oklch(0.92 0.005 255);
-  --accent-text: oklch(0.2 0.01 255);
-  --danger: oklch(0.7 0.17 22);
-  --ring: oklch(0.92 0.005 255 / 55%);
+  /* shadcn/ui's default theme (Neutral base color), dark values; orbitdash is dark only. */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
 
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* Nested corners stay concentric: a row's radius is its panel's minus the panel's padding. */
+  --radius-panel: 14px;
+  --panel-padding: 5px;
+  --radius-row: 9px;
+  --radius-control: 9px;
+  --radius-dialog: 18px;
+
+  --control-height: 34px;
+  --control-padding: 13px;
+
+  --shadow-pop:
+    inset 0 1px 0 oklch(1 0 0 / 5%), 0 0 0 1px var(--border), 0 24px 48px -12px oklch(0 0 0 / 65%);
+  /* Dialogs sit on a dimmed backdrop, so their shadow is softer and wider than a menu's. */
+  --shadow-dialog:
+    inset 0 1px 0 oklch(1 0 0 / 5%), 0 0 0 1px var(--border), 0 32px 64px -24px oklch(0 0 0 / 45%);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --font: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 *,
@@ -33,10 +52,11 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 400 14px/1.4 var(--font);
+  background: var(--background);
+  color: var(--foreground);
+  font: 400 14px/1.45 var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1,
@@ -64,7 +84,7 @@ input {
 }
 
 ::selection {
-  background: oklch(0.92 0.005 255 / 25%);
+  background: color-mix(in oklch, var(--foreground) 25%, transparent);
 }
 
 :focus-visible {
@@ -81,9 +101,9 @@ svg.lucide {
 /* Page */
 
 .page {
-  max-width: 88rem;
+  max-width: 84rem;
   margin: 0 auto;
-  padding: 0 24px 64px;
+  padding: 0 32px 80px;
 }
 
 .topbar {
@@ -91,16 +111,16 @@ svg.lucide {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
+  min-height: 76px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .toolbar {
@@ -115,22 +135,49 @@ svg.lucide {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   padding: 6px 6px 6px 14px;
-  border: 1px solid oklch(0.7 0.17 22 / 35%);
-  border-radius: var(--radius-sm);
-  background: oklch(0.7 0.17 22 / 10%);
+  border-radius: var(--radius-control);
+  background: color-mix(in oklch, var(--destructive) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--destructive) 35%, transparent);
+  color: var(--destructive);
   animation: rise 260ms var(--ease-out);
 }
 
 .empty {
   display: grid;
   justify-items: center;
-  gap: 16px;
-  padding: 18vh 0;
-  color: var(--text-muted);
+  gap: 14px;
+  padding: 20vh 0;
   text-align: center;
   animation: rise 420ms var(--ease-out);
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-panel);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--muted-foreground);
+}
+
+.empty-icon svg.lucide {
+  width: 22px;
+  height: 22px;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--card-foreground);
+}
+
+.empty .button {
+  margin-top: 6px;
 }
 
 /* Buttons */
@@ -139,25 +186,26 @@ svg.lucide {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  gap: 7px;
+  height: var(--control-height);
+  padding: 0 var(--control-padding);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: color-mix(in oklch, var(--input) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--input);
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition:
     background-color 150ms ease,
-    border-color 150ms ease,
+    color 150ms ease,
     opacity 150ms ease,
     scale 150ms var(--ease-out);
 }
 
 .button:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: color-mix(in oklch, var(--input) 50%, transparent);
 }
 
 .button:active:not(:disabled) {
@@ -170,59 +218,77 @@ svg.lucide {
 }
 
 .button[data-variant="primary"] {
-  border-color: transparent;
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--primary);
+  box-shadow: none;
+  color: var(--primary-foreground);
 }
 
 .button[data-variant="primary"]:hover:not(:disabled) {
-  background: oklch(0.86 0.005 255);
+  background: color-mix(in oklch, var(--primary) 90%, transparent);
 }
 
 .button[data-variant="ghost"] {
-  border-color: transparent;
   background: transparent;
-  color: var(--text-muted);
+  box-shadow: none;
+  color: var(--muted-foreground);
 }
 
 .button[data-variant="ghost"]:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--text);
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 .button[data-variant="danger"] {
-  border-color: transparent;
-  background: var(--danger);
-  color: oklch(0.18 0.03 20);
+  background: color-mix(in oklch, var(--destructive) 60%, transparent);
+  box-shadow: none;
+  color: var(--foreground);
+}
+
+.button[data-variant="danger"]:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--destructive) 70%, transparent);
+}
+
+.button[data-variant="ghost"][data-danger] {
+  color: var(--destructive);
+}
+
+.button[data-variant="ghost"][data-danger]:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--destructive) 14%, transparent);
+  color: var(--destructive);
 }
 
 .button[data-icon-only] {
-  width: 32px;
+  width: var(--control-height);
   padding: 0;
+}
+
+/* The lone edit button's glyph lines up with the right edge of the board below it. */
+.toolbar > .button[data-icon-only]:only-child {
+  margin-right: calc((16px - var(--control-height)) / 2);
 }
 
 /* Board */
 
 .board {
   display: grid;
-  gap: 28px;
+  gap: 32px;
 }
 
 .columns {
   display: grid;
   grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
-  gap: 24px;
+  gap: 20px;
   align-items: start;
 }
 
 .column {
   display: grid;
-  gap: 24px;
+  gap: 32px;
 }
 
 .category {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   animation-delay: calc(min(var(--i, 0), 10) * 45ms);
 }
 
@@ -237,95 +303,114 @@ main[data-intro] .link-grid {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 32px;
-  padding: 0 4px;
+  min-height: 26px;
+  /* Lines the label up with the icons in the panel below. */
+  padding: 0 calc(var(--panel-padding) + 4px) 0 calc(var(--panel-padding) + 10px);
 }
 
 .category-name {
   overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
   text-overflow: ellipsis;
+  /* Uppercase has no descenders, so this centres the caps on the buttons beside them. */
+  padding-top: 1px;
   white-space: nowrap;
 }
 
 .category-actions {
   display: flex;
   gap: 2px;
-  transition: opacity 150ms ease;
-}
-
-/* Shown for the category under the pointer or holding focus; touch screens always show them. */
-@media (hover: hover) {
-  .category:not(:hover, :focus-within) .category-actions {
-    opacity: 0;
-  }
+  margin: -4px 0;
 }
 
 .category-actions .button {
   width: 28px;
   height: 28px;
+  color: var(--muted-foreground);
 }
 
-.category-actions svg.lucide {
-  width: 15px;
-  height: 15px;
-}
-
-.link-list {
+/* A category's links share one panel; each link is a row inside it. */
+.link-list,
+.link-grid {
   display: grid;
-  gap: 6px;
+  gap: 1px;
+  padding: var(--panel-padding);
+  border-radius: var(--radius-panel);
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    0 1px 2px oklch(0 0 0 / 20%);
 }
 
 .link-grid,
 .columns[data-single] .link-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
 }
 
-/* Cards */
+/* Rows */
 
 .link-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   height: 40px;
-  padding: 0 12px 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
+  padding: 0 10px;
+  border-radius: var(--radius-row);
+  color: var(--card-foreground);
   text-decoration: none;
   transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease,
-    translate 180ms var(--ease-out),
-    scale 180ms var(--ease-out);
+    background-color 160ms ease,
+    color 160ms ease,
+    scale 160ms var(--ease-out);
 }
 
 a.link-card:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-  box-shadow: 0 6px 18px -10px oklch(0 0 0 / 70%);
-  translate: 0 -1px;
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 a.link-card:active {
-  translate: 0;
+  background: color-mix(in oklch, var(--accent), var(--foreground) 8%);
   scale: 0.985;
+}
+
+a.link-card:focus-visible {
+  outline-offset: -2px;
 }
 
 .link-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
+  letter-spacing: -0.006em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.link-go {
+  color: var(--muted-foreground);
+  opacity: 0;
+  translate: -3px 3px;
+  transition:
+    opacity 160ms ease,
+    translate 200ms var(--ease-out);
+}
+
+.link-card svg.link-go {
+  width: 14px;
+  height: 14px;
+}
+
+a.link-card:hover .link-go,
+a.link-card:focus-visible .link-go {
+  opacity: 1;
+  translate: 0;
 }
 
 .link-icon {
@@ -336,102 +421,188 @@ a.link-card:active {
   width: 22px;
   height: 22px;
   overflow: hidden;
-  border-radius: 5px;
-  color: var(--text-faint);
-  transition: background-color 200ms ease;
-}
-
-.link-icon[data-large] {
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  border-radius: 6px;
+  color: var(--muted-foreground);
 }
 
 .link-icon img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: padding 200ms ease;
+  transition: filter 200ms ease;
+}
+
+/* Dark logos (black glyphs, mostly) would vanish on the dark page, so they're drawn in reverse. */
+.link-icon[data-tone="dark"] img {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Colored logos with large dark parts keep their colors and get a hairline edge instead. */
+.link-icon[data-tone="mixed"] img {
+  filter: drop-shadow(0 0 0.5px oklch(1 0 0 / 50%));
+}
+
+.link-icon[data-large] {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-panel);
+  background: color-mix(in oklch, var(--input) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .link-icon[data-large] img {
-  padding: 6px;
+  padding: 10px;
 }
 
-/* Icons that would vanish on the dark page sit on a light plate. */
-.link-icon[data-tone="dark"] {
-  background: oklch(0.93 0.004 255);
-}
-
-.link-icon[data-tone="dark"] img {
-  padding: 14%;
+.link-icon[data-large] svg.lucide {
+  width: 22px;
+  height: 22px;
 }
 
 /* Edit mode */
 
 .link-card[data-editing] {
   cursor: grab;
-  border-style: dashed;
-  border-color: var(--border-strong);
 }
 
 .sortable > div {
-  border-radius: 10px;
+  border-radius: var(--radius-row);
+}
+
+.sortable > div:focus-visible {
+  outline-offset: -2px;
 }
 
 .sortable > div:hover .link-card {
-  background: var(--surface-hover);
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 .sortable[data-dragging] {
-  opacity: 0.35;
+  opacity: 0.3;
 }
 
 .link-card[data-overlay] {
   cursor: grabbing;
-  border-style: solid;
-  background: var(--surface-hover);
-  box-shadow: 0 16px 32px -12px oklch(0 0 0 / 75%);
-  scale: 1.03;
+  background: var(--popover);
+  box-shadow: var(--shadow-pop);
+  color: var(--foreground);
+  scale: 1.02;
 }
 
-.grip {
-  color: var(--text-faint);
+.link-card .grip {
+  color: var(--muted-foreground);
 }
 
 [data-drop-target] {
-  min-height: 40px;
-  border-radius: 10px;
+  min-height: calc(40px + 2 * var(--panel-padding));
   transition:
     background-color 150ms ease,
-    outline-color 150ms ease;
-  outline: 1px dashed transparent;
-  outline-offset: 2px;
+    box-shadow 150ms ease;
 }
 
+/* An empty category still shows where links can land. */
 [data-drop-target][data-empty] {
-  outline-color: var(--border-strong);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+  outline: 1px dashed var(--input);
+  outline-offset: -6px;
 }
 
 [data-drop-target][data-over] {
-  background: oklch(1 0 0 / 3%);
-  outline-color: var(--text-faint);
+  box-shadow:
+    inset 0 0 0 1px var(--ring),
+    0 1px 2px oklch(0 0 0 / 20%);
+}
+
+/* Menus */
+
+.menu {
+  position: fixed;
+  inset: auto;
+  width: 196px;
+  margin: 0;
+  padding: var(--panel-padding);
+  border: 0;
+  /* Opens inset in a panel, so its corner nests inside the panel's. */
+  border-radius: var(--radius-row);
+  background: var(--popover);
+  box-shadow: var(--shadow-pop);
+  color: var(--foreground);
+}
+
+.menu:popover-open {
+  animation: menu-in 150ms var(--ease-out);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--card-foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item svg.lucide {
+  color: var(--muted-foreground);
+}
+
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
+  background: var(--accent);
+  color: var(--foreground);
+  outline: none;
+}
+
+.menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu-item[data-danger],
+.menu-item[data-danger] svg.lucide {
+  color: var(--destructive);
+}
+
+.menu-item[data-danger]:hover,
+.menu-item[data-danger]:focus-visible {
+  background: color-mix(in oklch, var(--destructive) 14%, transparent);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border);
 }
 
 /* Dialogs */
 
 .dialog {
-  width: min(26rem, calc(100vw - 32px));
+  width: min(27rem, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  color: var(--text);
-  box-shadow: 0 24px 64px -24px oklch(0 0 0 / 80%);
-  animation: dialog-in 220ms var(--ease-out);
+  border: 0;
+  border-radius: var(--radius-dialog);
+  background: var(--popover);
+  color: var(--foreground);
+  box-shadow: var(--shadow-dialog);
+  animation: dialog-in 240ms var(--ease-out);
+}
+
+/* Title, then fields, then footer: only the fields scroll when the screen is short. */
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .dialog[data-wide] {
@@ -439,9 +610,9 @@ a.link-card:active {
 }
 
 .dialog::backdrop {
-  background: oklch(0.1 0.01 255 / 60%);
-  backdrop-filter: blur(3px);
-  animation: fade-in 220ms ease;
+  background: oklch(0 0 0 / 76%);
+  backdrop-filter: blur(4px);
+  animation: fade-in 240ms ease;
 }
 
 .dialog[data-closing] {
@@ -453,42 +624,70 @@ a.link-card:active {
 }
 
 .dialog-body {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  padding: 24px;
 }
 
 .dialog-body form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+
+.dialog-fields {
   display: grid;
-  gap: 16px;
+  gap: 18px;
+  min-height: 0;
+  /* Bleeds to the dialog's edges so focus rings aren't clipped and the scrollbar sits at the side. */
+  margin: -4px -24px;
+  padding: 4px 24px;
+  overflow-y: auto;
+  scrollbar-color: var(--input) transparent;
+  scrollbar-width: thin;
+}
+
+/* While more fields sit below, the clipped edge fades out instead of cutting through them. */
+.dialog-fields[data-more] {
+  mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent);
 }
 
 .dialog-title {
   font-size: 16px;
   font-weight: 600;
+  letter-spacing: -0.012em;
 }
 
 .dialog-text {
-  color: var(--text-muted);
+  margin-top: -10px;
+  color: var(--muted-foreground);
 }
 
 .dialog-footer {
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding-top: 4px;
+  padding-top: 6px;
 }
 
 .dialog-footer [data-push] {
   margin-right: auto;
 }
 
+.dialog-footer [data-push][data-variant="ghost"] {
+  margin-left: calc(-1 * var(--control-padding));
+}
+
 /* Forms */
 
 .field {
   display: grid;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
 }
 
@@ -500,32 +699,39 @@ a.link-card:active {
 
 .field-label {
   padding: 0;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 .field-hint {
-  font-size: 12px;
-  color: var(--text-faint);
+  font-size: 13px;
+  color: var(--muted-foreground);
 }
 
 .input {
   width: 100%;
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  transition: border-color 150ms ease;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: color-mix(in oklch, var(--input) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition: box-shadow 150ms ease;
+}
+
+.input:hover {
+  box-shadow: inset 0 0 0 1px var(--input);
 }
 
 .input::placeholder {
-  color: var(--text-faint);
+  color: var(--muted-foreground);
 }
 
 .input:focus {
-  border-color: var(--ring);
+  box-shadow:
+    inset 0 0 0 1px var(--ring),
+    0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
   outline: none;
 }
 
@@ -533,28 +739,65 @@ a.link-card:active {
   display: none;
 }
 
-.checkbox {
+.switch-field {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   justify-self: start;
+  font-size: 13px;
+  color: var(--card-foreground);
   cursor: pointer;
 }
 
-.checkbox input {
-  width: 16px;
-  height: 16px;
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 30px;
+  height: 18px;
   margin: 0;
-  accent-color: var(--accent);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--input) 80%, transparent);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--foreground);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 35%);
+  transition:
+    translate 200ms var(--ease-out),
+    background-color 180ms ease;
+}
+
+.switch:checked {
+  background: var(--primary);
+}
+
+.switch:checked::before {
+  background: var(--primary-foreground);
+  translate: 12px 0;
 }
 
 .form-error {
-  color: var(--danger);
+  color: var(--destructive);
   animation: rise 220ms var(--ease-out);
 }
 
 .icon-field {
-  gap: 10px;
+  gap: 12px;
+}
+
+/* A legend isn't a grid item, so the field's gap doesn't reach it. */
+.icon-field > legend {
+  padding-bottom: 7px;
 }
 
 .icon-current {
@@ -564,7 +807,7 @@ a.link-card:active {
 }
 
 .icon-current .link-icon {
-  margin-right: 4px;
+  margin-right: 6px;
 }
 
 .icon-search {
@@ -572,28 +815,34 @@ a.link-card:active {
 }
 
 .icon-search .input {
-  padding-left: 32px;
+  padding-left: 36px;
 }
 
 .icon-search svg.lucide {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  color: var(--text-faint);
+  top: 50%;
+  left: 12px;
+  translate: 0 -50%;
+  color: var(--muted-foreground);
 }
 
 .icon-search .spinner {
-  right: 10px;
+  right: 12px;
   left: auto;
   animation: spin 900ms linear infinite;
 }
 
 .icon-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-  gap: 6px;
-  max-height: 140px;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+  /* Three rows of the widest tiles the dialog produces (about 48px). */
+  max-height: calc(3 * 50px + 2 * 8px + 4px);
+  margin: -2px;
+  padding: 2px;
   overflow-y: auto;
+  scrollbar-color: var(--input) transparent;
+  scrollbar-width: thin;
   transition: opacity 150ms ease;
 }
 
@@ -606,29 +855,74 @@ a.link-card:active {
   place-items: center;
   width: 100%;
   aspect-ratio: 1;
-  padding: 7px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
+  padding: 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  /* Lighter than the fields, so dark artwork stays legible. */
+  background: var(--secondary);
+  box-shadow: inset 0 0 0 1px var(--border);
   cursor: pointer;
   animation: fade-in 200ms ease both;
   transition:
-    border-color 150ms ease,
-    background-color 150ms ease;
+    background-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .icon-option:hover {
-  background: var(--surface-hover);
+  background: color-mix(in oklch, var(--secondary), var(--foreground) 6%);
 }
 
 .icon-option[aria-pressed="true"] {
-  border-color: var(--accent);
+  background: color-mix(in oklch, var(--secondary), var(--foreground) 8%);
+  box-shadow: inset 0 0 0 2px var(--primary);
 }
 
 .icon-option img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.icon-option[data-tone="dark"] img {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* A text field that also offers a list (the category's datalist) behind a chevron. */
+.picker {
+  position: relative;
+  display: block;
+}
+
+.picker .input {
+  padding-right: 38px;
+}
+
+.picker .input::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+
+.picker-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  translate: 0 -50%;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.picker-toggle:hover {
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 /* Motion */
@@ -655,8 +949,8 @@ a.link-card:active {
 @keyframes dialog-in {
   from {
     opacity: 0;
-    translate: 0 8px;
-    scale: 0.98;
+    translate: 0 10px;
+    scale: 0.97;
   }
 }
 
@@ -668,9 +962,119 @@ a.link-card:active {
   }
 }
 
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+    scale: 0.97;
+  }
+}
+
 @keyframes spin {
   to {
     rotate: 360deg;
+  }
+}
+
+/* Touch screens: no hover to reveal the arrow, and every control gets a finger-sized target. */
+@media (hover: none) {
+  .link-go {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  :root {
+    --control-height: 44px;
+    --control-padding: 16px;
+  }
+
+  /* Negative margins keep the header as tall as in view mode, so switching modes doesn't shift. */
+  .category-actions {
+    gap: 0;
+    margin: -9px -8px -9px 0;
+  }
+
+  .category-actions .button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .link-card {
+    height: 44px;
+  }
+
+  .link-name {
+    font-size: 15px;
+  }
+
+  .input {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .dialog-title {
+    font-size: 18px;
+  }
+
+  .button,
+  .switch-field {
+    font-size: 14px;
+  }
+
+  .picker-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .switch-field {
+    min-height: 44px;
+    margin-block: -12px;
+  }
+
+  .menu-item {
+    height: 42px;
+    font-size: 14px;
+  }
+}
+
+/* Phones and short screens: the icon results scroll with the rest of the fields instead of on
+   their own. */
+@media (max-width: 560px), (max-height: 760px) {
+  .icon-results {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Short screens: the link dialog (the only wide, scrolling one) tightens so its opening view
+   reaches the icon results. The small dialogs never scroll and keep their spacing. */
+@media (max-height: 760px) {
+  .dialog[data-wide] .dialog-body {
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .dialog[data-wide] form {
+    gap: 14px;
+  }
+
+  .dialog[data-wide] .dialog-fields {
+    gap: 12px;
+    margin: -4px -18px;
+    padding: 4px 18px;
+  }
+
+  .icon-field {
+    gap: 10px;
+  }
+
+  .icon-field > legend {
+    padding-bottom: 6px;
+  }
+
+  .dialog[data-wide] .field {
+    gap: 6px;
   }
 }
 
@@ -690,8 +1094,25 @@ a.link-card:active {
     padding: 0 16px 48px;
   }
 
+  .topbar {
+    min-height: 64px;
+    margin-bottom: 8px;
+  }
+
+  /* The bright Done button sits right behind a phone dialog's corner. */
+  .dialog::backdrop {
+    background: oklch(0 0 0 / 92%);
+    backdrop-filter: none;
+  }
+
+  /* Icon-only on phones, and square like the other icon buttons. */
   .toolbar .label {
     display: none;
+  }
+
+  .toolbar .button:has(.label) {
+    width: var(--control-height);
+    padding: 0;
   }
 
   .field-row {
@@ -701,5 +1122,12 @@ a.link-card:active {
   .link-grid,
   .columns[data-single] .link-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Two rows share a phone's width, so the grip (the whole row drags) and the hover arrow give
+     way to the name. */
+  .link-card .grip,
+  .link-go {
+    display: none;
   }
 }

@@ -19,7 +19,7 @@ async function board(page: Page): Promise<Board> {
 
 test("adds, edits, arranges and deletes links", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("No links yet.")).toBeVisible();
+  await expect(page.getByText("No links yet")).toBeVisible();
 
   await page.getByRole("button", { name: "Add a link" }).click();
   await addLink(page, { url: "example.com", name: "Example", category: "Tools" });
@@ -68,7 +68,8 @@ test("adds, edits, arranges and deletes links", async ({ page }) => {
   await expect(page.locator(".link-card[data-overlay]")).toHaveCount(0);
 
   // Deleting a category keeps its links.
-  await page.getByRole("button", { name: "Delete Tools" }).click();
+  await page.getByRole("button", { name: "Actions for Tools" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("button", { name: "Delete category" }).click();
   await expect(page.getByRole("heading", { name: "No category" })).toBeVisible();
   expect((await board(page)).links.map((link) => [link.name, link.categoryId])).toEqual([
