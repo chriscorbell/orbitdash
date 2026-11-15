@@ -613,7 +613,7 @@ a.link-card:focus-visible .link-go {
 }
 
 .dialog::backdrop {
-  background: oklch(0.08 0.01 265 / 70%);
+  background: oklch(0.08 0.01 265 / 76%);
   backdrop-filter: blur(4px);
   animation: fade-in 240ms ease;
 }
@@ -1050,18 +1050,19 @@ a.link-card:focus-visible .link-go {
   }
 }
 
-/* Short screens: the dialog's spacing tightens so the opening view reaches the icon results. */
+/* Short screens: the link dialog (the only wide, scrolling one) tightens so its opening view
+   reaches the icon results. The small dialogs never scroll and keep their spacing. */
 @media (max-height: 760px) {
-  .dialog-body {
+  .dialog[data-wide] .dialog-body {
     gap: 12px;
     padding: 18px;
   }
 
-  .dialog-body form {
+  .dialog[data-wide] form {
     gap: 14px;
   }
 
-  .dialog-fields {
+  .dialog[data-wide] .dialog-fields {
     gap: 12px;
     margin: -4px -18px;
     padding: 4px 18px;
@@ -1075,7 +1076,7 @@ a.link-card:focus-visible .link-go {
     padding-bottom: 6px;
   }
 
-  .field {
+  .dialog[data-wide] .field {
     gap: 6px;
   }
 }
@@ -1103,7 +1104,7 @@ a.link-card:focus-visible .link-go {
 
   /* The bright Done button sits right behind a phone dialog's corner. */
   .dialog::backdrop {
-    background: oklch(0.08 0.01 265 / 85%);
+    background: oklch(0.08 0.01 265 / 92%);
     backdrop-filter: none;
   }
 
