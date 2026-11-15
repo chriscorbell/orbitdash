@@ -64,6 +64,8 @@ test("adds, edits, arranges and deletes links", async ({ page }) => {
       return links.filter((link) => link.categoryId === tools.id).map((link) => link.name);
     })
     .toEqual(["Example Site", "Media Server"]);
+  // dnd-kit swallows clicks for 50 ms after a drag; the drop animation outlasts that.
+  await expect(page.locator(".link-card[data-overlay]")).toHaveCount(0);
 
   // Deleting a category keeps its links.
   await page.getByRole("button", { name: "Delete Tools" }).click();
