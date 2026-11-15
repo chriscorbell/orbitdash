@@ -1,5 +1,5 @@
 import { Check, FolderPlus, Pencil, Plus, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, startTransition, Suspense, useEffect, useState } from "react";
 import type { Category, Layout, Link } from "../shared/types.ts";
 import { api, ApiError } from "./api.ts";
 import { Board } from "./components/Board.tsx";
@@ -37,8 +37,12 @@ export function App() {
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   function setEditing(next: boolean) {
-    setIntro(false);
-    setEditingState(next);
+    // A transition keeps the current mode on screen until edit mode's code has loaded, so the
+    // toolbar and the board switch together.
+    startTransition(() => {
+      setIntro(false);
+      setEditingState(next);
+    });
   }
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -142,25 +146,27 @@ export function App() {
       )}
 
       <main data-intro={intro || undefined}>
-        {!board ? (
-          error && (
+        {/* Always mounted, so switching modes in a transition keeps the current board up while
+            edit mode loads instead of showing a fallback. */}
+        <Suspense fallback={null}>
+          {!board ? (
+            error && (
+              <div className="empty">
+                <p>The board couldn't be loaded. {error}</p>
+                <button type="button" className="button" onClick={() => void reload()}>
+                  Try again
+                </button>
+              </div>
+            )
+          ) : isEmpty ? (
             <div className="empty">
-              <p>The board couldn't be loaded. {error}</p>
-              <button type="button" className="button" onClick={() => void reload()}>
-                Try again
+              <p>No links yet.</p>
+              <button type="button" className="button" data-variant="primary" onClick={startAdding}>
+                <Plus aria-hidden="true" />
+                Add a link
               </button>
             </div>
-          )
-        ) : isEmpty ? (
-          <div className="empty">
-            <p>No links yet.</p>
-            <button type="button" className="button" data-variant="primary" onClick={startAdding}>
-              <Plus aria-hidden="true" />
-              Add a link
-            </button>
-          </div>
-        ) : editing ? (
-          <Suspense fallback={<Board board={board} />}>
+          ) : editing ? (
             <EditBoard
               board={board}
               onArrange={(layout) => void arrange(layout)}
@@ -170,10 +176,10 @@ export function App() {
               onRenameCategory={(category) => setDialog({ kind: "category", category })}
               onDeleteCategory={(category) => setDialog({ kind: "delete-category", category })}
             />
-          </Suspense>
-        ) : (
-          <Board board={board} />
-        )}
+          ) : (
+            <Board board={board} />
+          )}
+        </Suspense>
       </main>
 
       <Suspense fallback={null}>

@@ -23,6 +23,9 @@ export function Columns<T>({ items, keyOf, heightOf, render }: ColumnsProps<T>) 
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
+    // Measured before the first paint: the observer reports a frame late, which showed a remount
+    // (every switch in or out of edit mode) at the default count for one frame.
+    setCount(columnCountForWidth(element.getBoundingClientRect().width));
     const observer = new ResizeObserver(([entry]) => {
       setCount(columnCountForWidth(entry.contentRect.width));
     });
