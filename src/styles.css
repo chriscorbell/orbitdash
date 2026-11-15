@@ -319,6 +319,8 @@ main[data-intro] .link-grid {
   text-transform: uppercase;
   color: oklch(0.64 0.01 265);
   text-overflow: ellipsis;
+  /* Uppercase has no descenders, so this centres the caps on the buttons beside them. */
+  padding-top: 1px;
   white-space: nowrap;
 }
 
@@ -598,6 +600,13 @@ a.link-card:focus-visible .link-go {
   animation: dialog-in 240ms var(--ease-out);
 }
 
+/* Title, then fields, then footer: only the fields scroll when the screen is short. */
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .dialog[data-wide] {
   width: min(34rem, calc(100vw - 32px));
 }
@@ -617,14 +626,30 @@ a.link-card:focus-visible .link-go {
 }
 
 .dialog-body {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+  min-height: 0;
   padding: 24px;
 }
 
 .dialog-body form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+
+.dialog-fields {
   display: grid;
   gap: 18px;
+  min-height: 0;
+  /* Bleeds to the dialog's edges so focus rings aren't clipped and the scrollbar sits at the side. */
+  margin: -4px -24px;
+  padding: 4px 24px;
+  overflow-y: auto;
+  scrollbar-color: oklch(1 0 0 / 15%) transparent;
+  scrollbar-width: thin;
 }
 
 .dialog-title {
@@ -638,18 +663,26 @@ a.link-card:focus-visible .link-go {
   color: var(--text-muted);
 }
 
-/* Stays in view when a tall dialog scrolls on a short screen; the fade shows there's more above. */
 .dialog-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  position: relative;
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  margin: -12px -24px -24px;
-  padding: 18px 24px 24px;
-  background: linear-gradient(to bottom, oklch(0.212 0.008 265 / 0), var(--raised) 14px);
+  padding-top: 6px;
+}
+
+/* Fields scrolling under the footer fade out. At rest this sits over the empty gap above it. */
+.dialog-footer::before {
+  content: "";
+  position: absolute;
+  right: -24px;
+  bottom: 100%;
+  left: -24px;
+  height: 16px;
+  background: linear-gradient(to bottom, oklch(0.212 0.008 265 / 0), var(--raised));
+  pointer-events: none;
 }
 
 .dialog-footer [data-push] {
@@ -811,10 +844,10 @@ a.link-card:focus-visible .link-go {
 
 .icon-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 44px);
-  justify-content: space-between;
-  gap: 8px 6px;
-  max-height: calc(3 * 44px + 2 * 8px + 4px);
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+  /* Three rows of the widest tiles the dialog produces (about 48px). */
+  max-height: calc(3 * 50px + 2 * 8px + 4px);
   margin: -2px;
   padding: 2px;
   overflow-y: auto;
@@ -837,7 +870,7 @@ a.link-card:focus-visible .link-go {
   border-radius: var(--radius-control);
   /* Lighter than the fields, so dark artwork stays legible. */
   background: oklch(0.255 0.007 265);
-  box-shadow: inset 0 0 0 1px var(--border);
+  box-shadow: inset 0 0 0 1px var(--panel-edge);
   cursor: pointer;
   animation: fade-in 200ms ease both;
   transition:
@@ -994,6 +1027,11 @@ a.link-card:focus-visible .link-go {
     font-size: 18px;
   }
 
+  .button,
+  .switch-field {
+    font-size: 14px;
+  }
+
   .picker-toggle {
     width: 36px;
     height: 36px;
@@ -1009,10 +1047,26 @@ a.link-card:focus-visible .link-go {
   }
 }
 
-/* Short screens keep two rows of icon results, leaving room for the rest of the form. */
-@media (max-height: 760px) {
+/* Phones and short screens: the icon results scroll with the rest of the fields instead of on
+   their own. */
+@media (max-width: 560px), (max-height: 760px) {
   .icon-results {
-    max-height: calc(2 * 44px + 8px + 4px);
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Short screens: the dialog's spacing tightens a little. */
+@media (max-height: 760px) {
+  .dialog-body {
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .dialog-fields {
+    gap: 14px;
+    margin: -4px -20px;
+    padding: 4px 20px;
   }
 }
 
@@ -1035,6 +1089,11 @@ a.link-card:focus-visible .link-go {
   .topbar {
     min-height: 64px;
     margin-bottom: 8px;
+  }
+
+  /* The bright Done button sits right behind a phone dialog's corner. */
+  .dialog::backdrop {
+    background: oklch(0.08 0.01 265 / 80%);
   }
 
   /* Icon-only on phones, and square like the other icon buttons. */

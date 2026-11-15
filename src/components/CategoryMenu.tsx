@@ -10,9 +10,10 @@ interface CategoryMenuProps {
   onDelete: () => void;
 }
 
-// Far enough below the button that the menu's top edge clearly overlaps the panel's.
 const GAP = 10;
 const EDGE = 8;
+/** The panel's own padding, so the menu's edges run parallel to the panel's like its rows do. */
+const INSET = 5;
 
 /** A category's less frequent actions, in a popover menu under a "more" button. */
 export function CategoryMenu({ name, first, last, onRename, onMove, onDelete }: CategoryMenuProps) {
@@ -27,14 +28,20 @@ export function CategoryMenu({ name, first, last, onRename, onMove, onDelete }: 
 
     const close = () => menu.hidePopover();
 
-    // Placed under the button, right edges aligned, before it shows; flipped above if it would
-    // run off the bottom once its height is known.
+    // Opens over the category's panel, inset from its top-right corner, before it shows; flipped
+    // above the button if it would run off the bottom once its height is known.
     function place(event: Event) {
       if ((event as ToggleEvent).newState !== "open") return;
       const rect = button!.getBoundingClientRect();
+      const panel = button!
+        .closest(".category")
+        ?.querySelector<HTMLElement>(".link-list, .link-grid")
+        ?.getBoundingClientRect();
+      const top = panel ? panel.top + INSET : rect.bottom + GAP;
+      const right = panel ? panel.right - INSET : rect.right;
       const width = menu!.offsetWidth || 188;
-      menu!.style.left = `${Math.max(EDGE, Math.min(rect.right - width, innerWidth - width - EDGE))}px`;
-      menu!.style.top = `${rect.bottom + GAP}px`;
+      menu!.style.left = `${Math.max(EDGE, Math.min(right - width, innerWidth - width - EDGE))}px`;
+      menu!.style.top = `${top}px`;
     }
 
     function opened(event: Event) {

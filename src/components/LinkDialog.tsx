@@ -148,141 +148,148 @@ export function LinkDialog({ link, category, categories, onSaved, onClose }: Lin
 
         return (
           <form onSubmit={submit} className="link-form">
-            <label className="field">
-              <span className="field-label">URL</span>
-              <input
-                className="input"
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-                inputMode="url"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="https://"
-                required
-                autoFocus={!link}
-              />
-            </label>
-            <div className="field-row">
+            {/* Scrolls on its own when the dialog is taller than the screen; the footer stays put. */}
+            <div className="dialog-fields">
               <label className="field">
-                <span className="field-label">Name</span>
+                <span className="field-label">URL</span>
                 <input
                   className="input"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  maxLength={100}
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="https://"
                   required
+                  autoFocus={!link}
                 />
               </label>
-              <label className="field">
-                <span className="field-label">Category</span>
-                <span className="picker">
+              <div className="field-row">
+                <label className="field">
+                  <span className="field-label">Name</span>
                   <input
-                    ref={categoryInput}
                     className="input"
-                    value={categoryName}
-                    onChange={(event) => setCategoryName(event.target.value)}
-                    list={categoryListId}
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
                     maxLength={100}
-                    placeholder="None"
+                    required
                   />
+                </label>
+                <label className="field">
+                  <span className="field-label">Category</span>
+                  <span className="picker">
+                    <input
+                      ref={categoryInput}
+                      className="input"
+                      value={categoryName}
+                      onChange={(event) => setCategoryName(event.target.value)}
+                      list={categoryListId}
+                      maxLength={100}
+                      placeholder="None"
+                    />
+                    <button
+                      type="button"
+                      className="picker-toggle"
+                      tabIndex={-1}
+                      aria-label="Show categories"
+                      onClick={() => {
+                        const input = categoryInput.current;
+                        if (!input) return;
+                        input.focus();
+                        try {
+                          input.showPicker();
+                        } catch {
+                          // Browsers without showPicker for datalists still list them on typing.
+                        }
+                      }}
+                    >
+                      <ChevronDown aria-hidden="true" />
+                    </button>
+                  </span>
+                  <datalist id={categoryListId}>
+                    {categories.map((item) => (
+                      <option key={item.id} value={item.name} />
+                    ))}
+                  </datalist>
+                </label>
+              </div>
+
+              <label className="switch-field">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="switch"
+                  checked={newTab}
+                  onChange={(event) => setNewTab(event.target.checked)}
+                />
+                Open in a new tab
+              </label>
+
+              <fieldset className="field icon-field">
+                <legend className="field-label">Icon</legend>
+                <div className="icon-current">
+                  <LinkIcon src={preview} large />
                   <button
                     type="button"
-                    className="picker-toggle"
-                    tabIndex={-1}
-                    aria-label="Show categories"
-                    onClick={() => {
-                      const input = categoryInput.current;
-                      if (!input) return;
-                      input.focus();
-                      try {
-                        input.showPicker();
-                      } catch {
-                        // Browsers without showPicker for datalists still list them on typing.
-                      }
-                    }}
+                    className="button"
+                    onClick={() => fileInput.current?.click()}
                   >
-                    <ChevronDown aria-hidden="true" />
+                    <Upload aria-hidden="true" />
+                    Upload
                   </button>
-                </span>
-                <datalist id={categoryListId}>
-                  {categories.map((item) => (
-                    <option key={item.id} value={item.name} />
-                  ))}
-                </datalist>
-              </label>
+                  <button
+                    type="button"
+                    className="button"
+                    data-variant="ghost"
+                    disabled={preview === null}
+                    onClick={() => setIcon({ kind: "none" })}
+                  >
+                    <ImageOff aria-hidden="true" />
+                    Remove
+                  </button>
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept="image/png,image/svg+xml,image/jpeg,image/gif,image/webp,image/x-icon,.ico"
+                    hidden
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) setIcon({ kind: "file", file, preview: URL.createObjectURL(file) });
+                      event.target.value = "";
+                    }}
+                  />
+                </div>
+                <div className="icon-search">
+                  <Search aria-hidden="true" />
+                  <input
+                    className="input"
+                    type="search"
+                    aria-label="Search the icon libraries"
+                    placeholder="Search icons"
+                    value={iconQuery ?? name}
+                    onChange={(event) => setIconQuery(event.target.value)}
+                  />
+                  {search.loading && <LoaderCircle className="spinner" aria-hidden="true" />}
+                </div>
+                {search.failed ? (
+                  <p className="field-hint">The icon libraries can't be reached right now.</p>
+                ) : (
+                  search.matches.length > 0 && (
+                    <ul className="icon-results" data-stale={search.loading || undefined}>
+                      {search.matches.map((match) => (
+                        <li key={match.id}>
+                          <IconOption
+                            match={match}
+                            selected={icon.kind === "library" && icon.match.id === match.id}
+                            onSelect={() => setIcon({ kind: "library", match })}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                )}
+              </fieldset>
             </div>
-
-            <fieldset className="field icon-field">
-              <legend className="field-label">Icon</legend>
-              <div className="icon-current">
-                <LinkIcon src={preview} large />
-                <button type="button" className="button" onClick={() => fileInput.current?.click()}>
-                  <Upload aria-hidden="true" />
-                  Upload
-                </button>
-                <button
-                  type="button"
-                  className="button"
-                  data-variant="ghost"
-                  disabled={preview === null}
-                  onClick={() => setIcon({ kind: "none" })}
-                >
-                  <ImageOff aria-hidden="true" />
-                  Remove
-                </button>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="image/png,image/svg+xml,image/jpeg,image/gif,image/webp,image/x-icon,.ico"
-                  hidden
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) setIcon({ kind: "file", file, preview: URL.createObjectURL(file) });
-                    event.target.value = "";
-                  }}
-                />
-              </div>
-              <div className="icon-search">
-                <Search aria-hidden="true" />
-                <input
-                  className="input"
-                  type="search"
-                  aria-label="Search the icon libraries"
-                  placeholder="Search icons"
-                  value={iconQuery ?? name}
-                  onChange={(event) => setIconQuery(event.target.value)}
-                />
-                {search.loading && <LoaderCircle className="spinner" aria-hidden="true" />}
-              </div>
-              {search.failed ? (
-                <p className="field-hint">The icon libraries can't be reached right now.</p>
-              ) : (
-                search.matches.length > 0 && (
-                  <ul className="icon-results" data-stale={search.loading || undefined}>
-                    {search.matches.map((match) => (
-                      <li key={match.id}>
-                        <IconOption
-                          match={match}
-                          selected={icon.kind === "library" && icon.match.id === match.id}
-                          onSelect={() => setIcon({ kind: "library", match })}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )
-              )}
-            </fieldset>
-
-            <label className="switch-field">
-              <input
-                type="checkbox"
-                role="switch"
-                className="switch"
-                checked={newTab}
-                onChange={(event) => setNewTab(event.target.checked)}
-              />
-              Open in a new tab
-            </label>
 
             {error && (
               <p className="form-error" role="alert">
