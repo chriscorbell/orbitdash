@@ -1,9 +1,8 @@
-coverage
 data
 dist
-dist-server
+.e2e-data
 node_modules
-public
-*.log
-bun.lock
+playwright-report
+test-results
+pnpm-lock.yaml
 .claude

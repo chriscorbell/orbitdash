@@ -54,7 +54,7 @@ export function measureIconTone(src: string): Promise<IconTone> {
 
   // The pixel analysis runs after first paint, so it loads then.
   const measured = Promise.all([
-    import("@/lib/icon-tone-analysis"),
+    import("./icon-tone-analysis.ts"),
     new Promise<HTMLImageElement | null>((resolve) => {
       const image = new Image();
       image.decoding = "async";

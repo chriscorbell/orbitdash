@@ -1,4 +1,4 @@
-import type { IconTone } from "@/lib/icon-tone";
+import type { IconTone } from "./icon-tone.ts";
 
 const SAMPLE_SIZE = 32;
 

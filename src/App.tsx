@@ -1,359 +1,193 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchSystemInfo } from "@/lib/api/system";
-import { Footer } from "@/components/Footer";
-import { AppHeader } from "@/components/header/AppHeader";
-import { ServicesSection } from "@/components/ServicesSection";
-import type { PaletteContext } from "@/components/palette/palette-actions";
-import {
-  loadCommandPalette,
-  loadSettingsPage,
-  loadStatsPage,
-  loadWidgets,
-  preloadCommandPalette,
-} from "@/components/settings/settings-preload";
-import { StatsStrip } from "@/components/stats/StatsStrip";
-import { Wallpaper } from "@/components/Wallpaper";
-import { Button } from "@/components/ui/button";
-import { LazyToaster } from "@/components/ui/lazy-toaster";
-import { useCategories } from "@/hooks/useCategories";
-import { useDashboardSettings } from "@/hooks/useDashboardSettings";
-import { useLiveQueries } from "@/hooks/useLiveQueries";
-import { usePaletteShortcuts } from "@/hooks/usePaletteShortcuts";
-import { useServices } from "@/hooks/useServices";
-import { uniqueCategoryName } from "@/lib/board-groups";
-import { resolveLinkTarget } from "@/lib/link-target";
-import { useAppliedAppearance } from "@/lib/theme";
-import { navigate, usePathname } from "@/lib/router";
-import { toastError } from "@/lib/toast";
-import { cn } from "@/lib/utils";
-import { OPEN_AUTH_SESSION, type AuthSession } from "@shared/auth";
-import type { DashboardAppearanceSettings } from "@shared/dashboard-settings";
+import { Check, FolderPlus, Pencil, Plus, X } from "lucide-react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import type { Category, Layout, Link } from "../shared/types.ts";
+import { api, ApiError } from "./api.ts";
+import { Board } from "./components/Board.tsx";
+import { applyLayout, layoutOf, moveCategory, sameLayout } from "./lib/board.ts";
+import { useBoard } from "./useBoard.ts";
 
-const StatsPage = lazy(() => loadStatsPage().then((module) => ({ default: module.StatsPage })));
-
-const CommandPalette = lazy(() =>
-  loadCommandPalette().then((module) => ({ default: module.CommandPalette }))
+// Edit mode and the dialogs load on first use, so the startpage itself stays small.
+const EditBoard = lazy(() => import("./components/EditBoard.tsx"));
+const LinkDialog = lazy(() =>
+  import("./components/LinkDialog.tsx").then((module) => ({ default: module.LinkDialog }))
 );
-
-// Only editors on hosts with Docker load the discovery banner.
-const DiscoveryBanner = lazy(() =>
-  import("@/components/discovery/DiscoveryBanner").then((module) => ({
-    default: module.DiscoveryBanner,
+const CategoryNameDialog = lazy(() =>
+  import("./components/CategoryDialogs.tsx").then((module) => ({
+    default: module.CategoryNameDialog,
+  }))
+);
+const DeleteCategoryDialog = lazy(() =>
+  import("./components/CategoryDialogs.tsx").then((module) => ({
+    default: module.DeleteCategoryDialog,
   }))
 );
 
-// Integration figures for cards load after the first paint.
-const IntegrationLayer = lazy(() =>
-  import("@/components/integrations/IntegrationLayer").then((module) => ({
-    default: module.IntegrationLayer,
-  }))
-);
+type DialogState =
+  | { kind: "link"; link: Link | null; category?: string }
+  | { kind: "category"; category: Category | null }
+  | { kind: "delete-category"; category: Category };
 
-// Widgets load only once one is turned on.
-const WidgetRow = lazy(() => loadWidgets().then((module) => ({ default: module.WidgetRow })));
-const HeaderWidgets = lazy(() =>
-  loadWidgets().then((module) => ({ default: module.HeaderWidgets }))
-);
+export function App() {
+  const { board, error, setBoard, reload } = useBoard();
+  const [editing, setEditing] = useState(false);
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-const SettingsPage = lazy(() =>
-  loadSettingsPage().then((module) => ({ default: module.SettingsPage }))
-);
-
-interface AppProps {
-  /** What this browser may do; without auth everyone can edit. */
-  auth?: AuthSession;
-  /** Opens the sign-in screen from the read-only (guest) dashboard. */
-  onSignIn?: () => void;
-  onSignOut?: () => void;
-}
-
-function App({ auth = OPEN_AUTH_SESSION, onSignIn, onSignOut }: AppProps) {
-  useLiveQueries();
-  const { canEdit } = auth;
-  const {
-    services,
-    loading: servicesLoading,
-    error: servicesError,
-    create,
-    update,
-    duplicate,
-    remove,
-    restore,
-    move,
-    reload,
-  } = useServices();
-  const categories = useCategories();
-  // Shared with the header and the stats strip; says whether Docker is set up.
-  const { data: system } = useQuery({
-    queryKey: ["system"],
-    queryFn: fetchSystemInfo,
-    staleTime: 10 * 60_000,
-  });
-  const {
-    error: settingsError,
-    scope: settingsScope,
-    settings,
-    setScope: setSettingsScope,
-    updateAppearance,
-    updateLayout,
-    updateSearch,
-    updateWidgets,
-  } = useDashboardSettings();
-  // Settings can preview appearance (wallpaper sliders) live before saving it.
-  const [appearancePreview, setAppearancePreview] =
-    useState<Partial<DashboardAppearanceSettings> | null>(null);
-  const appearance = useMemo(
-    () => ({ ...settings.appearance, ...appearancePreview }),
-    [appearancePreview, settings.appearance]
-  );
-  useAppliedAppearance(appearance);
-  const { density, linkPreference, mode, statsPosition, showServices, showStats, showStatsPage } =
-    settings.layout;
-  const linkTarget = resolveLinkTarget(linkPreference, window.location.hostname);
-  const { widgets } = settings;
-  const rowWidgets =
-    widgets.placement === "row" && (widgets.clock || widgets.weather || widgets.agenda);
-  const headerWidgets = widgets.placement === "header" && (widgets.weather || widgets.agenda);
-  const pathname = usePathname();
-  // Guests can't change settings, so /settings shows them the dashboard.
-  const page =
-    canEdit && (pathname === "/settings" || pathname.startsWith("/settings/"))
-      ? "settings"
-      : showStatsPage && pathname === "/stats"
-        ? "stats"
-        : "services";
-  // The page checks it against its sections, keeping their list out of the first paint.
-  const settingsSection = pathname.split("/")[2] || null;
-
-  // Mounted on first use and kept; the query is what was typed before it opened.
-  const [palette, setPalette] = useState({ mounted: false, open: false, query: "" });
-  const openPalette = (query = "") => setPalette({ mounted: true, open: true, query });
-  const [addOpen, setAddOpen] = useState(false);
-  const [editingState, setEditing] = useState(false);
-  // Edit mode ends by itself if the session does (for example, signed out in another tab).
-  const editing = editingState && canEdit;
-  // The category whose name is being edited in place, e.g. one just created.
-  const [renamingKey, setRenamingKey] = useState<string | null>(null);
-  const openSettingsAt = (section: "widgets" | null) =>
-    navigate(section ? `/settings/${section}` : "/settings");
-  const openSettings = () => openSettingsAt(null);
-
-  const startEditing = () => {
-    navigate("/");
-    setEditing(true);
-  };
-
-  const stopEditing = () => {
-    setEditing(false);
-    setRenamingKey(null);
-  };
-
-  const addCategory = () => {
-    categories.create(uniqueCategoryName(categories.categories)).then(
-      (category) => setRenamingKey(category.id),
-      (createError) => toastError(createError, "Couldn't create the category")
-    );
-  };
-
-  usePaletteShortcuts(openPalette, { typeToSearch: !editing });
-
-  // The palette is small; load it once the page is idle so the first keystroke opens it at once.
   useEffect(() => {
-    const timer = setTimeout(preloadCommandPalette, 2000);
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 6000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [notice]);
 
-  const paletteContext: PaletteContext = {
-    canEdit,
-    page,
-    showServices,
-    showStatsPage,
-    theme: appearance.theme,
-    onAddService: () => {
-      navigate("/");
-      setAddOpen(true);
-    },
-    onEditLayout: startEditing,
-    onNavigate: navigate,
-    onOpenSettings: openSettings,
-    onThemeChange: (theme) => updateAppearance({ theme }),
-  };
+  async function arrange(layout: Layout | null) {
+    if (!board || !layout || sameLayout(layout, layoutOf(board))) return;
+    setBoard(applyLayout(board, layout));
+    try {
+      setBoard(await api.arrange(layout));
+    } catch (caught) {
+      setNotice(caught instanceof ApiError ? caught.message : "The new order couldn't be saved.");
+      void reload();
+    }
+  }
 
-  const stats = showStats ? <StatsStrip linkToStats={showStatsPage} /> : null;
+  function startAdding() {
+    setEditing(true);
+    setDialog({ kind: "link", link: null });
+  }
+
+  const closeDialog = () => setDialog(null);
+  const isEmpty = board !== null && board.links.length === 0 && board.categories.length === 0;
 
   return (
-    <div className={cn("flex min-h-svh flex-col", !appearance.wallpaper && "bg-background")}>
-      <Wallpaper
-        wallpaper={appearance.wallpaper}
-        wallpaperBlur={appearance.wallpaperBlur}
-        wallpaperDim={appearance.wallpaperDim}
-      />
-      <AppHeader
-        title={appearance.title}
-        page={page}
-        showStatsPage={showStatsPage}
-        editing={editing}
-        canEdit={canEdit}
-        canEditLayout={showServices}
-        onAddService={() => setAddOpen(true)}
-        onDoneEditing={stopEditing}
-        onEditLayout={startEditing}
-        onNewCategory={addCategory}
-        onOpenSettings={openSettings}
-        onSignIn={auth.mode === "password" ? onSignIn : undefined}
-        onOpenPalette={() => openPalette()}
-        onPreloadPalette={preloadCommandPalette}
-        clockFormat={widgets.clockFormat}
-        widgets={
-          headerWidgets ? (
-            <Suspense fallback={null}>
-              <HeaderWidgets widgets={widgets} />
-            </Suspense>
-          ) : null
-        }
-      />
-      {page === "settings" ? (
-        <main
-          key="settings"
-          className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6"
-        >
-          <Suspense
-            fallback={
-              <div
-                role="status"
-                className="h-96 animate-pulse rounded-xl bg-muted/50 motion-reduce:animate-none"
+    <div className="page">
+      <header className="topbar">
+        <span className="brand">
+          <img src="/orbitdash.svg" alt="" width={20} height={22} />
+          orbitdash
+        </span>
+        {board && !isEmpty && (
+          <div className="toolbar" key={editing ? "editing" : "viewing"}>
+            {editing ? (
+              <>
+                <button
+                  type="button"
+                  className="button"
+                  aria-label="Add a link"
+                  onClick={() => setDialog({ kind: "link", link: null })}
+                >
+                  <Plus aria-hidden="true" />
+                  <span className="label">Link</span>
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  aria-label="Add a category"
+                  onClick={() => setDialog({ kind: "category", category: null })}
+                >
+                  <FolderPlus aria-hidden="true" />
+                  <span className="label">Category</span>
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  data-variant="primary"
+                  onClick={() => setEditing(false)}
+                >
+                  <Check aria-hidden="true" />
+                  Done
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="button"
+                data-variant="ghost"
+                data-icon-only=""
+                aria-label="Edit the board"
+                title="Edit the board"
+                onClick={() => setEditing(true)}
               >
-                <span className="sr-only">Loading settings</span>
-              </div>
-            }
+                <Pencil aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
+      </header>
+
+      {notice && (
+        <div className="notice" role="status">
+          <span>{notice}</span>
+          <button
+            type="button"
+            className="button"
+            data-variant="ghost"
+            data-icon-only=""
+            aria-label="Dismiss"
+            onClick={() => setNotice(null)}
           >
-            <SettingsPage
-              section={settingsSection}
-              account={
-                auth.mode === "none" ? undefined : { mode: auth.mode, user: auth.user, onSignOut }
-              }
-              appearance={appearance}
-              density={density}
-              linkPreference={linkPreference}
-              mode={mode}
-              statsPosition={statsPosition}
-              settingsError={settingsError}
-              settingsScope={settingsScope}
-              showServicesSection={showServices}
-              showStatsSection={showStats}
-              onAppearanceChange={updateAppearance}
-              onAppearancePreview={setAppearancePreview}
-              onDensityChange={(value) => updateLayout({ density: value })}
-              onEditLayout={startEditing}
-              onLinkPreferenceChange={(value) => updateLayout({ linkPreference: value })}
-              search={settings.search}
-              onSearchChange={updateSearch}
-              widgets={widgets}
-              onWidgetsChange={updateWidgets}
-              onModeChange={(value) => updateLayout({ mode: value })}
-              onStatsPositionChange={(position) => updateLayout({ statsPosition: position })}
-              onSettingsScopeChange={setSettingsScope}
-              onShowServicesSectionChange={(visible) => updateLayout({ showServices: visible })}
-              onShowStatsSectionChange={(visible) => updateLayout({ showStats: visible })}
-              showStatsPage={showStatsPage}
-              onShowStatsPageChange={(visible) => updateLayout({ showStatsPage: visible })}
-            />
-          </Suspense>
-        </main>
-      ) : page === "stats" ? (
-        <main key="stats" className="page-load mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-          <Suspense
-            fallback={
-              <div
-                role="status"
-                className="h-96 animate-pulse rounded-xl bg-muted/50 motion-reduce:animate-none"
-              >
-                <span className="sr-only">Loading stats</span>
-              </div>
-            }
-          >
-            <StatsPage themeKey={`${appearance.theme}-${appearance.accent}`} />
-          </Suspense>
-        </main>
-      ) : (
-        <main
-          key="services"
-          className="page-load mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6"
-        >
-          {rowWidgets && (
-            <Suspense fallback={null}>
-              <WidgetRow widgets={widgets} onOpenSettings={() => openSettingsAt("widgets")} />
-            </Suspense>
-          )}
-          {statsPosition === "top" && stats}
-          {showServices && canEdit && system?.docker && (
-            <Suspense fallback={null}>
-              <DiscoveryBanner
-                categories={categories.categories.map((category) => category.name)}
-                onCreate={create}
-              />
-            </Suspense>
-          )}
-          {showServices && (
-            <ServicesSection
-              services={services}
-              categories={categories}
-              loading={servicesLoading}
-              error={servicesError}
-              density={density}
-              mode={mode}
-              linkTarget={linkTarget}
-              editing={editing}
-              readOnly={!canEdit}
-              renamingKey={renamingKey}
-              addOpen={addOpen}
-              onAddOpenChange={setAddOpen}
-              onRenamingKeyChange={setRenamingKey}
-              onRetry={reload}
-              onCreate={create}
-              onUpdate={update}
-              onDelete={remove}
-              onRestore={restore}
-              onDuplicate={duplicate}
-              onMove={move}
-            />
-          )}
-          {statsPosition === "bottom" && stats}
-          {!showServices && !showStats && !rowWidgets && (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
-              <p className="text-sm font-medium">Nothing is shown right now</p>
-              {canEdit && (
-                <Button variant="outline" size="sm" onClick={openSettings}>
-                  Open settings
-                </Button>
-              )}
+            <X aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      <main>
+        {!board ? (
+          error && (
+            <div className="empty">
+              <p>The board couldn't be loaded. {error}</p>
+              <button type="button" className="button" onClick={() => void reload()}>
+                Try again
+              </button>
             </div>
-          )}
-        </main>
-      )}
-      <Footer />
-      {palette.mounted && (
-        <Suspense fallback={null}>
-          <CommandPalette
-            open={palette.open}
-            initialQuery={palette.query}
-            services={services}
-            linkTarget={linkTarget}
-            context={paletteContext}
-            search={settings.search}
-            onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}
+          )
+        ) : isEmpty ? (
+          <div className="empty">
+            <p>No links yet.</p>
+            <button type="button" className="button" data-variant="primary" onClick={startAdding}>
+              <Plus aria-hidden="true" />
+              Add a link
+            </button>
+          </div>
+        ) : editing ? (
+          <Suspense fallback={<Board board={board} />}>
+            <EditBoard
+              board={board}
+              onArrange={(layout) => void arrange(layout)}
+              onMoveCategory={(id, offset) => void arrange(moveCategory(board, id, offset))}
+              onEditLink={(link) => setDialog({ kind: "link", link })}
+              onAddLink={(category) => setDialog({ kind: "link", link: null, category })}
+              onRenameCategory={(category) => setDialog({ kind: "category", category })}
+              onDeleteCategory={(category) => setDialog({ kind: "delete-category", category })}
+            />
+          </Suspense>
+        ) : (
+          <Board board={board} />
+        )}
+      </main>
+
+      <Suspense fallback={null}>
+        {board && dialog?.kind === "link" && (
+          <LinkDialog
+            key={dialog.link?.id ?? "new"}
+            link={dialog.link}
+            category={dialog.category}
+            categories={board.categories}
+            onSaved={setBoard}
+            onClose={closeDialog}
           />
-        </Suspense>
-      )}
-      {services.length > 0 && (
-        <Suspense fallback={null}>
-          <IntegrationLayer />
-        </Suspense>
-      )}
-      <LazyToaster />
+        )}
+        {dialog?.kind === "category" && (
+          <CategoryNameDialog category={dialog.category} onSaved={setBoard} onClose={closeDialog} />
+        )}
+        {board && dialog?.kind === "delete-category" && (
+          <DeleteCategoryDialog
+            category={dialog.category}
+            linkCount={board.links.filter((link) => link.categoryId === dialog.category.id).length}
+            onSaved={setBoard}
+            onClose={closeDialog}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
-
-export default App;

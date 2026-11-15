@@ -1,207 +1,237 @@
+import fs from "node:fs";
+import path from "node:path";
+import type { DatabaseSync } from "node:sqlite";
 import { Hono, type Context } from "hono";
-import path from "path";
-import { requireAuth } from "./auth/http";
-import alertsRouter from "./routes/alerts";
-import authRouter from "./routes/auth";
-import backupRouter from "./routes/backup";
-import categoriesRouter from "./routes/categories";
-import eventsRouter from "./routes/events";
-import metricsRouter from "./routes/metrics";
-import notificationsRouter from "./routes/notifications";
-import iconLibraryRouter from "./routes/icon-library";
-import serviceToolsRouter from "./routes/service-tools";
-import widgetsRouter from "./routes/widgets";
-import importRouter from "./routes/import";
-import settingsRouter from "./routes/settings";
-import statusRouter from "./routes/status";
-import wallpapersRouter from "./routes/wallpapers";
-import servicesRouter from "./routes/services";
-import { jsonError, jsonNotFound } from "./api-response";
-import { configScopeForMutation, ORIGIN_HEADER } from "@shared/events";
-import { isDbHealthy } from "./db";
-import { publish } from "./events";
-import { logOperationalError, recordRequest } from "./observability";
-import { getIconsDir } from "./services/icon-storage";
-import { getSystemInfo } from "./system-info";
-import { dockerMonitor } from "./docker/monitor";
-import dockerRouter from "./routes/docker";
-import integrationsRouter from "./routes/integrations";
-import discoveryRouter from "./routes/discovery";
-import prometheusRouter from "./routes/prometheus";
+import { bodyLimit } from "hono/body-limit";
+import type { Layout } from "../shared/types.ts";
+import {
+  arrange,
+  ConflictError,
+  createCategory,
+  createLink,
+  deleteCategory,
+  deleteLink,
+  getBoard,
+  InputError,
+  type LinkFields,
+  NotFoundError,
+  renameCategory,
+  updateLink,
+} from "./board.ts";
+import type { IconLibrary } from "./icon-library.ts";
+import { ICON_TYPES, type IconStore, MAX_ICON_BYTES } from "./icons.ts";
+import { normalizeLinkUrl } from "./urls.ts";
 
-export const app = new Hono();
+const MAX_NAME_LENGTH = 100;
+const MAX_URL_LENGTH = 2048;
 
-function createHealthPayload(status: "ok" | "error") {
+interface AppOptions {
+  db: DatabaseSync;
+  icons: IconStore;
+  iconLibrary: IconLibrary;
+  /** Downloads icons; tests pass a stub. */
+  fetchIcon?: typeof fetch;
+}
+
+function text(value: unknown, field: string, maxLength: number): string {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (trimmed.length > maxLength) throw new InputError(`The ${field} is too long.`);
+  return trimmed;
+}
+
+function requiredText(value: unknown, field: string, maxLength: number): string {
+  const trimmed = text(value, field, maxLength);
+  if (!trimmed) throw new InputError(`The ${field} is required.`);
+  return trimmed;
+}
+
+function linkFields(form: FormData): LinkFields {
+  const name = requiredText(form.get("name"), "name", MAX_NAME_LENGTH);
+  const url = normalizeLinkUrl(requiredText(form.get("url"), "URL", MAX_URL_LENGTH));
+  if (!url) throw new InputError("The URL must be a web address, like https://example.com.");
   return {
-    status,
-    service: "orbitdash",
-    observedAt: new Date().toISOString(),
-    uptimeSeconds: Math.floor(process.uptime()),
+    name,
+    url,
+    category: text(form.get("category"), "category", MAX_NAME_LENGTH),
+    newTab: form.get("newTab") !== "false",
   };
 }
 
-function respondWithHealth(c: Context, statusCode: 200 | 503, payload: Record<string, unknown>) {
-  c.header("Cache-Control", "no-store, no-cache, must-revalidate");
-  return c.json(payload, statusCode);
+async function readJson(c: Context): Promise<Record<string, unknown>> {
+  try {
+    const body: unknown = await c.req.json();
+    if (typeof body === "object" && body !== null && !Array.isArray(body)) {
+      return body as Record<string, unknown>;
+    }
+  } catch {
+    // Answered below.
+  }
+  throw new InputError("Expected a JSON object.");
 }
 
-app.onError((error, c) => {
-  logOperationalError(error, {
-    method: c.req.method,
-    path: c.req.path,
-  });
-  return jsonError(c, 500, "internal server error");
-});
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
 
-app.notFound((c) => {
-  if (c.req.path.startsWith("/api/")) {
-    return jsonNotFound(c);
+function parseLayout(body: Record<string, unknown>): Layout {
+  const { ungrouped, categories } = body;
+  if (
+    isStringList(ungrouped) &&
+    Array.isArray(categories) &&
+    categories.every(
+      (category: unknown) =>
+        typeof category === "object" &&
+        category !== null &&
+        typeof (category as { id?: unknown }).id === "string" &&
+        isStringList((category as { links?: unknown }).links)
+    )
+  ) {
+    return { ungrouped, categories: categories as Layout["categories"] };
   }
-
-  return c.text("Not found", 404);
-});
-
-app.use("*", async (c, next) => {
-  const start = Date.now();
-
-  try {
-    await next();
-    recordRequest(c.req.method, c.req.path, c.res.status, Date.now() - start);
-  } catch (error) {
-    recordRequest(c.req.method, c.req.path, 500, Date.now() - start);
-    throw error;
-  }
-});
+  throw new InputError("Expected { ungrouped, categories }.");
+}
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-// Browsers can submit multipart forms cross-origin without CORS, and with auth off the API is
-// open, so reject browser-issued mutations coming from another site (sign-in included).
-// Requests without browser headers (curl, scripts) pass.
-app.use("/api/*", async (c, next) => {
-  if (SAFE_METHODS.has(c.req.method)) {
-    return next();
+export function createApp({ db, icons, iconLibrary, fetchIcon = fetch }: AppOptions) {
+  const app = new Hono();
+
+  /**
+   * The icon a link form asks for: a new upload, a URL to download, removal (null), or undefined
+   * to keep what the link has.
+   */
+  async function iconFromForm(form: FormData, linkId: string): Promise<string | null | undefined> {
+    const file = form.get("iconFile");
+    if (file instanceof File && file.size > 0) return icons.saveUpload(linkId, file);
+    const url = form.get("iconUrl");
+    if (typeof url === "string" && url.trim()) return icons.saveFromUrl(linkId, url, fetchIcon);
+    if (form.get("removeIcon") === "true") return null;
+    return undefined;
   }
 
-  const secFetchSite = c.req.header("sec-fetch-site");
-  if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
-    return jsonError(c, 403, "cross-site requests are not allowed");
-  }
+  app.onError((error, c) => {
+    if (error instanceof InputError) return c.json({ error: error.message }, 400);
+    if (error instanceof NotFoundError) return c.json({ error: error.message }, 404);
+    if (error instanceof ConflictError) return c.json({ error: error.message }, 409);
+    console.error(`${c.req.method} ${c.req.path} failed:`, error);
+    return c.json({ error: "Something went wrong on the server." }, 500);
+  });
 
-  const origin = c.req.header("origin");
-  if (origin) {
+  // There's no sign-in, so refuse writes a browser sends on behalf of another site. Requests
+  // without browser headers (curl, scripts) pass.
+  app.use("/api/*", async (c, next) => {
+    if (SAFE_METHODS.has(c.req.method)) return next();
+    const site = c.req.header("sec-fetch-site");
+    const origin = c.req.header("origin");
     let originHost: string | null;
     try {
-      originHost = new URL(origin).host;
+      originHost = origin ? new URL(origin).host : null;
     } catch {
-      originHost = null;
+      originHost = "invalid";
     }
-
-    if (originHost === null || originHost !== c.req.header("host")) {
-      return jsonError(c, 403, "cross-site requests are not allowed");
+    if (
+      (site && site !== "same-origin" && site !== "none") ||
+      (origin && originHost !== c.req.header("host"))
+    ) {
+      return c.json({ error: "Cross-site requests are not allowed." }, 403);
     }
-  }
-
-  return next();
-});
-
-// With ORBITDASH_AUTH set, every /api route except health and auth needs a session or proxy user
-// (or, for reads with guest access, nothing). See server/auth/http.ts.
-app.use("/api/*", requireAuth);
-
-// Tell every connected client when shared data changes, so other devices refresh without a
-// reload. Runs after the handler, and only for successful mutations.
-app.use("/api/*", async (c, next) => {
-  await next();
-
-  if (SAFE_METHODS.has(c.req.method) || c.res.status >= 400) {
-    return;
-  }
-
-  const scope = configScopeForMutation(c.req.path);
-  if (scope) {
-    publish({ type: "config.changed", scope, origin: c.req.header(ORIGIN_HEADER) ?? null });
-  }
-});
-
-app.get("/healthz", (c) => {
-  return respondWithHealth(c, 200, createHealthPayload("ok"));
-});
-
-app.get("/readyz", (c) => {
-  const databaseHealthy = isDbHealthy();
-
-  return respondWithHealth(c, databaseHealthy ? 200 : 503, {
-    ...createHealthPayload(databaseHealthy ? "ok" : "error"),
-    checks: {
-      database: databaseHealthy ? "ok" : "error",
-    },
+    return next();
   });
-});
 
-app.route("/api/alerts", alertsRouter);
-app.route("/api/auth", authRouter);
-app.route("/api/backup", backupRouter);
-app.route("/api/categories", categoriesRouter);
-app.route("/api/docker", dockerRouter);
-app.route("/api/integrations", integrationsRouter);
-app.route("/api/discovery", discoveryRouter);
-app.route("/api/events", eventsRouter);
-app.route("/api/icon-library", iconLibraryRouter);
-app.route("/api/service-tools", serviceToolsRouter);
-app.route("/api/widgets", widgetsRouter);
-app.route("/api/import", importRouter);
-app.route("/api/metrics", metricsRouter);
-app.route("/api/notifications", notificationsRouter);
-app.route("/api/settings", settingsRouter);
-app.route("/api/services", servicesRouter);
-app.route("/api/status", statusRouter);
-app.route("/api/wallpapers", wallpapersRouter);
+  app.get("/healthz", (c) => c.json({ status: "ok" }));
 
-app.get("/api/health", (c) => {
-  const databaseHealthy = isDbHealthy();
-
-  return respondWithHealth(c, databaseHealthy ? 200 : 503, {
-    ...createHealthPayload(databaseHealthy ? "ok" : "error"),
-    checks: {
-      database: databaseHealthy ? "ok" : "error",
-    },
+  app.get("/readyz", (c) => {
+    try {
+      db.prepare("SELECT 1").get();
+      return c.json({ status: "ok" });
+    } catch {
+      return c.json({ status: "error" }, 503);
+    }
   });
-});
 
-// Outside /api: scrapers bring a bearer token instead of a session (see routes/prometheus.ts).
-app.route("/metrics", prometheusRouter);
+  app.get("/api/board", (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json(getBoard(db));
+  });
 
-app.get("/api/system", (c) => {
-  c.header("Cache-Control", "no-store");
-  return c.json({ ...getSystemInfo(), docker: dockerMonitor.snapshot().available });
-});
+  const formLimit = bodyLimit({
+    maxSize: MAX_ICON_BYTES + 64 * 1024,
+    onError: (c) => c.json({ error: "That icon is larger than 2 MB." }, 413),
+  });
 
-app.get("/api/icons/:filename", async (c) => {
-  const safeName = path.basename(c.req.param("filename"));
-  const file = Bun.file(path.join(getIconsDir(), safeName));
+  app.post("/api/links", formLimit, async (c) => {
+    const form = await c.req.formData();
+    const fields = linkFields(form);
+    const id = crypto.randomUUID();
+    const icon = (await iconFromForm(form, id)) ?? null;
+    try {
+      return c.json(createLink(db, id, fields, icon), 201);
+    } catch (error) {
+      icons.remove(icon);
+      throw error;
+    }
+  });
 
-  if (!(await file.exists())) {
-    return jsonNotFound(c);
-  }
+  app.patch("/api/links/:id", formLimit, async (c) => {
+    const id = c.req.param("id");
+    const form = await c.req.formData();
+    const fields = linkFields(form);
+    const icon = await iconFromForm(form, id);
+    try {
+      const { board, replacedIcon } = updateLink(db, id, fields, icon);
+      icons.remove(replacedIcon);
+      return c.json(board);
+    } catch (error) {
+      if (icon) icons.remove(icon);
+      throw error;
+    }
+  });
 
-  const ext = path.extname(safeName).toLowerCase();
-  const mimeTypes: Record<string, string> = {
-    ".png": "image/png",
-    ".svg": "image/svg+xml",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".webp": "image/webp",
-    ".ico": "image/x-icon",
-  };
+  app.delete("/api/links/:id", (c) => {
+    const { board, icon } = deleteLink(db, c.req.param("id"));
+    icons.remove(icon);
+    return c.json(board);
+  });
 
-  return new Response(file, {
-    headers: {
-      "Content-Type": mimeTypes[ext] || "application/octet-stream",
-      "Cache-Control": "public, max-age=3600",
-      // Neutralizes scripts in user-supplied SVGs opened directly
+  app.post("/api/categories", async (c) => {
+    const body = await readJson(c);
+    return c.json(createCategory(db, requiredText(body.name, "name", MAX_NAME_LENGTH)), 201);
+  });
+
+  app.patch("/api/categories/:id", async (c) => {
+    const body = await readJson(c);
+    const name = requiredText(body.name, "name", MAX_NAME_LENGTH);
+    return c.json(renameCategory(db, c.req.param("id"), name));
+  });
+
+  app.delete("/api/categories/:id", (c) => c.json(deleteCategory(db, c.req.param("id"))));
+
+  app.put("/api/layout", async (c) => c.json(arrange(db, parseLayout(await readJson(c)))));
+
+  app.get("/api/icons/:name", (c) => {
+    const file = icons.resolve(c.req.param("name"));
+    if (!file) return c.json({ error: "No such icon." }, 404);
+    return c.body(fs.readFileSync(file), 200, {
+      "Content-Type": ICON_TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream",
+      // Icon files are never rewritten; a new icon gets a new name.
+      "Cache-Control": "public, max-age=31536000, immutable",
+      // Scripts in an uploaded SVG must not run if someone opens the file directly.
       "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
-    },
+      "X-Content-Type-Options": "nosniff",
+    });
   });
-});
+
+  app.get("/api/icon-library", async (c) => {
+    const query = c.req.query("q") ?? "";
+    try {
+      const { entries } = await iconLibrary.search(query, 24);
+      return c.json(entries);
+    } catch {
+      return c.json({ error: "The icon libraries can't be reached right now." }, 503);
+    }
+  });
+
+  app.all("/api/*", (c) => c.json({ error: "Not found." }, 404));
+
+  return app;
+}

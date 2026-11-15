@@ -1,31 +1,19 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-    "target": "ES2023",
-    "lib": ["ES2023"],
-    "module": "ESNext",
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "types": ["node"],
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": false,
     "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
+    "erasableSyntaxOnly": true,
     "noEmit": true,
-
-    /* Linting */
+    "skipLibCheck": true,
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUnusedParameters": true
   },
-  "include": [
-    "vite.config.ts",
-    "playwright.config.ts",
-    "e2e/**/*.ts",
-    "scripts/vite-service-worker.ts"
-  ]
+  "include": ["server", "shared", "e2e", "vite.config.ts", "playwright.config.ts"]
 }
