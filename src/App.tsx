@@ -6,8 +6,10 @@ import { Board } from "./components/Board.tsx";
 import { applyLayout, layoutOf, moveCategory, sameLayout } from "./lib/board.ts";
 import { useBoard } from "./useBoard.ts";
 
-// Edit mode and the dialogs load on first use, so the startpage itself stays small.
-const EditBoard = lazy(() => import("./components/EditBoard.tsx"));
+// Edit mode and the dialogs load on first use, so the startpage itself stays small. Edit mode
+// starts loading when the pointer or focus reaches its button, so the click rarely waits.
+const loadEditBoard = () => import("./components/EditBoard.tsx");
+const EditBoard = lazy(loadEditBoard);
 const LinkDialog = lazy(() =>
   import("./components/LinkDialog.tsx").then((module) => ({ default: module.LinkDialog }))
 );
@@ -29,8 +31,15 @@ type DialogState =
 
 export function App() {
   const { board, error, setBoard, reload } = useBoard();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditingState] = useState(false);
+  // True until the first mode switch; the board's entrance animation only plays while it is.
+  const [intro, setIntro] = useState(true);
   const [dialog, setDialog] = useState<DialogState | null>(null);
+
+  function setEditing(next: boolean) {
+    setIntro(false);
+    setEditingState(next);
+  }
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,6 +114,8 @@ export function App() {
                 data-icon-only=""
                 aria-label="Edit the board"
                 title="Edit the board"
+                onPointerEnter={() => void loadEditBoard()}
+                onFocus={() => void loadEditBoard()}
                 onClick={() => setEditing(true)}
               >
                 <Pencil aria-hidden="true" />
@@ -130,7 +141,7 @@ export function App() {
         </div>
       )}
 
-      <main>
+      <main data-intro={intro || undefined}>
         {!board ? (
           error && (
             <div className="empty">

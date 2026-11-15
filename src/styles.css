@@ -223,8 +223,13 @@ svg.lucide {
 .category {
   display: grid;
   gap: 8px;
-  animation: rise 520ms var(--ease-out) both;
   animation-delay: calc(min(var(--i, 0), 10) * 45ms);
+}
+
+/* The board rises in once per page load. Switching modes remounts it, which must not replay this. */
+main[data-intro] .category,
+main[data-intro] .link-grid {
+  animation: rise 520ms var(--ease-out) both;
 }
 
 .category-header {
@@ -278,10 +283,6 @@ svg.lucide {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
   gap: 6px;
-}
-
-.link-grid {
-  animation: rise 520ms var(--ease-out) both;
 }
 
 /* Cards */
@@ -369,10 +370,6 @@ a.link-card:active {
 }
 
 /* Edit mode */
-
-.board[data-editing] .category {
-  animation: none;
-}
 
 .link-card[data-editing] {
   cursor: grab;
