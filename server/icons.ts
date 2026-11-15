@@ -29,15 +29,34 @@ export function detectIconExt(buffer: Buffer): string | null {
   }
   if (buffer.subarray(0, 4).equals(Buffer.from([0, 0, 1, 0]))) return ".ico";
 
-  const text = buffer
-    .subarray(0, 512)
-    .toString("utf8")
-    .replace(/^\uFEFF/, "")
-    .trimStart();
-  if (/^(<\?xml[\s\S]*?)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE[^>]*>\s*)?<svg[\s>]/i.test(text)) {
-    return ".svg";
+  return startsWithSvgTag(buffer.subarray(0, 512).toString("utf8")) ? ".svg" : null;
+}
+
+/**
+ * Whether the text opens an `<svg>` element after an optional XML declaration, comments and
+ * doctype. Skips each part with indexOf instead of one regex, which could backtrack
+ * exponentially on a run of comments.
+ */
+function startsWithSvgTag(text: string): boolean {
+  let rest = text.replace(/^\uFEFF/, "").trimStart();
+  const skipPast = (end: string) => {
+    const at = rest.indexOf(end);
+    if (at < 0) return false;
+    rest = rest.slice(at + end.length).trimStart();
+    return true;
+  };
+
+  if (rest.startsWith("<?xml") && !skipPast("?>")) return false;
+  for (;;) {
+    if (rest.startsWith("<!--")) {
+      rest = rest.slice(4);
+      if (!skipPast("-->")) return false;
+    } else if (/^<!DOCTYPE/i.test(rest)) {
+      if (!skipPast(">")) return false;
+    } else {
+      return /^<svg[\s>]/i.test(rest);
+    }
   }
-  return null;
 }
 
 export function createIconStore(dir: string) {
