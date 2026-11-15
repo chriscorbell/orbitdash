@@ -1,26 +1,25 @@
 :root {
   color-scheme: dark;
 
-  --bg: oklch(0.15 0.006 265);
-  --panel: oklch(0.187 0.007 265);
-  --panel-edge: oklch(1 0 0 / 5.5%);
-  --raised: oklch(0.212 0.008 265);
-  --field: oklch(0.137 0.006 265);
-  --hover: oklch(1 0 0 / 5.5%);
-  --press: oklch(1 0 0 / 8%);
-  --text: oklch(0.94 0.004 265);
-  --text-soft: oklch(0.87 0.006 265);
-  --text-muted: oklch(0.71 0.01 265);
-  --text-faint: oklch(0.56 0.012 265);
-  --border: oklch(1 0 0 / 8%);
-  --border-strong: oklch(1 0 0 / 14%);
-  --accent: oklch(0.94 0.004 265);
-  --accent-hover: oklch(0.86 0.006 265);
-  --accent-text: oklch(0.17 0.008 265);
-  --danger: oklch(0.58 0.19 25);
-  --danger-hover: oklch(0.63 0.19 25);
-  --danger-text: oklch(0.76 0.13 25);
-  --ring: oklch(0.82 0.01 265 / 65%);
+  /* shadcn/ui's default theme (Neutral base color), dark values; orbitdash is dark only. */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
 
   /* Nested corners stay concentric: a row's radius is its panel's minus the panel's padding. */
   --radius-panel: 14px;
@@ -33,14 +32,12 @@
   --control-padding: 13px;
 
   --shadow-pop:
-    inset 0 1px 0 oklch(1 0 0 / 5%), 0 0 0 1px oklch(1 0 0 / 8%),
-    0 24px 48px -12px oklch(0 0 0 / 65%);
+    inset 0 1px 0 oklch(1 0 0 / 5%), 0 0 0 1px var(--border), 0 24px 48px -12px oklch(0 0 0 / 65%);
   /* Dialogs sit on a dimmed backdrop, so their shadow is softer and wider than a menu's. */
   --shadow-dialog:
-    inset 0 1px 0 oklch(1 0 0 / 5%), 0 0 0 1px oklch(1 0 0 / 8%),
-    0 32px 64px -24px oklch(0 0 0 / 45%);
+    inset 0 1px 0 oklch(1 0 0 / 5%), 0 0 0 1px var(--border), 0 32px 64px -24px oklch(0 0 0 / 45%);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --font: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 *,
@@ -55,9 +52,9 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 400 14px/1.45 var(--font);
+  background: var(--background);
+  color: var(--foreground);
+  font: 400 14px/1.45 var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -87,7 +84,7 @@ input {
 }
 
 ::selection {
-  background: oklch(0.92 0.005 265 / 25%);
+  background: color-mix(in oklch, var(--foreground) 25%, transparent);
 }
 
 :focus-visible {
@@ -141,9 +138,9 @@ svg.lucide {
   margin-bottom: 20px;
   padding: 6px 6px 6px 14px;
   border-radius: var(--radius-control);
-  background: oklch(0.58 0.19 25 / 12%);
-  box-shadow: inset 0 0 0 1px oklch(0.58 0.19 25 / 35%);
-  color: var(--danger-text);
+  background: color-mix(in oklch, var(--destructive) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--destructive) 35%, transparent);
+  color: var(--destructive);
   animation: rise 260ms var(--ease-out);
 }
 
@@ -163,9 +160,9 @@ svg.lucide {
   height: 52px;
   margin-bottom: 4px;
   border-radius: var(--radius-panel);
-  background: var(--panel);
-  box-shadow: inset 0 0 0 1px var(--panel-edge);
-  color: var(--text-muted);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--muted-foreground);
 }
 
 .empty-icon svg.lucide {
@@ -176,7 +173,7 @@ svg.lucide {
 .empty-title {
   font-size: 16px;
   font-weight: 500;
-  color: var(--text-soft);
+  color: var(--card-foreground);
 }
 
 .empty .button {
@@ -194,8 +191,8 @@ svg.lucide {
   padding: 0 var(--control-padding);
   border: 0;
   border-radius: var(--radius-control);
-  background: oklch(1 0 0 / 6%);
-  box-shadow: inset 0 0 0 1px var(--border);
+  background: color-mix(in oklch, var(--input) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--input);
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
@@ -208,7 +205,7 @@ svg.lucide {
 }
 
 .button:hover:not(:disabled) {
-  background: oklch(1 0 0 / 9.5%);
+  background: color-mix(in oklch, var(--input) 50%, transparent);
 }
 
 .button:active:not(:disabled) {
@@ -221,43 +218,43 @@ svg.lucide {
 }
 
 .button[data-variant="primary"] {
-  background: var(--accent);
+  background: var(--primary);
   box-shadow: none;
-  color: var(--accent-text);
+  color: var(--primary-foreground);
 }
 
 .button[data-variant="primary"]:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: color-mix(in oklch, var(--primary) 90%, transparent);
 }
 
 .button[data-variant="ghost"] {
   background: transparent;
   box-shadow: none;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 .button[data-variant="ghost"]:hover:not(:disabled) {
-  background: var(--hover);
-  color: var(--text);
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 .button[data-variant="danger"] {
-  background: var(--danger);
+  background: color-mix(in oklch, var(--destructive) 60%, transparent);
   box-shadow: none;
-  color: oklch(0.99 0 0);
+  color: var(--foreground);
 }
 
 .button[data-variant="danger"]:hover:not(:disabled) {
-  background: var(--danger-hover);
+  background: color-mix(in oklch, var(--destructive) 70%, transparent);
 }
 
 .button[data-variant="ghost"][data-danger] {
-  color: var(--danger-text);
+  color: var(--destructive);
 }
 
 .button[data-variant="ghost"][data-danger]:hover:not(:disabled) {
-  background: oklch(0.58 0.19 25 / 14%);
-  color: var(--danger-text);
+  background: color-mix(in oklch, var(--destructive) 14%, transparent);
+  color: var(--destructive);
 }
 
 .button[data-icon-only] {
@@ -317,7 +314,7 @@ main[data-intro] .link-grid {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: oklch(0.64 0.01 265);
+  color: var(--muted-foreground);
   text-overflow: ellipsis;
   /* Uppercase has no descenders, so this centres the caps on the buttons beside them. */
   padding-top: 1px;
@@ -333,7 +330,7 @@ main[data-intro] .link-grid {
 .category-actions .button {
   width: 28px;
   height: 28px;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 /* A category's links share one panel; each link is a row inside it. */
@@ -343,9 +340,9 @@ main[data-intro] .link-grid {
   gap: 1px;
   padding: var(--panel-padding);
   border-radius: var(--radius-panel);
-  background: var(--panel);
+  background: var(--card);
   box-shadow:
-    inset 0 0 0 1px var(--panel-edge),
+    inset 0 0 0 1px var(--border),
     0 1px 2px oklch(0 0 0 / 20%);
 }
 
@@ -363,7 +360,7 @@ main[data-intro] .link-grid {
   height: 40px;
   padding: 0 10px;
   border-radius: var(--radius-row);
-  color: var(--text-soft);
+  color: var(--card-foreground);
   text-decoration: none;
   transition:
     background-color 160ms ease,
@@ -372,12 +369,12 @@ main[data-intro] .link-grid {
 }
 
 a.link-card:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 a.link-card:active {
-  background: var(--press);
+  background: color-mix(in oklch, var(--accent), var(--foreground) 8%);
   scale: 0.985;
 }
 
@@ -397,7 +394,7 @@ a.link-card:focus-visible {
 }
 
 .link-go {
-  color: var(--text-faint);
+  color: var(--muted-foreground);
   opacity: 0;
   translate: -3px 3px;
   transition:
@@ -425,7 +422,7 @@ a.link-card:focus-visible .link-go {
   height: 22px;
   overflow: hidden;
   border-radius: 6px;
-  color: var(--text-faint);
+  color: var(--muted-foreground);
 }
 
 .link-icon img {
@@ -449,7 +446,7 @@ a.link-card:focus-visible .link-go {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-panel);
-  background: var(--field);
+  background: color-mix(in oklch, var(--input) 30%, transparent);
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
@@ -477,8 +474,8 @@ a.link-card:focus-visible .link-go {
 }
 
 .sortable > div:hover .link-card {
-  background: var(--hover);
-  color: var(--text);
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 .sortable[data-dragging] {
@@ -487,14 +484,14 @@ a.link-card:focus-visible .link-go {
 
 .link-card[data-overlay] {
   cursor: grabbing;
-  background: var(--raised);
+  background: var(--popover);
   box-shadow: var(--shadow-pop);
-  color: var(--text);
+  color: var(--foreground);
   scale: 1.02;
 }
 
 .link-card .grip {
-  color: var(--text-faint);
+  color: var(--muted-foreground);
 }
 
 [data-drop-target] {
@@ -508,13 +505,13 @@ a.link-card:focus-visible .link-go {
 [data-drop-target][data-empty] {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--border);
-  outline: 1px dashed var(--border-strong);
+  outline: 1px dashed var(--input);
   outline-offset: -6px;
 }
 
 [data-drop-target][data-over] {
   box-shadow:
-    inset 0 0 0 1px oklch(1 0 0 / 22%),
+    inset 0 0 0 1px var(--ring),
     0 1px 2px oklch(0 0 0 / 20%);
 }
 
@@ -529,9 +526,9 @@ a.link-card:focus-visible .link-go {
   border: 0;
   /* Opens inset in a panel, so its corner nests inside the panel's. */
   border-radius: var(--radius-row);
-  background: var(--raised);
+  background: var(--popover);
   box-shadow: var(--shadow-pop);
-  color: var(--text);
+  color: var(--foreground);
 }
 
 .menu:popover-open {
@@ -550,19 +547,19 @@ a.link-card:focus-visible .link-go {
   background: transparent;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-soft);
+  color: var(--card-foreground);
   text-align: left;
   cursor: pointer;
 }
 
 .menu-item svg.lucide {
-  color: var(--text-faint);
+  color: var(--muted-foreground);
 }
 
 .menu-item:hover:not(:disabled),
 .menu-item:focus-visible {
-  background: var(--hover);
-  color: var(--text);
+  background: var(--accent);
+  color: var(--foreground);
   outline: none;
 }
 
@@ -573,12 +570,12 @@ a.link-card:focus-visible .link-go {
 
 .menu-item[data-danger],
 .menu-item[data-danger] svg.lucide {
-  color: var(--danger-text);
+  color: var(--destructive);
 }
 
 .menu-item[data-danger]:hover,
 .menu-item[data-danger]:focus-visible {
-  background: oklch(0.58 0.19 25 / 14%);
+  background: color-mix(in oklch, var(--destructive) 14%, transparent);
 }
 
 .menu-separator {
@@ -595,8 +592,8 @@ a.link-card:focus-visible .link-go {
   padding: 0;
   border: 0;
   border-radius: var(--radius-dialog);
-  background: var(--raised);
-  color: var(--text);
+  background: var(--popover);
+  color: var(--foreground);
   box-shadow: var(--shadow-dialog);
   animation: dialog-in 240ms var(--ease-out);
 }
@@ -613,7 +610,7 @@ a.link-card:focus-visible .link-go {
 }
 
 .dialog::backdrop {
-  background: oklch(0.08 0.01 265 / 76%);
+  background: oklch(0 0 0 / 76%);
   backdrop-filter: blur(4px);
   animation: fade-in 240ms ease;
 }
@@ -649,7 +646,7 @@ a.link-card:focus-visible .link-go {
   margin: -4px -24px;
   padding: 4px 24px;
   overflow-y: auto;
-  scrollbar-color: oklch(1 0 0 / 15%) transparent;
+  scrollbar-color: var(--input) transparent;
   scrollbar-width: thin;
 }
 
@@ -666,7 +663,7 @@ a.link-card:focus-visible .link-go {
 
 .dialog-text {
   margin-top: -10px;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 .dialog-footer {
@@ -704,12 +701,12 @@ a.link-card:focus-visible .link-go {
   padding: 0;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 .field-hint {
   font-size: 13px;
-  color: var(--text-faint);
+  color: var(--muted-foreground);
 }
 
 .input {
@@ -718,23 +715,23 @@ a.link-card:focus-visible .link-go {
   padding: 0 12px;
   border: 0;
   border-radius: var(--radius-control);
-  background: var(--field);
+  background: color-mix(in oklch, var(--input) 30%, transparent);
   box-shadow: inset 0 0 0 1px var(--border);
   transition: box-shadow 150ms ease;
 }
 
 .input:hover {
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--input);
 }
 
 .input::placeholder {
-  color: var(--text-faint);
+  color: var(--muted-foreground);
 }
 
 .input:focus {
   box-shadow:
-    inset 0 0 0 1px oklch(1 0 0 / 30%),
-    0 0 0 3px oklch(1 0 0 / 7%);
+    inset 0 0 0 1px var(--ring),
+    0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
   outline: none;
 }
 
@@ -748,7 +745,7 @@ a.link-card:focus-visible .link-go {
   gap: 10px;
   justify-self: start;
   font-size: 13px;
-  color: var(--text-soft);
+  color: var(--card-foreground);
   cursor: pointer;
 }
 
@@ -759,7 +756,7 @@ a.link-card:focus-visible .link-go {
   height: 18px;
   margin: 0;
   border-radius: 999px;
-  background: oklch(1 0 0 / 14%);
+  background: color-mix(in oklch, var(--input) 80%, transparent);
   appearance: none;
   cursor: pointer;
   transition: background-color 180ms ease;
@@ -773,7 +770,7 @@ a.link-card:focus-visible .link-go {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--text);
+  background: var(--foreground);
   box-shadow: 0 1px 2px oklch(0 0 0 / 35%);
   transition:
     translate 200ms var(--ease-out),
@@ -781,16 +778,16 @@ a.link-card:focus-visible .link-go {
 }
 
 .switch:checked {
-  background: var(--accent);
+  background: var(--primary);
 }
 
 .switch:checked::before {
-  background: var(--accent-text);
+  background: var(--primary-foreground);
   translate: 12px 0;
 }
 
 .form-error {
-  color: var(--danger-text);
+  color: var(--destructive);
   animation: rise 220ms var(--ease-out);
 }
 
@@ -826,7 +823,7 @@ a.link-card:focus-visible .link-go {
   top: 50%;
   left: 12px;
   translate: 0 -50%;
-  color: var(--text-faint);
+  color: var(--muted-foreground);
 }
 
 .icon-search .spinner {
@@ -844,7 +841,7 @@ a.link-card:focus-visible .link-go {
   margin: -2px;
   padding: 2px;
   overflow-y: auto;
-  scrollbar-color: oklch(1 0 0 / 15%) transparent;
+  scrollbar-color: var(--input) transparent;
   scrollbar-width: thin;
   transition: opacity 150ms ease;
 }
@@ -862,8 +859,8 @@ a.link-card:focus-visible .link-go {
   border: 0;
   border-radius: var(--radius-control);
   /* Lighter than the fields, so dark artwork stays legible. */
-  background: oklch(0.255 0.007 265);
-  box-shadow: inset 0 0 0 1px var(--panel-edge);
+  background: var(--secondary);
+  box-shadow: inset 0 0 0 1px var(--border);
   cursor: pointer;
   animation: fade-in 200ms ease both;
   transition:
@@ -872,12 +869,12 @@ a.link-card:focus-visible .link-go {
 }
 
 .icon-option:hover {
-  background: oklch(0.29 0.008 265);
+  background: color-mix(in oklch, var(--secondary), var(--foreground) 6%);
 }
 
 .icon-option[aria-pressed="true"] {
-  background: oklch(0.3 0.008 265);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: color-mix(in oklch, var(--secondary), var(--foreground) 8%);
+  box-shadow: inset 0 0 0 2px var(--primary);
 }
 
 .icon-option img {
@@ -915,7 +912,7 @@ a.link-card:focus-visible .link-go {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--muted-foreground);
   translate: 0 -50%;
   cursor: pointer;
   transition:
@@ -924,8 +921,8 @@ a.link-card:focus-visible .link-go {
 }
 
 .picker-toggle:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 /* Motion */
@@ -1104,7 +1101,7 @@ a.link-card:focus-visible .link-go {
 
   /* The bright Done button sits right behind a phone dialog's corner. */
   .dialog::backdrop {
-    background: oklch(0.08 0.01 265 / 92%);
+    background: oklch(0 0 0 / 92%);
     backdrop-filter: none;
   }
 
