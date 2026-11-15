@@ -39,7 +39,7 @@ export function CategoryMenu({ name, first, last, onRename, onMove, onDelete }: 
         ?.getBoundingClientRect();
       const top = panel ? panel.top + INSET : rect.bottom + GAP;
       const right = panel ? panel.right - INSET : rect.right;
-      const width = menu!.offsetWidth || 188;
+      const width = menu!.offsetWidth || 196;
       menu!.style.left = `${Math.max(EDGE, Math.min(right - width, innerWidth - width - EDGE))}px`;
       menu!.style.top = `${top}px`;
     }

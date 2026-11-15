@@ -1,5 +1,5 @@
 import { ChevronDown, ImageOff, LoaderCircle, Search, Upload } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Board, Category, IconMatch, Link } from "../../shared/types.ts";
 import { api, linkIconSrc } from "../api.ts";
 import { Dialog } from "./Dialog.tsx";
@@ -60,6 +60,26 @@ function useIconSearch(query: string) {
   };
 }
 
+/** Whether a scrolling element has more content below what it shows. */
+function useMoreBelow() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+
+  function update() {
+    const element = ref.current;
+    if (element) setMore(element.scrollHeight - element.scrollTop - element.clientHeight > 1);
+  }
+
+  // Content (icon results) changes with renders; size changes with the window.
+  useLayoutEffect(update);
+  useEffect(() => {
+    addEventListener("resize", update);
+    return () => removeEventListener("resize", update);
+  }, []);
+
+  return { ref, more, onScroll: update };
+}
+
 /** One icon library result, drawn the way the board will draw it. */
 function IconOption({
   match,
@@ -101,6 +121,7 @@ export function LinkDialog({ link, category, categories, onSaved, onClose }: Lin
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const categoryInput = useRef<HTMLInputElement>(null);
+  const fields = useMoreBelow();
   const search = useIconSearch(iconQuery ?? name);
 
   useEffect(() => {
@@ -149,7 +170,12 @@ export function LinkDialog({ link, category, categories, onSaved, onClose }: Lin
         return (
           <form onSubmit={submit} className="link-form">
             {/* Scrolls on its own when the dialog is taller than the screen; the footer stays put. */}
-            <div className="dialog-fields">
+            <div
+              ref={fields.ref}
+              className="dialog-fields"
+              data-more={fields.more || undefined}
+              onScroll={fields.onScroll}
+            >
               <label className="field">
                 <span className="field-label">URL</span>
                 <input
