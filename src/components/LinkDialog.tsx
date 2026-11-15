@@ -229,9 +229,11 @@ export function LinkDialog({ link, category, categories, onSaved, onClose }: Lin
               )}
             </fieldset>
 
-            <label className="checkbox">
+            <label className="switch-field">
               <input
                 type="checkbox"
+                role="switch"
+                className="switch"
                 checked={newTab}
                 onChange={(event) => setNewTab(event.target.checked)}
               />

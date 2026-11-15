@@ -1,4 +1,4 @@
-import { Check, FolderPlus, Pencil, Plus, X } from "lucide-react";
+import { Check, FolderPlus, LayoutGrid, Pencil, Plus, X } from "lucide-react";
 import { lazy, startTransition, Suspense, useEffect, useState } from "react";
 import type { Category, Layout, Link } from "../shared/types.ts";
 import { api, ApiError } from "./api.ts";
@@ -160,7 +160,10 @@ export function App() {
             )
           ) : isEmpty ? (
             <div className="empty">
-              <p>No links yet.</p>
+              <span className="empty-icon" aria-hidden="true">
+                <LayoutGrid />
+              </span>
+              <p className="empty-title">No links yet</p>
               <button type="button" className="button" data-variant="primary" onClick={startAdding}>
                 <Plus aria-hidden="true" />
                 Add a link

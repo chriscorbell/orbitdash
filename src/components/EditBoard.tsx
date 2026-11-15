@@ -20,12 +20,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronUp, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useMemo, useRef, useState } from "react";
 import type { Board, Category, Layout, Link } from "../../shared/types.ts";
 import { linkIconSrc } from "../api.ts";
 import { type Containers, groupBoard, toContainers, toLayout, UNGROUPED } from "../lib/board.ts";
 import { estimateCategoryHeight } from "../lib/columns.ts";
+import { CategoryMenu } from "./CategoryMenu.tsx";
 import { CategorySection, Columns } from "./Layout.tsx";
 import { LinkIcon } from "./LinkIcon.tsx";
 
@@ -286,32 +287,14 @@ export default function EditBoard({
                   >
                     <Plus />
                   </IconButton>
-                  <IconButton
-                    label={`Rename ${category.name}`}
-                    onClick={() => onRenameCategory(category)}
-                  >
-                    <Pencil />
-                  </IconButton>
-                  <IconButton
-                    label={`Move ${category.name} earlier`}
-                    disabled={index === 0}
-                    onClick={() => onMoveCategory(category.id, -1)}
-                  >
-                    <ChevronUp />
-                  </IconButton>
-                  <IconButton
-                    label={`Move ${category.name} later`}
-                    disabled={index === groups.length - 1}
-                    onClick={() => onMoveCategory(category.id, 1)}
-                  >
-                    <ChevronDown />
-                  </IconButton>
-                  <IconButton
-                    label={`Delete ${category.name}`}
-                    onClick={() => onDeleteCategory(category)}
-                  >
-                    <Trash2 />
-                  </IconButton>
+                  <CategoryMenu
+                    name={category.name}
+                    first={index === 0}
+                    last={index === groups.length - 1}
+                    onRename={() => onRenameCategory(category)}
+                    onMove={(offset) => onMoveCategory(category.id, offset)}
+                    onDelete={() => onDeleteCategory(category)}
+                  />
                 </div>
               }
             >
